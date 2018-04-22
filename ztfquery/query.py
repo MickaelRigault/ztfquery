@@ -95,51 +95,61 @@ class ZTFQuery():
                 
             self.metaquery = download_metadata(kind=kind, sql_query=sql_query, **kwargs)
 
-    def download_data(self, suffix=None, source=None, which_cal=None):
+
+
+    def get_data_path(self, suffix=None, source=None):
         """ 
         Parameters
         ----------
         
         // if queried metadata is for kind calibration
-
-        which_cal: [str] -optional-
-            bias or hifreqflat
             
         """
         # PIXELS
         if self.datakind in ['sci', "raw"]:
             
-            filtercode,imgtypecode  = np.asarray(self.metatable[["filtercode","imgtypecode"]].values.T, dtype="str")
-            paddedfield      = np.asarray(["%06d"%f for f in self.metatable["field"].values], dtype="str")
-            paddedccdid      = np.asarray(["%02d"%f for f in self.metatable["ccdid"].values], dtype="str")
+            filtercode,imgtypecode  = np.asarray(self.metatable[["filtercode","imgtypecode"]
+                                                                    ].values.T, dtype="str")
+            paddedfield      = np.asarray(["%06d"%f for f in self.metatable["field"].values],
+                                              dtype="str")
+            paddedccdid      = np.asarray(["%02d"%f for f in self.metatable["ccdid"].values],
+                                              dtype="str")
             year, month, day, fracday = np.asarray([[l[:4],l[4:6],l[6:8],l[8:]]
-                                for l in np.asarray(self.metatable["filefracday"].values, dtype="str") ]).T
+                                for l in np.asarray(self.metatable["filefracday"].values,
+                                              dtype="str") ]).T
   
             if self.datakind in ['sci']:
                 qid  = np.asarray(self.metatable["qid"], dtype="str")
                 # LIST of URL to download [SCIENCE]
-                self.to_download_urls =  [buildurl.science_url(year_, month_, day_, fracday_, paddedfield_,
+                return  [buildurl.science_path(year_, month_, day_, fracday_, paddedfield_,
                                 filtercode_, paddedccdid_, qid_,
                                 imgtypecode=imgtypecode_, suffix=suffix, source=source)
                                 
-                            for year_, month_, day_, fracday_, paddedfield_, filtercode_, paddedccdid_, qid_, imgtypecode_
-                            in zip(year, month, day, fracday, paddedfield, filtercode, paddedccdid,
-                                qid, imgtypecode)]
+                            for year_, month_, day_, fracday_, paddedfield_, filtercode_,
+                            paddedccdid_, qid_, imgtypecode_
+                            in zip(year, month, day, fracday, paddedfield, filtercode,
+                                       paddedccdid, qid, imgtypecode)]
             else:
                 # LIST of URL to download [RAW]
-                self.to_download_urls =  [buildurl.raw_url(year_, month_, day_, fracday_, paddedfield_,
+                return  [buildurl.raw_path(year_, month_, day_, fracday_, paddedfield_,
                               filtercode_, paddedccdid_, 
                               imgtypecode=imgtypecode_, source=source)
-                        for year_, month_, day_, fracday_, paddedfield_, filtercode_, paddedccdid_,  imgtypecode_
-                        in zip(year, month, day, fracday, paddedfield, filtercode, paddedccdid, imgtypecode)]
+                        for year_, month_, day_, fracday_, paddedfield_, filtercode_,
+                        paddedccdid_,  imgtypecode_
+                        in zip(year, month, day, fracday, paddedfield, filtercode,
+                                   paddedccdid, imgtypecode)]
         # CALIBRATION
         elif self.datakind in ['cal']:
             year, month, day = np.asarray([[l[:4],l[4:6],l[6:]]
-                                for l in np.asarray(self.metatable["nightdate"].values, dtype="str") ]).T
-            paddedccdid      = np.asarray(["%02d"%f for f in self.metatable["ccdid"].values], dtype="str")
-            filtercode, qid,caltype  = np.asarray(self.metatable[["filtercode","qid","caltype"]].values.T, dtype="str")
+                                for l in np.asarray(self.metatable["nightdate"].values,
+                                                        dtype="str") ]).T
+            paddedccdid      = np.asarray(["%02d"%f for f in self.metatable["ccdid"].values],
+                                              dtype="str")
+            filtercode, qid,caltype  = np.asarray(self.metatable[["filtercode",
+                                                                "qid","caltype"]].values.T,
+                                                      dtype="str")
             # list of url to download [CAL]
-            self.to_download_urls =  [buildurl.calibration_url(caltype_,
+            return  [buildurl.calibration_path(caltype_,
                                                                 year_, month_, day_,
                                                                 filtercode_, paddedccdid_, qid_,
                                                                 suffix=suffix, source=source)
@@ -148,6 +158,47 @@ class ZTFQuery():
         # PIXELS
         elif self.datakind in ['ref']:
             raise NotImplementedError("REFERENCE QUERYING NOT READY YET")
+
+
+    def download_data(self, suffix=None, source="IRSA", dowload_dir=None,
+                     show_progress = True, notebook=False, verbose=True,
+                     nodl = False, **kwargs):
+        """ 
+        Parameters
+        ----------
+        dowload_dir: [string] -optional-
+            Directory where the file should be downloaded.
+            If th
+            
+        """
+        from .tools import download_single_url
+        # Data Structure
+        self._relative_data_path = self.get_data_path(suffix=suffix, source="None", **kwargs)
+        # The IRSA location
+        self.to_download_urls    = [buildurl._source_to_location_(source) + d_
+                                     for d_ in self._relative_data_path]
+        # Where do you want them?
+        if dowload_dir is None: # Local IRSA structure
+            self.download_location   = [buildurl._source_to_location_("local") + d_
+                                        for d_ in self._relative_data_path]
+            mkdir = True
+        else:
+            self.download_location   = [dowload_dir + "/%s%"%d_.split("/")[-1]
+                                        for d_ in self._relative_data_path]
+            mkdir = False
+
+        if nodl:
+            return self.to_download_urls, self.download_location
+            
+        for url, fileout in zip(self.to_download_urls, self.download_location):
+            if verbose: print(url)
+            download_single_url(url,fileout=fileout, show_progress=show_progress,
+                                    notebook=notebook, mkdir=mkdir)
+            
+    
+    def dump_data():
+        """ """
+        
         
     # =============== #
     #  Properties     #

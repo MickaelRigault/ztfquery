@@ -10,8 +10,8 @@ MAINTAINER = 'Mickael Rigault'
 MAINTAINER_EMAIL = 'm.rigault@ipnl.in2p3.fr'
 URL = 'https://github.com/MickaelRigault/ztfquery'
 LICENSE = 'BSD (3-clause)'
-DOWNLOAD_URL = 'https://github.com/MickaelRigault/ztfquery/tarball/0.1'
-VERSION = '0.1.0'
+DOWNLOAD_URL = 'https://github.com/MickaelRigault/ztfquery/tarball/0.2'
+VERSION = '0.2.0'
 
 try:
     from setuptools import setup, find_packages
@@ -21,7 +21,7 @@ except ImportError:
 
 def check_dependencies():
    install_requires = []
-s
+
    # Just make sure dependencies exist, I haven't rigorously
    # tested what the minimal versions that will work are
    # (help on that would be awesome)

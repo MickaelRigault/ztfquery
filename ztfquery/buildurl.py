@@ -5,6 +5,7 @@
 """ Library to convert 'meta' information into URL assuming: 
 https://irsa.ipac.caltech.edu/docs/program_interface/ztf_metadata.html
 """
+import os
 
 # ========================== #
 #                            #
@@ -24,19 +25,45 @@ KNOWN_SCIENCE_SUFFIXES = {    "sciimg.fits":"(primary science image)",
                       "diffimlog.txt":"(log output from image subtraction and extraction pipeline)",
                       "log.txt":"(overall system summary log from realtime pipeline)"}
 
+# SOURCES 
 DATA_BASEURL   = "https://irsa.ipac.caltech.edu/ibe/data/ztf/products/"
+LOCALSOURCE    = os.getenv("ZTFDATA","./Data/")
 DEFAULT_SOURCE = DATA_BASEURL
+
+
 # ================== #
 #  Building the URL  #
 # ================== #
+def _source_to_location_(source):
+    """ convert flexible source naming into actual source path """
+    if source is None: source = "irsa"
+    source = source.lower()
+
+    if source in ["none"]:
+        return ""
+    
+    if source in [DATA_BASEURL, LOCALSOURCE]:
+        return source
+    
+    if source in ['irsa', 'ipac', "web", "online", "ztf"]:
+        return DEFAULT_SOURCE
+        
+    if source in ["local", "cmp", "computer"]:
+        return LOCALSOURCE
+    
+    if source in ['nersc']:
+        raise ValueError("NERCS sourcing not ready yet.")
+    
+    raise ValueError("Cannot parse the given source %s"%source)
+    
 # ------------- #
 #  Sci & Raw    #
 # ------------- #
-def science_url(year, month, day, fracday,
+def science_path(year, month, day, fracday,
                 paddedfield,
                 filtercode, paddedccdid, qid,
                 imgtypecode="o", suffix="sciimg.fits",
-                source=DATA_BASEURL, verbose=False):
+                source="", verbose=False):
     """ 
     suffix: [string]
         What kind of data do you want?
@@ -63,7 +90,7 @@ def science_url(year, month, day, fracday,
     
     """
     if verbose: print(locals())
-    if source is None: source = DEFAULT_SOURCE
+    source = _source_to_location_(source)
     if suffix is None:
         suffix="sciimg.fits"
     elif suffix not in KNOWN_SCIENCE_SUFFIXES.keys():
@@ -72,10 +99,10 @@ def science_url(year, month, day, fracday,
     filefracday = "".join([year+month+day+fracday])
     return source+'sci/'+year+'/'+month+day+'/'+fracday+'/ztf_'+filefracday+'_'+paddedfield+'_'+filtercode+'_c'+paddedccdid+'_'+imgtypecode+'_q'+qid+'_'+suffix
     
-def raw_url(year, month, day, fracday,
+def raw_path(year, month, day, fracday,
             paddedfield,
             filtercode, paddedccdid, imgtypecode="o",
-            source=DATA_BASEURL):
+            source=""):
     """ 
 
     Parameters
@@ -93,18 +120,18 @@ def raw_url(year, month, day, fracday,
         - d = dark calibration image
         - f = dome/screen flatfield calibration image
     """
-    if source is None: source = DEFAULT_SOURCE
+    source = _source_to_location_(source)
     filefracday = "".join([year+month+day+fracday])
     return source+'raw/'+year+'/'+month+day+'/'+fracday+'/ztf_'+filefracday+'_'+paddedfield+'_'+filtercode+'_c'+paddedccdid+'_'+imgtypecode+'.fits.fz'
 
 # ------------- #
 #  Calibration  #
 # ------------- #
-def calibration_url(caltype,
+def calibration_path(caltype,
                     year, month, day,
                     filtercode,
                     paddedccdid, qid, suffix=None,
-                    source=DATA_BASEURL):
+                    source=""):
     """ 
     Parameters:
     -----------
@@ -129,7 +156,7 @@ def calibration_url(caltype,
     # ================ #
     #  INPUT TESTING   #
     # ================ #
-    if source is None: source = DEFAULT_SOURCE
+    source = _source_to_location_(source)
     caltype = caltype.lower() # case insensitive
     if caltype.lower() not in ["bias", "hifreqflat"]:
         raise ValueError("Unknown `caltype` %s"%caltype+" caltype must be  'bias' or 'hifreqflat'")
@@ -153,11 +180,11 @@ def calibration_url(caltype,
 # ------------- #
 #  References   #
 # ------------- #
-def reference_url(fieldprefix, paddedfield,
+def reference_path(fieldprefix, paddedfield,
                   filtercode,
                   paddedccdid, qid,
                   suffix="refimg.fits",
-                  source=DATA_BASEURL):
+                  source=""):
     """   
 
     filtercode: [2 digit string]
@@ -180,7 +207,7 @@ def reference_url(fieldprefix, paddedfield,
         - refunc.fits
 
     """
-    if source is None: source = DEFAULT_SOURCE
+    source = _source_to_location_(source)
     return source+'ref/'+fieldprefix+'/field'+paddedfield+'/'+filtercode+'/ccd'+paddedccdid+'/q'+qid+'/ztf_'+paddedfield+'_'+filtercode+'_c'+paddedccdid+'_q'+qid+'_%s'%suffix
 
 

@@ -59,6 +59,46 @@ def get_cookie(username, password):
     url = "%s?josso_cmd=login&josso_username=%s&josso_password=%s" % (LOGIN_URL, username, password)
     return requests.get(url).cookies
 
+
+def download_single_url(url, fileout=None, mkdir=True,
+                        show_progress=True, notebook=False, chunk=1024):
+    """ Download the url target using requests.get.
+    the data is returned (if fileout is None) or stored in `fileout`
+    Pa
+    """
+    # = Where should the data be saved?
+    if fileout is not None:
+        directory = os.path.dirname(fileout)
+        if not os.path.exists(directory):
+            if not mkdir:
+                raise IOError("%s does not exists and mkdir option set to False"%directory)
+            os.makedirs(directory)
+
+    else:
+        return requests.get(url, stream=False, cookies = get_cookie(*decrypt()) )
+    
+    # With Progress bar?
+    if not show_progress:
+        response = requests.get(url, stream=True, cookies = get_cookie(*decrypt()) )
+        if response.status_code == 200:
+            with open(fileout, 'wb') as f:
+                for data in response.iter_content(chunk):
+                    f.write(data)
+    
+    else:
+        from astropy.utils.console import ProgressBar
+        response = requests.get(url, stream=True, cookies = get_cookie(*decrypt()) )
+        if response.status_code == 200:
+            chunk_barstep = 500
+            f = open(fileout, 'wb')
+            with ProgressBar(int(response.headers.get('content-length'))/(chunk_barstep*chunk),
+                             ipython_widget=notebook) as bar:
+                for i,data in enumerate(response.iter_content(chunk_size=chunk)):
+                    if i%chunk_barstep==0:
+                        bar.update()
+                    f.write(data)
+            f.close()
+
 def load_file(url, localdir = "/tmp", username=None, chunks=1024, outf=None,
                   showpbar=False):
     """Load a file from the specified URL and save it locally.
