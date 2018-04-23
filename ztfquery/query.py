@@ -160,13 +160,13 @@ class ZTFQuery():
             raise NotImplementedError("REFERENCE QUERYING NOT READY YET")
 
 
-    def download_data(self, suffix=None, source="IRSA", dowload_dir=None,
+    def download_data(self, suffix=None, source="IRSA", download_dir=None,
                      show_progress = True, notebook=False, verbose=True,
                      nodl = False, **kwargs):
         """ 
         Parameters
         ----------
-        dowload_dir: [string] -optional-
+        download_dir: [string] -optional-
             Directory where the file should be downloaded.
             If th
             
@@ -178,12 +178,12 @@ class ZTFQuery():
         self.to_download_urls    = [buildurl._source_to_location_(source) + d_
                                      for d_ in self._relative_data_path]
         # Where do you want them?
-        if dowload_dir is None: # Local IRSA structure
+        if download_dir is None: # Local IRSA structure
             self.download_location   = [buildurl._source_to_location_("local") + d_
                                         for d_ in self._relative_data_path]
             mkdir = True
         else:
-            self.download_location   = [dowload_dir + "/%s%"%d_.split("/")[-1]
+            self.download_location   = [download_dir + "/%s%"%d_.split("/")[-1]
                                         for d_ in self._relative_data_path]
             mkdir = False
 

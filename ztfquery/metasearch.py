@@ -143,6 +143,7 @@ def build_query( kind="sci", radec=None, size=None, mcen=None,
     posquery   = [position_query(radec[0],radec[1], size=size, mcen=mcen)] if radec is not None else []
 
     colquery   = [columns_query(colnames)]
+    if sql_query is None: sql_query=""
     wherequery = [where_query(sql_query.replace(" ","+"))]
     
     query_ = "&".join([l for l in posquery+colquery+wherequery if len(l)>1])
