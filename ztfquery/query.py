@@ -183,7 +183,7 @@ class ZTFQuery():
                                         for d_ in self._relative_data_path]
             mkdir = True
         else:
-            self.download_location   = [download_dir + "/%s%"%d_.split("/")[-1]
+            self.download_location   = [download_dir + "/%s%"%(d_.split("/")[-1])
                                         for d_ in self._relative_data_path]
             mkdir = False
 
@@ -194,10 +194,6 @@ class ZTFQuery():
             if verbose: print(url)
             download_single_url(url,fileout=fileout, show_progress=show_progress,
                                     notebook=notebook, mkdir=mkdir)
-            
-    
-    def dump_data():
-        """ """
         
         
     # =============== #
