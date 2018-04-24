@@ -10,7 +10,7 @@ import base64
 from Crypto.Cipher import DES
 _SOURCE = open(os.path.dirname(os.path.realpath(__file__))+"/data/.source").read()
 # base64.b64decode( )
-_ENCRYPTING_FILE = "/Users/mrigault/.queryirsa"
+_ENCRYPTING_FILE = os.path.expanduser("~")+"/.queryirsa"
 
 MDATADIR   = os.getenv('ZTFDATA',"./Data/")
 # ================= #
