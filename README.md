@@ -23,7 +23,7 @@ You may also want to create the global variable `$ZTFDATA`. Data you will dump f
 
 # Example
 
-Check the notebooks/Connect.ipynb. 
+Check `notebooks/Connect.ipynb`  
 
 More details coming soon.
 
