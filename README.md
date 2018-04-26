@@ -21,7 +21,11 @@ The login and password will be stored crypted under ~/.queryirsa. Remove this fi
 
 You may also want to create the global variable `$ZTFDATA`. Data you will dump from IRSA will be saved in the same structure as in  IRSA using the directory pointed by `$ZTFDATA` as reference.
 
+# Example
 
+Check the notebooks/Connect.ipynb. 
+
+More details coming soon.
 
 
 # IRSA Web IPA
