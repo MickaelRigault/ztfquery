@@ -2,6 +2,7 @@
 #
 
 import os
+import sys
 import requests
 
 LOGIN_URL = "https://irsa.ipac.caltech.edu/account/signon/login.do"
@@ -32,7 +33,8 @@ def encrypt():
     import getpass
     des = DES.new(  base64.b64decode( _SOURCE ), DES.MODE_ECB)
     fileout = open(_ENCRYPTING_FILE, "wb")
-    fileout.write(des.encrypt(pad(input('Enter your IRSA login: '))))
+    login = input('Enter your IRSA login: ') if sys.version_info > (3,0) else raw_input('Enter your IRSA login: ')
+    fileout.write(des.encrypt(pad( login )) )
     fileout.write(b"\n")
     fileout.write(des.encrypt(pad(getpass.getpass())))
     fileout.close()
