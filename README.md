@@ -5,7 +5,7 @@ Python wrapper of ZTF IRSA web IPA
 
 go wherever you want to save the folder and then
 ```
-git clone 
+git clone https://github.com/MickaelRigault/ztfquery.git
 python setup.py install
 ```
 Then you will need to setup your login and password information:
