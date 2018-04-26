@@ -28,6 +28,15 @@ Check `notebooks/Connect.ipynb`
 More details coming soon.
 
 
+# Access the original `queryIRSA`
+
+The original `queryIRSA.py` code should still be working. It is actually is independent of the rest code and mighht eventually be removed. 
+
+To import `queryIRSA` in your code (for backward compatibility):
+```
+from ztfquery import queryIRSA
+```
+
 # IRSA Web IPA
 
 ## MetaData
