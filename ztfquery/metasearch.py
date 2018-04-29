@@ -40,7 +40,54 @@ QUERIABLE_FIELD ={"sci":['ra', 'dec', 'infobits',
                             'cid', 'nightdate', 'startobsdate', 'endobsdate', 'nid', 'nframes',
                             'ipac_pub_date', 'meta_id', 'obsdate_range']
                     }
-                            
+
+# INFORMATION
+SCIENCE_FIELDS = """
+ra	Right ascension of image center	deg	pos.eq.ra		double	0	0
+dec	Declination of image center	deg	pos.eq.dec		double	0	0
+infobits	Info bit flags				int	0	0
+field	ZTF field number				int	0	1
+ccdid	CCD number (1..16)				int	0	0
+qid	Quadrant ID (1..4)				int	0	0
+rcid	Readout-channel ID (0..63)				int	0	0
+fid	Filter ID				int	0	0
+filtercode	Filter code (abbreviated name)				char	0	0
+pid	Science product ID				long	0	1
+nid	Day/night ID				int	0	1
+expid	Exposure ID				int	0	1
+itid	Image type ID				int	0	0
+imgtype	Image type name				char	0	0
+imgtypecode	Single letter image type code				char	0	0
+obsdate	Observation UT date/time				char	0	1
+obsjd	Observation Julian day	d			double	0	1
+exptime	Exposure time	s			double	0	0
+filefracday	Integer (YYYYMMDDdddddd) used in product file names				long	0	0
+seeing	Seeing FWHM	arcsec			double	0	0
+airmass	Telescope airmass				double	0	0
+moonillf	Moon illuminated fraction				double	0	0
+moonesb	Moon excess in sky brightness				double	0	0
+maglimit	Magnitude limit	mag			double	0	0
+crpix1	Reference pixel value for axis 1	pix			double	0	0
+crpix2	Reference pixel value for axis 2	pix			double	0	0
+crval1	Reference position right ascension at crpix1,crpix2	deg			double	0	0
+crval2	Reference position declination at crpix1,crpix2	deg			double	0	0
+cd11	CD matrix element 1,1	deg/pix			double	0	0
+cd12	CD matrix element 1,2	deg/pix			double	0	0
+cd21	CD matrix element 2,1	deg/pix			double	0	0
+cd22	CD matrix element 2,2	deg/pix			double	0	0
+ra1	Right ascension of first image corner	deg	pos.eq.ra		double	0	0
+dec1	Declination of first image corner	deg	pos.eq.dec		double	0	0
+ra2	Right ascension of second image corner	deg	pos.eq.ra		double	0	0
+dec2	Declination of second image corner	deg	pos.eq.dec		double	0	0
+ra3	Right ascension of third image corner	deg	pos.eq.ra		double	0	0
+dec3	Declination of third image corner	deg	pos.eq.dec		double	0	0
+ra4	Right ascension of fourth image corner	deg	pos.eq.ra		double	0	0
+dec4	Declination of fourth image corner	deg	pos.eq.dec		double	0	0
+ipac_pub_date	UT date/time of raw product release				char	0	0
+ipac_gid	IPAC Group ID				int	0	0
+meta_id	Metadata record ID				long	0	1
+poly	Bounding polygon
+"""
 ############################
 #                          #
 #   Meta API Object        #
@@ -85,7 +132,7 @@ class MetaQuery():
                           sql_query=sql_query, colnames=colnames, ct="csv", **kwargs)
 
         self.metatable = read_csv( io.StringIO(
-            requests.get( self.query_url,cookies=get_cookie(*decrypt() ) ).content.decode('utf-8')
+            requests.get( self.query_url, cookies=get_cookie(*decrypt() ) ).content.decode('utf-8')
             ))
         
     def build_query(self, kind="sci", radec=None, size=None, mcen=None,

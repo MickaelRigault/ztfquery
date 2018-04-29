@@ -9,7 +9,8 @@ LOGIN_URL = "https://irsa.ipac.caltech.edu/account/signon/login.do"
 
 import base64
 from Crypto.Cipher import DES
-_SOURCE = open(os.path.dirname(os.path.realpath(__file__))+"/data/.source").read()
+_SOURCE = open(os.path.dirname(os.path.realpath(__file__))+"/data/source").read()
+
 # base64.b64decode( )
 _ENCRYPTING_FILE = os.path.expanduser("~")+"/.queryirsa"
 
@@ -17,6 +18,8 @@ MDATADIR   = os.getenv('ZTFDATA',"./Data/")
 # ================= #
 #  Crypting         #
 # ================= #
+
+#http://www.astro.caltech.edu/~tb/ztfops/sky/
 
 def pad(text):
     """ good length password """

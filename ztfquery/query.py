@@ -8,6 +8,11 @@ from .metasearch import download_metadata, _test_kind_
 from . import buildurl
 import warnings
 
+#############################
+#                           #
+#   Main Query Tools        #
+#                           #
+#############################
 class ZTFQuery():
     """ """
     def load_metadata(self, kind="sci",
@@ -213,3 +218,73 @@ class ZTFQuery():
             raise AttributeError("metaquery has not been loaded. Run load_metadata(). ")
         return self.metaquery.metatable
         
+#############################
+#                           #
+#  Addition Queries         #
+#                           #
+#############################
+_NIGHT_SUMMARY_URL = "http://www.astro.caltech.edu/~tb/ztfops/sky/"
+def download_night_summary(night):
+    """ 
+    Parameters
+    ----------
+    night: [string]
+        Format: YYYYMMDD like for instance 20180429
+    """
+    import requests
+    from pandas import DataFrame
+
+    summary = requests.get(_NIGHT_SUMMARY_URL+"%s/exp.%s.tbl"%(night,night)).content.decode('utf-8').splitlines()
+    columns = [l.replace(" ","") for l in summary[0].split('|') if len(l)>0]
+    data    = [l.split() for l in summary[1:] if not l.startswith('|')]
+    return DataFrame(data=data, columns=columns)
+
+
+class NightSummary():
+    """ """
+    def __init__(self, night):
+        """ """
+        self.night = night
+        self.data  = download_night_summary(night)
+
+    # ================ #
+    #  Methods         #
+    # ================ #
+    def get_observed_information(self, obstype="targ", columns=["field","ra","dec"]):
+        """ get a DataFrame (pandas) of the requested columns for the given obstype. 
+
+        Parameters
+        ----------
+        obstype: [string]
+            Type of observation. 
+            Could be: 'bias', 'dark', 'flat', or 'targ'
+            
+        columns: [string or list of]
+            Any field available in data (check the list by doing THIS.data.columns)
+
+        Returns
+        -------
+        DataFrame
+        """
+        return self.data[self.data['type']==obstype][columns]
+    
+    def get_observed_field(self, obstype="targ", dtype="int"):
+        """ get the list of field observed as `obstype` type.
+
+        Parameters
+        ----------
+        obstype: [string]
+            Type of observation. 
+            Could be: 'bias', 'dark', 'flat', or 'targ'
+            
+        dtype: [string]
+            Type of format (dtype) or the returned array. 
+            If None, the format will be unchanged. 
+            astype 'int' is suggested for the usual obstype='targ' requests.
+            
+        Returns
+        -------
+        numpy array
+        """
+        return np.asarray(self.get_observed_information(obstype, columns=["field"]), dtype=dtype).flatten()
+
