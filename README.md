@@ -1,3 +1,5 @@
+_alpha version: documentation and functionality improving continuously_
+
 # ztfquery
 Python wrapper of ZTF IRSA web IPA
 
