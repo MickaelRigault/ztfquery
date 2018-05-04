@@ -279,12 +279,20 @@ def where_query(generic_sql=None):
     else:
         return "WHERE=%s"%generic_sql.replace('"','%27')
     
-def get_queriable_field(kind="sci", fulltable=False):
+def get_queriable_field(kind="sci", openurl=False, fulltable=False):
     """ """
     _test_kind_(kind)
+    if openurl: fulltable = True
+    
     columns = "column_name,description,unit,ucd,utype,datatype,principal,indexed" if fulltable else "column_name"
-    r = requests.get("https://irsa.ipac.caltech.edu/TAP/sync?query=select+"+columns+
-                         "+from+TAP_SCHEMA.columns++where+table_name=%27ztf.ztf_current_meta_"+kind+"%27+order+by+column_index&format=csv")
-    data = r.content.decode("utf-8").splitlines()
-    if not fulltable: return data[1:]
-    return data
+    url = "https://irsa.ipac.caltech.edu/TAP/sync?query=select+"+columns+ \
+      "+from+TAP_SCHEMA.columns++where+table_name=%27ztf.ztf_current_meta_"+kind+"%27+order+by+column_index&format=csv"
+      
+    if openurl:
+        import webbrowser
+        webbrowser.open_new_tab( url.replace("format=csv","format=html") )
+    else:
+        r = requests.get( url )
+        data = r.content.decode("utf-8").splitlines()
+        if not fulltable: return data[1:]
+        return data
