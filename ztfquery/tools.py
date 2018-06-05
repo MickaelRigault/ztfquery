@@ -36,7 +36,7 @@ def encrypt():
     import getpass
     des = DES.new(  base64.b64decode( _SOURCE ), DES.MODE_ECB)
     fileout = open(_ENCRYPTING_FILE, "wb")
-    login = input('Enter your IRSA login (within quotes "your_login"): ') if sys.version_info > (3,0) else raw_input('Enter your IRSA login: ')
+    login = input('Enter your IRSA login (if python 2.X within quotes "your_login", if 3.X try without first): ') if sys.version_info > (3,0) else raw_input('Enter your IRSA login: ')
     fileout.write(des.encrypt(pad( login )))
     fileout.write(b"\n")
     fileout.write(des.encrypt(pad(getpass.getpass())))
@@ -45,8 +45,12 @@ def encrypt():
 def decrypt():
     """ """
     des = DES.new(  base64.b64decode( _SOURCE ), DES.MODE_ECB)
-    return [des.decrypt(l).decode("utf-8").replace(" ","").replace('"',"").replace("'","" )
+    try:
+        return [des.decrypt(l).decode("utf-8").replace(" ","").replace('"',"").replace("'","" )
                 for l in open(_ENCRYPTING_FILE, "rb").read().splitlines()]
+    except:
+        raise IOError("decrypt() Failed. Try to run ztfquery.tools.encrypt() without (or with) quotes on you loggin ; the opposite of what you did.")
+    
 
 # ================= #
 #   Logging Tools   #
