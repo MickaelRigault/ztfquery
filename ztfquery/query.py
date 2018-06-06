@@ -19,22 +19,33 @@ class _ZTFTableHandler_( object ):
     # -------------- #
     #  FIELDS        #
     # -------------- #
-    def get_observed_fields(self):
+    def get_observed_fields(self, grid="both"):
         """ get the (unique) list of field observed  type. """
         if "field" not in self._data.columns:
             return None
+        all_fields = np.unique(self._data["field"])
+        if grid is None or grid in ["both"]:
+            return all_fields
         
-        return np.unique(self._data["field"])
+        from .fields import fields_in_main
+        if grid in ["main", "first", "primary"]:
+            return all_fields[fields_in_main(all_fields)]
+        elif grid in ["other", "secondary"]:
+            return all_fields[~fields_in_main(all_fields)]
+        else:
+            raise ValueError("Cannot parse the given grid %s"%grid)
+        
 
-    def get_field_obsdensity(self, fid=[1,2,3]):
+    def get_field_obsdensity(self, grid="both", fid=[1,2,3]):
         """ """
         flagfield = True if fid is None or "fid" not in self._data.columns else np.in1d(np.asarray(self._data["fid"], dtype="int"), fid)
-        return {f_: len(self._data[np.in1d(self._data["field"], f_) * flagfield]) for f_ in self.get_observed_fields()}
+        return {f_: len(self._data[np.in1d(self._data["field"], f_) * flagfield]) for f_ in self.get_observed_fields(grid=grid)}
 
     def show_fields(self, ax=None,
                     show_ztf_fields=True,
                     colorbar=True, cax=None, clabel=" ", 
-                    colored_by="visits", fid=[1,2,3], cmap="viridis",
+                    colored_by="visits", fid=[1,2,3], grid="both",
+                    cmap="viridis",
                     vmin=None, vmax=None,  **kwargs):
         """ """
         import matplotlib.pyplot as mpl
@@ -45,7 +56,7 @@ class _ZTFTableHandler_( object ):
         
         # Data To Show
         if colored_by in ["visits","density"]:
-            field_val = {f:v for f,v in self.get_field_obsdensity(fid=fid).items() if v>0}
+            field_val = {f:v for f,v in self.get_field_obsdensity(grid=grid, fid=fid).items() if v>0}
         else:
             raise NotImplementedError("only colored_by 'visits' implemented")
 
@@ -76,7 +87,6 @@ class _ZTFTableHandler_( object ):
             
         for f,v in field_val.items():
             display_field(ax, f, facecolor=cmap((v-vmin)/(vmax-vmin)),
-                              
                               **kwargs)
         
         if colorbar:
@@ -90,7 +100,7 @@ class _ZTFTableHandler_( object ):
                         show_ztf_fields=True,
                         colorbar=True, 
                         colored_by="visits", 
-                        vmin=None, vmax=None,  **kwargs):
+                        **kwargs):
         """ """
         import matplotlib.pyplot as mpl
         from .fields import FIELDS_COLOR
@@ -112,8 +122,8 @@ class _ZTFTableHandler_( object ):
 
 
         prop = {**dict(colored_by=colored_by, colorbar=colorbar, edgecolor="0.5", linewidth=0.5),**kwargs}
-        self.show_fields(ax=axg, cax=caxg, cmap=FIELDS_COLOR[1],  fid=[1], **prop)
-        self.show_fields(ax=axr, cax=caxr, cmap=FIELDS_COLOR[2],    fid=[2], **prop)
+        self.show_fields(ax=axg, cax=caxg, cmap=FIELDS_COLOR[1], fid=[1], **prop)
+        self.show_fields(ax=axr, cax=caxr, cmap=FIELDS_COLOR[2], fid=[2], **prop)
         self.show_fields(ax=axi, cax=caxi, cmap=FIELDS_COLOR[3], fid=[3], **prop)
         return fig
     

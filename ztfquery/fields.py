@@ -20,11 +20,18 @@ CCD_EDGES_DEG = np.asarray([[ _ccd_xmin, _ccd_ymin], [ _ccd_xmin, _ccd_ymax],
 
 FIELDS_COLOR = {1: "Greens", 2: "Reds", 3:"Oranges"}
 
+
+
 ##############################
 #                            #
 #  Generic Tools             #
 #                            #
 ##############################
+def fields_in_main(field):
+    """ """
+    return field<880
+
+
 def field_to_coords(fieldid, system="radec"):
     """ Returns the central coordinate [RA,Dec] or  of the given field 
 
