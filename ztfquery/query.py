@@ -123,7 +123,7 @@ class _ZTFTableHandler_( object ):
     @property
     def _data(self):
         """ """
-        return self.metadata if hasattr(self, "metadata") else self.data
+        return self.metatable if hasattr(self, "metatable") else self.data
 
     
 
