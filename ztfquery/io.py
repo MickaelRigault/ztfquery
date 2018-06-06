@@ -36,7 +36,7 @@ def encrypt():
     import getpass
     des = DES.new(  base64.b64decode( _SOURCE ), DES.MODE_ECB)
     fileout = open(_ENCRYPTING_FILE, "wb")
-    login = input('Enter your IRSA login (if python 2.X within quotes "your_login", if 3.X try without first): ') if sys.version_info > (3,0) else raw_input('Enter your IRSA login: ')
+    login = input('Enter your IRSA login: ') if sys.version_info > (3,0) else raw_input('Enter your IRSA login  (try first within quotes "your_login"')
     fileout.write(des.encrypt(pad( login )))
     fileout.write(b"\n")
     fileout.write(des.encrypt(pad(getpass.getpass())))

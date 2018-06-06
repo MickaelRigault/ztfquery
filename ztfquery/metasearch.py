@@ -127,7 +127,7 @@ class MetaQuery():
 
 
         """
-        from .tools import decrypt, get_cookie
+        from .io import decrypt, get_cookie
         self.build_query(kind=kind, radec=radec, size=size, mcen=mcen,
                           sql_query=sql_query, colnames=colnames, ct="csv", **kwargs)
 

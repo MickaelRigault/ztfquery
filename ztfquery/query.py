@@ -8,12 +8,126 @@ from .metasearch import download_metadata, _test_kind_
 from . import buildurl
 import warnings
 
+
 #############################
 #                           #
 #   Main Query Tools        #
 #                           #
 #############################
-class ZTFQuery( object ):
+class _ZTFTableHandler_( object ):
+    """ """
+    # -------------- #
+    #  FIELDS        #
+    # -------------- #
+    def get_observed_fields(self):
+        """ get the (unique) list of field observed  type. """
+        if "field" not in self._data.columns:
+            return None
+        
+        return np.unique(self._data["field"])
+
+    def get_field_obsdensity(self, fid=[1,2,3]):
+        """ """
+        flagfield = True if fid is None or "fid" not in self._data.columns else np.in1d(np.asarray(self._data["fid"], dtype="int"), fid)
+        return {f_: len(self._data[np.in1d(self._data["field"], f_) * flagfield]) for f_ in self.get_observed_fields()}
+
+    def show_fields(self, ax=None,
+                    show_ztf_fields=True,
+                    colorbar=True, cax=None, clabel=" ", 
+                    colored_by="visits", fid=[1,2,3], cmap="viridis",
+                    vmin=None, vmax=None,  **kwargs):
+        """ """
+        import matplotlib.pyplot as mpl
+        from .fields import display_field
+        if "field" not in self._data.columns:
+            raise AttributeError("No 'field' entry available")
+
+        
+        # Data To Show
+        if colored_by in ["visits","density"]:
+            field_val = {f:v for f,v in self.get_field_obsdensity(fid=fid).items() if v>0}
+        else:
+            raise NotImplementedError("only colored_by 'visits' implemented")
+
+
+        # - Axes definition
+        if ax is None:
+            fig = mpl.figure(figsize=(8,5))
+            ax = fig.add_subplot(111, projection="hammer")
+        else:
+            fig = ax.figure
+
+        # - Plotting
+        if show_ztf_fields:
+            from .fields import show_ZTF_fields
+            show_ZTF_fields(ax)
+
+        values = list(field_val.values())
+        if len(values)==0 or not np.any(values):
+            if cax is not None:
+                cax.set_visible(False)
+            return
+        
+        if vmin is None: vmin = "0"
+        if type(vmin) == str: vmin=np.percentile(values, float(vmin))
+        if vmax is None: vmax = "100"
+        if type(vmax) == str: vmax=np.percentile(values, float(vmax))
+        if type(cmap) == str: cmap = mpl.get_cmap(cmap)
+            
+        for f,v in field_val.items():
+            display_field(ax, f, facecolor=cmap((v-vmin)/(vmax-vmin)),
+                              
+                              **kwargs)
+        
+        if colorbar:
+            from .utils.tools import insert_ax, colorbar
+            if cax is None: cax = insert_ax(ax, "bottom",
+                                        shrunk=0.93, space=-0.0, axspace=0.02)
+            colorbar(cax, cmap, vmin=vmin, vmax=vmax, label=clabel)
+        
+        
+    def show_gri_fields(self, title=" ",
+                        show_ztf_fields=True,
+                        colorbar=True, 
+                        colored_by="visits", 
+                        vmin=None, vmax=None,  **kwargs):
+        """ """
+        import matplotlib.pyplot as mpl
+        from .fields import FIELDS_COLOR
+        fig = mpl.figure(figsize=[9,6])
+        fig.suptitle(title, fontsize="large")
+        # G
+        axg   = fig.add_axes([0.03,0.52,0.43,0.48], projection="hammer")
+        caxg  = fig.add_axes([0.03,0.54,0.43,0.015])
+        axg.tick_params(labelsize="x-small", labelcolor="0.3" )
+        # R
+        axr   = fig.add_axes([0.54,0.52,0.43,0.48], projection="hammer")
+        caxr  = fig.add_axes([0.54,0.54,0.43,0.015])
+        axr.tick_params(labelsize="x-small", labelcolor="0.3")
+        # I
+        axi   = fig.add_axes([0.27,0.04,0.43,0.48], projection="hammer")
+        caxi  = fig.add_axes([0.27,0.05,0.43,0.015])
+        axi.tick_params(labelsize="x-small", labelcolor="0.3", )
+        
+
+
+        prop = {**dict(colored_by=colored_by, colorbar=colorbar, edgecolor="0.5", linewidth=0.5),**kwargs}
+        self.show_fields(ax=axg, cax=caxg, cmap=FIELDS_COLOR[1],  fid=[1], **prop)
+        self.show_fields(ax=axr, cax=caxr, cmap=FIELDS_COLOR[2],    fid=[2], **prop)
+        self.show_fields(ax=axi, cax=caxi, cmap=FIELDS_COLOR[3], fid=[3], **prop)
+        return fig
+    
+    # =================== #
+    #                     #
+    # =================== #
+    @property
+    def _data(self):
+        """ """
+        return self.metadata if hasattr(self, "metadata") else self.data
+
+    
+
+class ZTFQuery( _ZTFTableHandler_ ):
     """ """
     # ------------ #
     #  DOWNLOADER  #
@@ -135,7 +249,7 @@ class ZTFQuery( object ):
 
             
         """
-        from .tools import download_single_url
+        from .io import download_single_url
         # Data Structure
         self._relative_data_path = self.get_data_path(suffix=suffix, source="None", **kwargs)
         # The IRSA location
@@ -315,18 +429,24 @@ def download_night_summary(night):
     summary = requests.get(_NIGHT_SUMMARY_URL+"%s/exp.%s.tbl"%(night,night)).content.decode('utf-8').splitlines()
     columns = [l.replace(" ","") for l in summary[0].split('|') if len(l)>0]
     data    = [l.split() for l in summary[1:] if not l.startswith('|')]
-    return DataFrame(data=data, columns=columns)
+    return DataFrame(data=data, columns=[l if l!= "fil" else "fid" for l in columns])
 
 
-class NightSummary( object ):
+class NightSummary( _ZTFTableHandler_ ):
     def __init__(self, night):
         """ """
         self.night = night
-        self.data  = download_night_summary(night)
-
+        
+        self.data_all  = download_night_summary(night)
+        
+        self.data  = self.data_all[self.data_all["type"]=="targ"]
+        
     # ================ #
     #  Methods         #
     # ================ #
+    # --------- #
+    #  GETTER   #
+    # --------- #
     def get_observed_information(self, obstype="targ", columns=["field","ra","dec"]):
         """ get a DataFrame (pandas) of the requested columns for the given obstype. 
 
@@ -345,23 +465,10 @@ class NightSummary( object ):
         """
         return self.data[self.data['type']==obstype][columns]
     
-    def get_observed_field(self, obstype="targ", dtype="int"):
-        """ get the list of field observed as `obstype` type.
 
-        Parameters
-        ----------
-        obstype: [string]
-            Type of observation. 
-            Could be: 'bias', 'dark', 'flat', or 'targ'
-            
-        dtype: [string]
-            Type of format (dtype) or the returned array. 
-            If None, the format will be unchanged. 
-            astype 'int' is suggested for the usual obstype='targ' requests.
-            
-        Returns
-        -------
-        numpy array
-        """
-        return np.asarray(self.get_observed_information(obstype, columns=["field"]), dtype=dtype).flatten()
 
+        
+        
+            
+
+    
