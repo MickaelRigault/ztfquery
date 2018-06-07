@@ -25,6 +25,7 @@ You should also create the global variable `$ZTFDATA` (usually in your `~/.bash_
 
 # Examples
 
+## Single Day summary
 You want to see what ZTF has observed during a given night (say 10th of May 2018, i.e. 20180510):
 ```python
 from ztfquery import query
@@ -40,13 +41,36 @@ If you now want to visualize which fields have been observed:
 fig = may1018.show_gri_fields(title="Observed Fields \n 2018-05-10")
 fig.show()
 # Number of g (upper left), r (upper right), I (lower) observations for night 20180510. 
-# The grey tile shows the primary ZTF grid for dec>-10deg.
+# The grey tile shows the primary ZTF grid for dec>-30deg.
 # Remark that particular night, no I band filter observation were made. 
 ```
 ![](examples/figures/gri_projection_visits_20180510.png)
 
 
+## Generic Query
 
+The Generic ZTF data access query uses the `ZTFQuery` object.
+Being able to download data requires two steps: 
+  1. do the query to know which data are accessible (this uses the `load_metadata()` method.
+  2. do the actual download of the accessible data (this uses the `download_data()` method).
+
+Other methods enables you to further see want is going on (like the plotting method `show_gri_fields()`) or check what has already be downloaded and were that is on your computer (`get_local_data()`).
+
+In this example, we are going to query any thing that have been observed with a *seeing lower than 2arcsec between the 1st of May 2018 and the 1st of June 2018*.
+```python
+from ztfquery import query
+zquery = query.ZTFQuery()
+# Check what are the Julian Dates of 1st of May 2018 and 1st of June 2018
+from astropy import time
+jd_1may18 = time.Time("2018-05-01").jd # 2458239.5
+jd_1june18 = time.Time("2018-06-01").jd # 2458270.5
+# Do the Query to see what exists
+zquery.load_metadata(sql_query="seeing<2 and obsjd BETWEEN 2458239.5 AND 2458270.5") # this will take about 1min
+
+# The information is save as Pandas DataFrame undern `metatable`
+zquery.metatable # it contains about 50 000 entries...
+
+```
 
 # Access the original `queryIRSA`
 
