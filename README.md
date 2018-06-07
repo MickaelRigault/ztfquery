@@ -21,13 +21,26 @@ ipython
 ```
 The login and password will be stored crypted under ~/.queryirsa. Remove this file to reload it.
 
-You may also want to create the global variable `$ZTFDATA`. Data you will dump from IRSA will be saved in the same structure as in  IRSA using the directory pointed by `$ZTFDATA` as reference.
+You should also create the global variable `$ZTFDATA` (usually in your `~/.bash_profile` or `~/.cshrc`. Data you will download from IRSA will be saved in the directory indicated by `$ZTFDATA` following the IRSA data structure.
 
-# Example
+# Examples
 
-Check `notebooks/Connect.ipynb`  
+You want to see what ZTF has observed during a given night (say 10th of May 2018, i.e. 20180510):
+```python
+from ztfquery import query
+may1018 = query.NightSummary('20180510')
+# The Information concerning the science targets are saved in the attribute `data` 
+print(may1018.data)
+# The entire information, including the calibration exposure are in `data_all`
+```
+`data` and `data_all` are Pandas DataFrame`
 
-More details coming soon.
+If you now want to visualize which fields have been observed:
+```python
+fig = may1018.show_gri_fields(title="Observed Fields \n 2018-05-10")
+fig.show()
+```
+
 
 
 # Access the original `queryIRSA`
