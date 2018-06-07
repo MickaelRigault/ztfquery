@@ -29,7 +29,7 @@ FIELDS_COLOR = {1: "Greens", 2: "Reds", 3:"Oranges"}
 ##############################
 def fields_in_main(field):
     """ """
-    return field<880
+    return np.asarray(np.atleast_1d(field), dtype="int")<880
 
 
 def field_to_coords(fieldid, system="radec"):
