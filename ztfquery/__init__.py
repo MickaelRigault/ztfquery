@@ -1,5 +1,5 @@
 
-__version__ ="0.4.1"
+__version__ ="0.4.2"
 
 # - First time you call the script, it'll ask for your login info
 from .io import has_encryption, encrypt
