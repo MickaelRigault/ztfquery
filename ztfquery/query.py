@@ -35,19 +35,28 @@ class _ZTFTableHandler_( object ):
         else:
             raise ValueError("Cannot parse the given grid %s"%grid)
         
-
+    def get_field_average_value(self, value, grid="both", fid=[1,2,3]):
+        """ """
+        flagfield = True if fid is None or "fid" not in self._data.columns else np.in1d(np.asarray(self._data["fid"], dtype="int"), fid)
+        return {f_: np.nanmean(self._data[np.in1d(self._data["field"], f_) * flagfield][value])
+                    for f_ in self.get_observed_fields(grid=grid)}
+        
     def get_field_obsdensity(self, grid="both", fid=[1,2,3]):
         """ """
         flagfield = True if fid is None or "fid" not in self._data.columns else np.in1d(np.asarray(self._data["fid"], dtype="int"), fid)
         return {f_: len(self._data[np.in1d(self._data["field"], f_) * flagfield]) for f_ in self.get_observed_fields(grid=grid)}
 
-    def show_fields(self, ax=None,
+    def show_fields(self, field_val,
+                    ax=None,
                     show_ztf_fields=True,
                     colorbar=True, cax=None, clabel=" ", 
-                    colored_by="visits", fid=[1,2,3], grid="both",
                     cmap="viridis",origin=180,
                     vmin=None, vmax=None,  **kwargs):
-        """ """
+        """ 
+        Parameters
+        ----------
+        colored_by: 
+        """
         import matplotlib.pyplot as mpl
         from .fields import display_field
         if "field" not in self._data.columns:
@@ -58,12 +67,6 @@ class _ZTFTableHandler_( object ):
             
         tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
         tick_labels = np.remainder(tick_labels+360+origin,360)
-        # Data To Show
-        if colored_by in ["visits","density"]:
-            field_val = {f:v for f,v in self.get_field_obsdensity(grid=grid, fid=fid).items() if v>0}
-        else:
-            raise NotImplementedError("only colored_by 'visits' implemented")
-
 
         # - Axes definition
         if ax is None:
@@ -78,6 +81,8 @@ class _ZTFTableHandler_( object ):
             from .fields import show_ZTF_fields
             show_ZTF_fields(ax)
 
+        # Removing the NaNs
+        field_val = {f:v for f,v in field_val.items() if not np.isnan(v)}
         values = list(field_val.values())
         if len(values)==0 or not np.any(values):
             if cax is not None:
@@ -108,7 +113,7 @@ class _ZTFTableHandler_( object ):
     def show_gri_fields(self, title=" ",
                         show_ztf_fields=True,
                         colorbar=True, 
-                        colored_by="visits", 
+                        colored_by="visits", grid="main",
                         **kwargs):
         """ """
         import matplotlib.pyplot as mpl
@@ -128,12 +133,19 @@ class _ZTFTableHandler_( object ):
         caxi  = fig.add_axes([0.27,0.05,0.43,0.015])
         axi.tick_params(labelsize="x-small", labelcolor="0.3", )
         
+        
+        
+        
 
-
-        prop = {**dict(colored_by=colored_by, colorbar=colorbar, edgecolor="0.5", linewidth=0.5),**kwargs}
-        self.show_fields(ax=axg, cax=caxg, cmap=FIELDS_COLOR[1], fid=[1], **prop)
-        self.show_fields(ax=axr, cax=caxr, cmap=FIELDS_COLOR[2], fid=[2], **prop)
-        self.show_fields(ax=axi, cax=caxi, cmap=FIELDS_COLOR[3], fid=[3], **prop)
+        prop = {**dict(colorbar=colorbar, edgecolor="0.5", linewidth=0.5),**kwargs}
+        for i,ax_,cax_ in zip([1,2,3], [axg,axr,axi], [caxg,caxr,caxi]):
+            if colored_by in ["visits", "density"]:
+                field_val = {f:v for f,v in self.get_field_obsdensity(grid=grid, fid=[i]).items() if v>0}
+            else:
+                field_val = colored_by[i]
+                
+            self.show_fields(field_val, ax=ax_, cax=cax_, cmap=FIELDS_COLOR[i], **prop)
+            
         return fig
     
     # =================== #
