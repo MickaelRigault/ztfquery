@@ -89,18 +89,20 @@ class _ZTFTableHandler_( object ):
         if vmax is None: vmax = "100"
         if type(vmax) == str: vmax=np.percentile(values, float(vmax))
         if type(cmap) == str: cmap = mpl.get_cmap(cmap)
-            
         for f,v in field_val.items():
-            display_field(ax, f, facecolor=cmap((v-vmin)/(vmax-vmin)),origin=origin, 
+            display_field(ax, f, facecolor=cmap((v-vmin)/(vmax-vmin)) if vmax-vmin !=0 else cmap(0),origin=origin, 
                               **kwargs)
 
 
 
         if colorbar:
-            from .utils.tools import insert_ax, colorbar
-            if cax is None: cax = insert_ax(ax, "bottom",
-                                        shrunk=0.93, space=-0.0, axspace=0.02)
-            colorbar(cax, cmap, vmin=vmin, vmax=vmax, label=clabel)
+            if vmax-vmin !=0:
+                from .utils.tools import insert_ax, colorbar
+                if cax is None: cax = insert_ax(ax, "bottom",
+                                            shrunk=0.93, space=-0.0, axspace=0.02)
+                colorbar(cax, cmap, vmin=vmin, vmax=vmax, label=clabel)
+            elif cax is not None:
+                cax.set_visible(False)
         
         
     def show_gri_fields(self, title=" ",
@@ -446,7 +448,9 @@ def download_night_summary(night):
     summary = requests.get(_NIGHT_SUMMARY_URL+"%s/exp.%s.tbl"%(night,night)).content.decode('utf-8').splitlines()
     columns = [l.replace(" ","") for l in summary[0].split('|') if len(l)>0]
     data    = [l.split() for l in summary[1:] if not l.startswith('|')]
-    return DataFrame(data=data, columns=[l if l!= "fil" else "fid" for l in columns])
+    dataf   = DataFrame(data=data, columns=[l if l!= "fil" else "fid" for l in columns])
+    dataf["fid"][dataf["fid"]=="4"] = "3"
+    return dataf
 
 
 class NightSummary( _ZTFTableHandler_ ):

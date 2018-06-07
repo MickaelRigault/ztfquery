@@ -91,7 +91,7 @@ def get_camera_corner(ra_field, dec_field, steps=5,
         ra += ra_field
 
         
-        ra -= 180
+        ra -= 180 # assumes center = 180
 
         if inrad:
             ra *= _DEG2RA
