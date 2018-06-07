@@ -56,7 +56,7 @@ Being able to download data requires two steps:
 
 Other methods enables you to further see want is going on (like the plotting method `show_gri_fields()`) or check what has already be downloaded and were that is on your computer (`get_local_data()`).
 
-#### Example 1 generic SQL, no coordinate in particular.
+### Example 1 generic SQL, no coordinate in particular.
 In this example, we are going to query any thing that have been observed with a *seeing lower than 2arcsec between the 1st of May 2018 and the 1st of June 2018*.
 ```python
 from ztfquery import query
@@ -78,7 +78,7 @@ zquery.show_gri_fields(title="1stMay2018< time <1stJune2018 \n seeing<2", grid="
 ```
 ![](examples/figures/seeing_lower2_inMay.png)
 
-#### Example 2 position query with time constraints. 
+### Example 2 position query with filter and time constraints. 
 
 In this second example, we will want to access *the I-band filter (filter #3) observations with 0.01 degree around RA=276.107960 Dec+44.130398 since the 14th of May 2018*.
 
