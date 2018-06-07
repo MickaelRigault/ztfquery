@@ -56,6 +56,7 @@ Being able to download data requires two steps:
 
 Other methods enables you to further see want is going on (like the plotting method `show_gri_fields()`) or check what has already be downloaded and were that is on your computer (`get_local_data()`).
 
+#### Example 1 generic SQL, no coordinate in particular.
 In this example, we are going to query any thing that have been observed with a *seeing lower than 2arcsec between the 1st of May 2018 and the 1st of June 2018*.
 ```python
 from ztfquery import query
@@ -69,7 +70,40 @@ zquery.load_metadata(sql_query="seeing<2 and obsjd BETWEEN 2458239.5 AND 2458270
 
 # The information is save as Pandas DataFrame undern `metatable`
 zquery.metatable # it contains about 50 000 entries...
+# Show the observed fields, limiting it to the main (or primary) grid for visibility (say grid="secondary" to see this rest):
+zquery.show_gri_fields(title="1stMay2018< time <1stJune2018 \n seeing<2", grid="main")
+# In this figure, the colorbar shows the number of time a given field in in metatable. 
+# Remark that each field is made of 16 CCD each divided into 4 quadran, 
+# so each single exposure will represent 64 field entries. 
+```
+![](examples/figures/seeing_lower2_inMay.png)
 
+#### Example 2 position query with time constraints. 
+
+In this second example, we will want to access *the I-band filter (filter #3) observations with 0.01 degree around RA=276.107960 Dec+44.130398 since the 14th of May 2018*.
+
+```python
+from ztfquery import query
+zquery = query.ZTFQuery()
+# Print what are the Julian Dates of 14th of May 2018
+from astropy import time
+print(time.Time("2018-05-14").jd) # 2458252.5
+
+# Do the Query to see what exists
+zquery.load_metadata(radec=[276.107960,+44.130398], size=0.01, sql_query="fid=3 and obsjd>2458252.5") # takes a few seconds
+# When writing this README, this had 8 entries:
+zquery.metatable
+"""
+	obsjd	ccdid	filtercode
+0	2.458268e+06	1	zi
+1	2.458268e+06	15	zi
+2	2.458256e+06	15	zi
+3	2.458255e+06	1	zi
+4	2.458262e+06	1	zi
+5	2.458273e+06	1	zi
+6	2.458262e+06	15	zi
+7	2.458273e+06	15	zi
+"""
 ```
 
 # Access the original `queryIRSA`
