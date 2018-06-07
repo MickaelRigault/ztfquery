@@ -34,7 +34,7 @@ may1018 = query.NightSummary('20180510')
 print(may1018.data)
 # The entire information, including the calibration exposure are in `data_all`
 ```
-`data` and `data_all` are Pandas DataFrame`
+`data` and `data_all` are Pandas DataFrame.
 
 If you now want to visualize which fields have been observed:
 ```python
