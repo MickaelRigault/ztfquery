@@ -45,15 +45,19 @@ class _ZTFTableHandler_( object ):
                     show_ztf_fields=True,
                     colorbar=True, cax=None, clabel=" ", 
                     colored_by="visits", fid=[1,2,3], grid="both",
-                    cmap="viridis",
+                    cmap="viridis",origin=180,
                     vmin=None, vmax=None,  **kwargs):
         """ """
         import matplotlib.pyplot as mpl
         from .fields import display_field
         if "field" not in self._data.columns:
             raise AttributeError("No 'field' entry available")
-
-        
+        if origin != 180:
+            warnings.warn("Only the origin 180 has been implemented. boundaries issue arises otherwise. origin set to 180")
+            origin = 180
+            
+        tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
+        tick_labels = np.remainder(tick_labels+360+origin,360)
         # Data To Show
         if colored_by in ["visits","density"]:
             field_val = {f:v for f,v in self.get_field_obsdensity(grid=grid, fid=fid).items() if v>0}
@@ -68,6 +72,7 @@ class _ZTFTableHandler_( object ):
         else:
             fig = ax.figure
 
+        ax.set_xticklabels(tick_labels)     # we add the scale on the x axis
         # - Plotting
         if show_ztf_fields:
             from .fields import show_ZTF_fields
@@ -86,9 +91,11 @@ class _ZTFTableHandler_( object ):
         if type(cmap) == str: cmap = mpl.get_cmap(cmap)
             
         for f,v in field_val.items():
-            display_field(ax, f, facecolor=cmap((v-vmin)/(vmax-vmin)),
+            display_field(ax, f, facecolor=cmap((v-vmin)/(vmax-vmin)),origin=origin, 
                               **kwargs)
-        
+
+
+
         if colorbar:
             from .utils.tools import insert_ax, colorbar
             if cax is None: cax = insert_ax(ax, "bottom",

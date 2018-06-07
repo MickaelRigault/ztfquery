@@ -63,7 +63,8 @@ def field_to_coords(fieldid, system="radec"):
     return radec
 
 
-def get_camera_corner(ra_field, dec_field, steps=5, inrad=True):
+def get_camera_corner(ra_field, dec_field, steps=5,
+                inrad=True, origin=0, east_left=False):
         """ """
         from .utils.tools import rot_xz_sph, _DEG2RA
         # Top (left to right)
@@ -88,9 +89,16 @@ def get_camera_corner(ra_field, dec_field, steps=5, inrad=True):
 
         ra, dec = rot_xz_sph(ra_bd, dec_bd, dec_field)
         ra += ra_field
+
+        ra = np.remainder(ra+360-origin,360) # shift RA values
+        ra[ra>180]-=360    # scale conversion to [-180, 180]
+
         if inrad:
             ra *= _DEG2RA
             dec *= _DEG2RA
+        
+        if east_left:
+            ra = -ra
             
         return np.asarray([ra,dec]).T
 
@@ -105,14 +113,14 @@ def show_ZTF_fields(ax, maingrid=True, lower_dec=-30, alpha=0.1, facecolor="0.8"
     display_field(ax, allfields, lower_dec=lower_dec, alpha=alpha,
                       facecolor=facecolor, edgecolor=edgecolor, **kwargs)
     
-def display_field(ax, fieldid, facecolor="0.8", lower_dec=None, edgecolor=None, **kwargs):
+def display_field(ax, fieldid, origin=180, facecolor="0.8", lower_dec=None, edgecolor=None, **kwargs):
     """ """
     
     for ra,dec in field_to_coords( np.asarray(np.atleast_1d(fieldid), dtype="int")   ):
         if lower_dec is not None and dec<lower_dec:
             continue
-        ax.add_patch(Polygon(get_camera_corner(ra-180,dec, inrad=True),
-                                             facecolor=facecolor,edgecolor=edgecolor, **kwargs))
+        ax.add_patch(Polygon( get_camera_corner(ra,dec, inrad=True, origin=origin, east_left=True),
+                                facecolor=facecolor,edgecolor=edgecolor, **kwargs))
         
     
 ##############################
