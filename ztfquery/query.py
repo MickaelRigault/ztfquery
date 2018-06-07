@@ -124,7 +124,7 @@ class _ZTFTableHandler_( object ):
         prop = {**dict(colored_by=colored_by, colorbar=colorbar, edgecolor="0.5", linewidth=0.5),**kwargs}
         self.show_fields(ax=axg, cax=caxg, cmap=FIELDS_COLOR[1], fid=[1], **prop)
         self.show_fields(ax=axr, cax=caxr, cmap=FIELDS_COLOR[2], fid=[2], **prop)
-        self.show_fields(ax=axi, cax=caxi, cmap=FIELDS_COLOR[3], fid=[3], **prop)
+        self.show_fields(ax=axi, cax=caxi, cmap=FIELDS_COLOR[3], fid=[4], **prop)
         return fig
     
     # =================== #
