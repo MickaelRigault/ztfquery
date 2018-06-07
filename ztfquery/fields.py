@@ -90,8 +90,8 @@ def get_camera_corner(ra_field, dec_field, steps=5,
         ra, dec = rot_xz_sph(ra_bd, dec_bd, dec_field)
         ra += ra_field
 
-        ra = np.remainder(ra+360-origin,360) # shift RA values
-        ra[ra>180]-=360    # scale conversion to [-180, 180]
+        
+        ra -= 180
 
         if inrad:
             ra *= _DEG2RA
