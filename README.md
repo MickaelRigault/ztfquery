@@ -80,7 +80,7 @@ zquery.show_gri_fields(title="1stMay2018< time <1stJune2018 \n seeing<2", grid="
 
 ### Example 2 position query with filter and time constraints. 
 
-In this second example, we will want to access *the I-band filter (filter #3) observations with 0.01 degree around RA=276.107960 Dec+44.130398 since the 14th of May 2018*.
+In this second example, we will want to access *the I-band filter (filter #3) observations within 0.01 degree around RA=276.107960 Dec+44.130398 since the 14th of May 2018*.
 
 ```python
 from ztfquery import query
@@ -106,14 +106,11 @@ zquery.metatable
 """
 ```
 
-# Access the original `queryIRSA`
+# Downloading the Data
 
-The original `queryIRSA.py` code should still be working. It is actually is independent of the rest code and mighht eventually be removed. 
+The actual data download is made possible after you did the `load_metadata()`, see above.
 
-To import `queryIRSA` in your code (for backward compatibility):
-```
-from ztfquery import queryIRSA
-```
+[in progress]
 
 # IRSA Web IPA
 
@@ -125,4 +122,13 @@ These MetaData can then be used to build the path to the data.
 
 ## DataStructure
 
-## Downloading the Data
+
+
+# Access the original `queryIRSA`
+
+The original `queryIRSA.py` code should still be working. It is actually is independent of the rest code and mighht eventually be removed. 
+
+To import `queryIRSA` in your code (for backward compatibility):
+```
+from ztfquery import queryIRSA
+```
