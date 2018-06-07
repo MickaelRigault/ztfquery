@@ -40,6 +40,8 @@ If you now want to visualize which fields have been observed:
 fig = may1018.show_gri_fields(title="Observed Fields \n 2018-05-10")
 fig.show()
 ```
+![](examples/figures/gri_projection_visits_20180510.png)
+
 
 
 
