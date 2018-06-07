@@ -195,7 +195,7 @@ The metadata structure is detailed here: [ztf_api](https://irsa.ipac.caltech.edu
 
 # Access the original `queryIRSA`
 
-The original `queryIRSA.py` code should still be working. It is actually is independent of the rest code and mighht eventually be removed. 
+The original `queryIRSA.py` code should still be working. It is actually independent of the rest code and will eventually be removed. 
 
 To import `queryIRSA` in your code (for backward compatibility):
 ```
