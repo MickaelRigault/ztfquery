@@ -39,7 +39,9 @@ If you now want to visualize which fields have been observed:
 ```python
 fig = may1018.show_gri_fields(title="Observed Fields \n 2018-05-10")
 fig.show()
-# Number of g (upper left), r (upper right), I (lower) observations for night 20180510. For that particular night, no I band filter observation were made. The grey tile shows the primary ZTF grid for dec>-10deg.
+# Number of g (upper left), r (upper right), I (lower) observations for night 20180510. 
+# The grey tile shows the primary ZTF grid for dec>-10deg.
+# Remark that particular night, no I band filter observation were made. 
 ```
 ![](examples/figures/gri_projection_visits_20180510.png)
 
