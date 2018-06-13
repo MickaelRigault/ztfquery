@@ -191,6 +191,6 @@ class AlertReader():
         axlc.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%y'))
 
         if savefile is not None:
-            fig.savefig(savefile)
+            fig.savefig(savefile, dpi=250)
             
         return fig
