@@ -5,13 +5,13 @@ DESCRIPTION = "queryIRSA: "
 LONG_DESCRIPTION = """ Long """
 
 DISTNAME = 'ztfquery'
-AUTHOR = 'Mickael Rigault & Matteo Giomi'
+AUTHOR = 'Mickael Rigault'
 MAINTAINER = 'Mickael Rigault' 
 MAINTAINER_EMAIL = 'm.rigault@ipnl.in2p3.fr'
 URL = 'https://github.com/MickaelRigault/ztfquery'
 LICENSE = 'BSD (3-clause)'
-DOWNLOAD_URL = 'https://github.com/MickaelRigault/ztfquery/tarball/0.4'
-VERSION = '0.4.2'
+DOWNLOAD_URL = 'https://github.com/MickaelRigault/ztfquery/tarball/0.5'
+VERSION = '0.5.0'
 
 try:
     from setuptools import setup, find_packages
