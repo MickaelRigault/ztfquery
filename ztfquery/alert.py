@@ -185,8 +185,7 @@ class AlertReader():
         fig.text(0.68,0.6, " \n".join(info), va="top", fontsize="medium", color="0.4")
         fig.text(0.005,0.995, "alert: ID: %s (RA: %.5f | Dec: %.5f | Filter: %s)"%(self.alert.get("candid"),
                                                                                    self.alert['candidate']['ra'],self.alert['candidate']['dec'],
-                                                                                   self.FILTER_CODE[self.alert['candidate']['fid']-1]
-                                                                                   ),
+                                                                                   self.FILTER_CODE[self.alert['candidate']['fid']-1]),
                      fontsize="medium", color="k", va="top", ha="left")
         axlc.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%y'))
 
