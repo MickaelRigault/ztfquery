@@ -181,9 +181,10 @@ If you need to work offline, I suggest you overwrite the download location withi
 
 
 ***
-***
+
 # Reading Avro Alert
-_`ztfquery.__version__`>=0.5_
+
+_available starting version 0.5_
 
 There is a simple library inside `ztfquery` to load, access and display ZTF alerts. 
 
