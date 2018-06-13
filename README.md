@@ -180,7 +180,28 @@ zquery.get_local_data("psfcat.fits")
 If you need to work offline, I suggest you overwrite the download location within `download_data` using the 'download_dir' option. If provided, all the data will be dumped inside this directory without following the IRSA structure.
 
 
+***
+***
+# Reading Avro Alert
+_`ztfquery.__version__`>=0.5_
 
+There is a simple library inside `ztfquery` to load, access and display ZTF alerts. 
+
+Assuming you have a `.avro` alert stored in you computer at `full_path_to_avro` then:
+```python
+from ztfquery import alert
+ztfalert = alert.AlertReader.load(full_path_to_avro)
+```
+Inthere, the alert itself is stored as `ztfalert.alert`.  
+Now, if you want for instance to display the alert, simply use the `show()` method.
+
+You can also quickly display the alert by using the `display_alert`:
+```python
+from ztfquery import alert
+fig = alert.display_alert(full_path_to_avro, show_ps_stamp=True)
+```
+
+![](examples/figures/alert_plotter.png)
 
 ***
 ***
