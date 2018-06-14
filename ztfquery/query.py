@@ -115,7 +115,7 @@ class _ZTFTableHandler_( object ):
                         colorbar=True, 
                         colored_by="visits", grid="main",
                         **kwargs):
-        """ """
+        """  """
         import matplotlib.pyplot as mpl
         from .fields import FIELDS_COLOR
         fig = mpl.figure(figsize=[9,6])
@@ -134,14 +134,13 @@ class _ZTFTableHandler_( object ):
         axi.tick_params(labelsize="x-small", labelcolor="0.3", )
         
         
-        
-        
-        try:
+        try: # python 3
             prop = {**dict(colorbar=colorbar, edgecolor="0.5", linewidth=0.5),**kwargs}
         except: #  python 2
             prop = dict(colorbar=colorbar, edgecolor="0.5", linewidth=0.5)
             for k,v in kwargs.items():
-                prop[k] = v   
+                prop[k] = v
+                
         for i,ax_,cax_ in zip([1,2,3], [axg,axr,axi], [caxg,caxr,caxi]):
             if colored_by in ["visits", "density"]:
                 field_val = {f:v for f,v in self.get_field_obsdensity(grid=grid, fid=[i]).items() if v>0}

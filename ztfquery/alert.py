@@ -141,7 +141,7 @@ class AlertReader():
         # Loop Over the stamps
         for ax_, source in zip([aximg, axref, axdif], ['Science','Template','Difference']):
             data_ = visualization.AsinhStretch(self.get_stamp(source).data).a
-            ax_.imshow(data_, norm=Normalize(*np.percentile(data_, [0.5,99.5])), aspect="auto")
+            ax_.imshow(data_, norm=Normalize(*np.percentile(data_[data_==data_], [0.5,99.5])), aspect="auto")
             ax_.set_yticks([])
             ax_.set_xticks([])
             ax_.set_title(source)
