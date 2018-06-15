@@ -9,8 +9,9 @@ _You need to have an IRSA account that has access to ZTF Data to be able to get 
 # Installation
 
 go wherever you want to save the folder and then
-```
+```bash
 git clone https://github.com/MickaelRigault/ztfquery.git
+cd ztfquery
 python setup.py install
 ```
 Then you will need to setup your login and password information:
