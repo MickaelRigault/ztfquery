@@ -94,6 +94,8 @@ class AlertReader():
         # ----------- #
         def show_fid_lc(ax):
             """ """
+            if len(self.get_history_photopoints()) == 0:
+                return
             mag,magerr, jd, fid = np.asarray([ [d[k] for k in ["magpsf","sigmapsf","jd","fid"]]
                                                    for d in self.get_history_photopoints()]).T
             for j,i in enumerate([1,2,3]):
@@ -105,6 +107,8 @@ class AlertReader():
             
         def show_fid_uplim(ax):
             """ """
+            if len(self.get_history_upperlimits()) == 0:
+                return
             upmag, jdup, fidup    = np.asarray([ [d[k] for k in ["diffmaglim","jd","fid"]]
                                                      for d in self.get_history_upperlimits()]).T
             for j,i in enumerate([1,2,3]):
