@@ -284,6 +284,7 @@ class ZTFQuery( _ZTFTableHandler_ ):
             
         """
         from .io import download_single_url
+        
         # Data Structure
         self._relative_data_path = self.get_data_path(suffix=suffix, source="None", **kwargs)
         # The IRSA location
@@ -460,9 +461,9 @@ def download_night_summary(night):
     import requests
     from pandas import DataFrame
 
-    summary = requests.get(_NIGHT_SUMMARY_URL+"%s/exp.%s.tbl"%(night,night)).content.decode('utf-8').splitlines()
-    columns = [l.replace(" ","") for l in summary[0].split('|') if len(l)>0]
-    data    = [l.split() for l in summary[1:] if not l.startswith('|')]
+    summary = requests.get(_NIGHT_SUMMARY_URL+"%s/exp.%s.tbl"%(night,night), auth=("ztf","discover") ).content.decode('utf-8').splitlines()
+    columns = [l.replace(" ","") for l in summary[0].split('|') if len(l.replace(" ",""))>0]
+    data    = [l.split() for l in summary[1:] if not l.startswith('|') and len(l)>1]
     dataf   = DataFrame(data=data, columns=[l if l!= "fil" else "fid" for l in columns])
     dataf["fid"][dataf["fid"]=="4"] = "3"
     return dataf
