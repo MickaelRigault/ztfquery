@@ -49,12 +49,17 @@ Remark that particular night, no I band filter observation were made.
 ```
 ![](examples/figures/gri_projection_visits_20180510.png)
 
+#### Downloading Data from NightSummary object
+
 As of v0.6, you can directly download ztf data. For details, see *Downloading the Data* section below.
 
 As a short example, if you want to download the science images from "quadran 1" of "ccd 6" simply do:
 ```python
 may1018.set_metadata("sci", paddedccdid="06", qid="01")
-may1018.download_data("sciimg.fits", show_progress=False)
+
+# Let's only try to download target observation for program ID 2 (partnership)
+mask = (may1018.data["type"]=="targ") * (may1018.data["pid"]=="2")
+may1018.download_data("sciimg.fits", show_progress=False, mask=mask)
 ```
 
 ## Generic Query
@@ -120,8 +125,9 @@ zquery.metatable
 
 # Downloading the Data
 
-The actual data download is made possible after you did the `load_metadata()`, see above.
-(or `set_metadata()` if you are using the `NightSummary` object)
+The actual data download is made possible after you did the `load_metadata()` (see above) 
+
+**downloading data from a NightSummary object** : If you want to download data from NighSummary (available for version>v0.6) you need to run the `set_metadata()` method (and not `load_metadata()` that `NightSummary` objects do not have). In `set_metadata` you need to specify which kind of data you want ("sci", "raw", "cal" or "ref") and you need to provide mandatory arguments associated to this kind (e.g. for kind="sci", you need to provide the ccdid "paddedccdid" and the quadran id "qid", see documentation of `set_metadata()` for details). Otherwise, the same `download_data()` method is used for both `NightSummary` or `ZTFQuery` object.
 
 Remember to set the global variable `$ZTFQUERY` (see at the top of this document).
 
