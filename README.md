@@ -49,6 +49,13 @@ Remark that particular night, no I band filter observation were made.
 ```
 ![](examples/figures/gri_projection_visits_20180510.png)
 
+As of v0.6, you can directly download ztf data. For details, see *Downloading the Data* section below.
+
+As a short example, if you want to download the science images from "quadran 1" of "ccd 6" simply do:
+```python
+may1018.set_metadata("sci", paddedccdid="06", qid="01")
+may1018.download_data("sciimg.fits", show_progress=False)
+```
 
 ## Generic Query
 
@@ -114,6 +121,7 @@ zquery.metatable
 # Downloading the Data
 
 The actual data download is made possible after you did the `load_metadata()`, see above.
+(or `set_metadata()` if you are using the `NightSummary` object)
 
 Remember to set the global variable `$ZTFQUERY` (see at the top of this document).
 
@@ -216,7 +224,9 @@ The metadata structure is detailed here: [ztf_api](https://irsa.ipac.caltech.edu
 ***
 ***
 
-# Access the original `queryIRSA`
+# Access to original `queryIRSA` _no supported anymore_
+
+*as of ztfquery v0.6 queryIRSA is no more available inside ztfquery*
 
 The original `queryIRSA.py` code should still be working. It is actually independent of the rest code and will eventually be removed. 
 
