@@ -55,7 +55,8 @@ def _source_to_location_(source):
         raise ValueError("NERCS sourcing not ready yet.")
     
     raise ValueError("Cannot parse the given source %s"%source)
-    
+
+
 # ------------- #
 #  Sci & Raw    #
 # ------------- #
@@ -94,7 +95,7 @@ def science_path(year, month, day, fracday,
     if suffix is None:
         suffix="sciimg.fits"
     elif suffix not in KNOWN_SCIENCE_SUFFIXES.keys():
-        raise ValueError("Unkwown suffix %s"%suffix, "\n known suffixes: \n", KNOWN_SCIENCE_SUFFIXES)
+        raise ValueError("Unkwown suffix %s for 'sci' exposures"%suffix, "\n known suffixes: \n", KNOWN_SCIENCE_SUFFIXES)
     
     filefracday = "".join([year+month+day+fracday])
     return source+'sci/'+year+'/'+month+day+'/'+fracday+'/ztf_'+filefracday+'_'+paddedfield+'_'+filtercode+'_c'+paddedccdid+'_'+imgtypecode+'_q'+qid+'_'+suffix
@@ -212,3 +213,48 @@ def reference_path(fieldprefix, paddedfield,
 
 
 
+
+# ============= #
+#   TOOLS       #
+# ============= #
+def filefrac_to_year_monthday_fracday(filefracday):
+    """ split the name as YYYY, MM,DD, FFFFFF
+    FFFFFF (fraction in the day)"""
+    return filefracday[:4], filefracday[4:6], filefracday[6:8],filefracday[8:]
+
+
+def fileroot_to_science_url(fileroot, paddedccdid, qid,
+                            imgtypecode="o", suffix="sciimg.fits", source="",
+                            verbose=False):
+    """ 
+    Parameters
+    ----------
+
+    """
+    if suffix not in KNOWN_SCIENCE_SUFFIXES.keys():
+        raise ValueError("Unkwown suffix %s for 'sci' exposures"%suffix , "\n known suffixes: \n", KNOWN_SCIENCE_SUFFIXES)
+    
+    _, filefracday, paddedfield, filtercode = fileroot.split("_")
+    year,month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
+    return science_path(year, month, day, fracday,
+                paddedfield, filtercode,
+                paddedccdid, qid, # added in input
+                imgtypecode=imgtypecode, suffix=suffix,
+                source=source, verbose=verbose)
+
+
+def fileroot_to_raw_url(fileroot, paddedccdid,
+                        imgtypecode="o", source="", verbose=False):
+    """ 
+    Parameters
+    ----------
+
+    """
+    _, filefracday, paddedfield, filtercode = fileroot.split("_")
+    year, month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
+
+    return raw_path(year, month, day, fracday,
+            paddedfield,
+            filtercode, paddedccdid, imgtypecode=imgtypecode,
+            source=source)
+    

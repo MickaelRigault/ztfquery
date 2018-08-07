@@ -160,8 +160,124 @@ class _ZTFTableHandler_( object ):
         return self.metatable if hasattr(self, "metatable") else self.data
 
     
+class _ZTFDownloader_( object ):
+    """ Virtual class that enable to download consistently ZTF data. 
+    To use it, you need to inherite this and implement get_data_path()
+    such that this method returns fullpath to the data given 
+    `suffix` and `source` arguments.
+    """
+    def get_data_path(self, suffix=None, source=""):
+        """ generic method to build the url/fullpath or the requested data.
+        This method is based on the `builurl.py` module of ztfquery.
 
-class ZTFQuery( _ZTFTableHandler_ ):
+        **This is a virtual empty function ; inheriting class must implemented This**
+        """
+        raise NotImplementedError("the get_data_path() method must be implemented. ")
+
+    
+    # Generic that should automatically work as long as get_data_path is defined.
+    def download_data(self, suffix=None, source="IRSA", download_dir=None,
+                     show_progress = True, notebook=False, verbose=True,
+                     nodl = False, overwrite=False, **kwargs):
+        """ 
+        Parameters
+        ----------
+        suffix: [string] -optional-
+            What kind of data do you want?
+            for science sources:
+            - sciimg.fits (primary science image) *[used if suffix is None]*
+            - mskimg.fits (bit-mask image)
+            - psfcat.fits (PSF-fit photometry catalog)
+            - sexcat.fits (nested-aperture photometry catalog)
+            - sciimgdao.psf (spatially varying PSF estimate in DAOPhot's lookup table format)
+            - sciimgdaopsfcent.fits (PSF estimate at science image center as a FITS image)
+            - sciimlog.txt (log output from instrumental calibration pipeline)
+            - scimrefdiffimg.fits.fz (difference image: science minus reference; fpack-compressed)
+            - diffimgpsf.fits (PSF estimate for difference image as a FITS image)
+            - diffimlog.txt (log output from image subtraction and extraction pipeline)
+            - log.txt (overall system summary log from realtime pipeline)
+
+
+        download_dir: [string] -optional-
+            Directory where the file should be downloaded.
+            If th
+            
+        overwrite: [bool] -optional-
+            Check if the requested data already exist in the target download directory. 
+            If so, this will skip the download except if overwrite is set to True.
+
+            
+        """
+        from .io import download_single_url
+        
+        # Data Structure
+        self._relative_data_path = self.get_data_path(suffix=suffix, source="None", **kwargs)
+        
+        # The IRSA location
+        self.to_download_urls    = [buildurl._source_to_location_(source) + d_
+                                     for d_ in self._relative_data_path]
+        # Where do you want them?
+        if download_dir is None: # Local IRSA structure
+            self.download_location   = [buildurl._source_to_location_("local") + d_
+                                        for d_ in self._relative_data_path]
+            mkdir = True
+        else:
+            self.download_location   = [download_dir + "/%s%"%(d_.split("/")[-1])
+                                        for d_ in self._relative_data_path]
+            mkdir = False
+
+        if nodl:
+            return self.to_download_urls, self.download_location
+            
+        for url, fileout in zip(self.to_download_urls, self.download_location):
+            if verbose: print(url)
+            if not overwrite and os.path.isfile( fileout ):
+                if verbose: print("%s already exists: skipped"%fileout)
+                continue
+            download_single_url(url,fileout=fileout, show_progress=show_progress,
+                                    notebook=notebook, mkdir=mkdir)
+        
+    # --------- #
+    #  GETTER   #
+    # --------- #
+    def get_local_data(self, suffix=None, exists=True):
+        """ the lists of files stored in your local copy of the ztf database.
+        [This methods uses the get_data_path() method assuming source='local']
+
+        Parameters
+        ----------
+        suffix: [string] -optional-
+            What kind of data do you want?
+            for science sources:
+            - sciimg.fits (primary science image) *[used if suffix is None]*
+            - mskimg.fits (bit-mask image)
+            - psfcat.fits (PSF-fit photometry catalog)
+            - sexcat.fits (nested-aperture photometry catalog)
+            - sciimgdao.psf (spatially varying PSF estimate in DAOPhot's lookup table format)
+            - sciimgdaopsfcent.fits (PSF estimate at science image center as a FITS image)
+            - sciimlog.txt (log output from instrumental calibration pipeline)
+            - scimrefdiffimg.fits.fz (difference image: science minus reference; fpack-compressed)
+            - diffimgpsf.fits (PSF estimate for difference image as a FITS image)
+            - diffimlog.txt (log output from image subtraction and extraction pipeline)
+            - log.txt (overall system summary log from realtime pipeline)
+
+        exists: [bool] -optional-
+            returns only the file that exists in your computer. 
+            If false, this will return the expected path of the requested data, 
+            even though they might not exist.
+
+        Returns
+        -------
+        list
+        """
+        files = self.get_data_path(suffix=suffix, source="local")
+        if not exists:
+            return files
+        return [f for f in files if os.path.isfile( f )]
+
+
+    
+class ZTFQuery( _ZTFTableHandler_, _ZTFDownloader_ ):
     """ """
     # ------------ #
     #  DOWNLOADER  #
@@ -250,104 +366,7 @@ class ZTFQuery( _ZTFTableHandler_ ):
                 sql_query = "caltype=%s"%caltype if sql_query is None else sql_query+"+AND+caltype='%s'"%caltype
                 
             self.metaquery = download_metadata(kind=kind, sql_query=sql_query, **kwargs)
-
-    def download_data(self, suffix=None, source="IRSA", download_dir=None,
-                     show_progress = True, notebook=False, verbose=True,
-                     nodl = False, overwrite=False, **kwargs):
-        """ 
-        Parameters
-        ----------
-        suffix: [string] -optional-
-            What kind of data do you want?
-            for science sources:
-            - sciimg.fits (primary science image) *[used if suffix is None]*
-            - mskimg.fits (bit-mask image)
-            - psfcat.fits (PSF-fit photometry catalog)
-            - sexcat.fits (nested-aperture photometry catalog)
-            - sciimgdao.psf (spatially varying PSF estimate in DAOPhot's lookup table format)
-            - sciimgdaopsfcent.fits (PSF estimate at science image center as a FITS image)
-            - sciimlog.txt (log output from instrumental calibration pipeline)
-            - scimrefdiffimg.fits.fz (difference image: science minus reference; fpack-compressed)
-            - diffimgpsf.fits (PSF estimate for difference image as a FITS image)
-            - diffimlog.txt (log output from image subtraction and extraction pipeline)
-            - log.txt (overall system summary log from realtime pipeline)
-
-
-        download_dir: [string] -optional-
-            Directory where the file should be downloaded.
-            If th
             
-        overwrite: [bool] -optional-
-            Check if the requested data already exist in the target download directory. 
-            If so, this will skip the download except if overwrite is set to True.
-
-            
-        """
-        from .io import download_single_url
-        
-        # Data Structure
-        self._relative_data_path = self.get_data_path(suffix=suffix, source="None", **kwargs)
-        # The IRSA location
-        self.to_download_urls    = [buildurl._source_to_location_(source) + d_
-                                     for d_ in self._relative_data_path]
-        # Where do you want them?
-        if download_dir is None: # Local IRSA structure
-            self.download_location   = [buildurl._source_to_location_("local") + d_
-                                        for d_ in self._relative_data_path]
-            mkdir = True
-        else:
-            self.download_location   = [download_dir + "/%s%"%(d_.split("/")[-1])
-                                        for d_ in self._relative_data_path]
-            mkdir = False
-
-        if nodl:
-            return self.to_download_urls, self.download_location
-            
-        for url, fileout in zip(self.to_download_urls, self.download_location):
-            if verbose: print(url)
-            if not overwrite and os.path.isfile( fileout ):
-                if verbose: print("%s already exists: skipped"%fileout)
-                continue
-            download_single_url(url,fileout=fileout, show_progress=show_progress,
-                                    notebook=notebook, mkdir=mkdir)
-        
-    # --------- #
-    #  GETTER   #
-    # --------- #
-    def get_local_data(self, suffix=None, exists=True):
-        """ the lists of files stored in your local copy of the ztf database.
-        [This methods uses the get_data_path() method assuming source='local']
-
-        Parameters
-        ----------
-        suffix: [string] -optional-
-            What kind of data do you want?
-            for science sources:
-            - sciimg.fits (primary science image) *[used if suffix is None]*
-            - mskimg.fits (bit-mask image)
-            - psfcat.fits (PSF-fit photometry catalog)
-            - sexcat.fits (nested-aperture photometry catalog)
-            - sciimgdao.psf (spatially varying PSF estimate in DAOPhot's lookup table format)
-            - sciimgdaopsfcent.fits (PSF estimate at science image center as a FITS image)
-            - sciimlog.txt (log output from instrumental calibration pipeline)
-            - scimrefdiffimg.fits.fz (difference image: science minus reference; fpack-compressed)
-            - diffimgpsf.fits (PSF estimate for difference image as a FITS image)
-            - diffimlog.txt (log output from image subtraction and extraction pipeline)
-            - log.txt (overall system summary log from realtime pipeline)
-
-        exists: [bool] -optional-
-            returns only the file that exists in your computer. 
-            If false, this will return the expected path of the requested data, 
-            even though they might not exist.
-
-        Returns
-        -------
-        list
-        """
-        files = self.get_data_path(suffix=suffix, source="local")
-        if not exists:
-            return files
-        return [f for f in files if os.path.isfile( f )]
     
     def get_data_path(self, suffix=None, source=None):
         """ generic method to build the url/fullpath or the requested data.
@@ -469,7 +488,7 @@ def download_night_summary(night):
     return dataf
 
 
-class NightSummary( _ZTFTableHandler_ ):
+class NightSummary( _ZTFTableHandler_, _ZTFDownloader_ ):
     def __init__(self, night):
         """ """
         self.night = night
@@ -501,11 +520,107 @@ class NightSummary( _ZTFTableHandler_ ):
         DataFrame
         """
         return self.data[self.data['type']==obstype][columns]
-    
 
+    # Download Data
+    def set_metadata(self, kind, **kwargs):
+        """ Set the mate information get_data_path need
+        
+        Important: Some kwargs are mandatory dependending of you given kind:
 
-        
-        
+        - for kind "sci":  ["paddedccdid", "qid"]
+        - for kind "raw":  ["paddedccdid"]
+        (other kind not implemented yet)
+        """
+        self._metadata = {}
+
+        MANDATORY = {"sci":["paddedccdid", "qid"],
+                     "raw":["paddedccdid"],
+                     "ref":{},
+                     "cal":{}
+                     }
             
+        DEFAULT = {"sci":{"imgtypecode":"o"},
+                   "raw":{"imgtypecode":"o"},
+                    "ref":{},
+                   "cal":{}}
+            
+        if kind not in ["raw","sci"]:
+            raise NotImplementedError("Only Science ('sci') or Raw ('raw') kinds ready (%s given)."%kind)
+        # Requested input
+        for k in MANDATORY[kind]:
+            if k not in kwargs.keys():
+                raise ValueError("%s should be provided for kind: %s"%(k,kind))
+            
+        # -> python3    self._metadata = **{DEFAULT[kind], **kwargs}
+        
+        self._metadata = DEFAULT[kind]
+        self._metadata["kind"] = kind
+        for k,v in kwargs.items():
+            self._metadata[k] = v
+        # -> python3    self._metadata = **{DEFAULT[kind], **kwargs}; self._metadata["kind"] = kind
+            
+    # WRONG SO FAR
+    def get_data_path(self, mask=None, suffix=None, source=None, verbose=False, ):
+        """ generic method to build the url/fullpath or the requested data.
+        This method is based on the `builurl.py` module of ztfquery.
+        
+        Parameters
+        ----------
+        mask: [None / list of int / boolean array] -optional-
+           only use the data entry for the given mask:
+           ```
+           fileroots = np.asarray(self.data["fileroot"])
+           if mask is not None:
+               fileroots = fileroots[mask]
+            ```
+
+        suffix: [string] -optional-
+            What kind of data do you want?
+            for science sources:
+            - sciimg.fits (primary science image) *[used if suffix is None]*
+            - mskimg.fits (bit-mask image)
+            - psfcat.fits (PSF-fit photometry catalog)
+            - sexcat.fits (nested-aperture photometry catalog)
+            - sciimgdao.psf (spatially varying PSF estimate in DAOPhot's lookup table format)
+            - sciimgdaopsfcent.fits (PSF estimate at science image center as a FITS image)
+            - sciimlog.txt (log output from instrumental calibration pipeline)
+            - scimrefdiffimg.fits.fz (difference image: science minus reference; fpack-compressed)
+            - diffimgpsf.fits (PSF estimate for difference image as a FITS image)
+            - diffimlog.txt (log output from image subtraction and extraction pipeline)
+            - log.txt (overall system summary log from realtime pipeline)
+            
+            [ignored for raw data, i.e. no suffixes as there is only 1 data available]
+
+        // if queried metadata is for kind calibration
+            
+        """
+        if not hasattr(self,"_metadata"):
+            raise AttributeError("you did not set the metadata, you must (see self.set_metadata()) ")
+
+        fileroots = np.asarray(self.data["fileroot"])
+        if mask is not None:
+            fileroots = fileroots[mask]
+        
+        
+        # Science Products
+        if self._metadata["kind"] in ['sci']:
+            from .buildurl import fileroot_to_science_url
+            if suffix is None:
+                suffix = "sciimg.fits"
+
+            return [fileroot_to_science_url(fileroot, self._metadata["paddedccdid"], self._metadata["qid"],
+                            imgtypecode=self._metadata["imgtypecode"],
+                            suffix=suffix, source=source,
+                            verbose=verbose)
+                        for fileroot in fileroots]
+        # Raw Data
+        elif self._metadata["kind"] in ["raw"]:
+            from .buildurl import fileroot_to_raw_url
+            return [fileroot_to_raw_url(fileroot, self._metadata["paddedccdid"],
+                        imgtypecode=self._metadata["imgtypecode"],
+                                            source=source, verbose=verbose)
+                        for fileroot in fileroots]
+        else:
+            raise NotImplementedError("Only Science ('sci') or Raw ('raw') kinds ready (%s given)."%kind)
 
     
