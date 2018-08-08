@@ -209,7 +209,7 @@ from ztfquery import alert
 ztfalert = alert.AlertReader.load(full_path_to_avro)
 ```
 Inthere, the alert itself is stored as `ztfalert.alert`.  
-Now, if you want for instance to display the alert, simply use the `show()` method.
+Now, if you want  to display the alert for instance, simply use the `show()` method.
 
 You can also quickly display the alert by using the `display_alert`:
 ```python
