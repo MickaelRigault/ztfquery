@@ -222,7 +222,7 @@ fig = alert.display_alert(full_path_to_avro, show_ps_stamp=True)
 ***
 ***
 
-# IRSA Web IPA
+# IRSA Web API
 
 ## MetaData
 The metadata structure is detailed here: [ztf_api](https://irsa.ipac.caltech.edu/docs/program_interface/ztf_api.html)
