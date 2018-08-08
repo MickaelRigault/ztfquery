@@ -226,17 +226,3 @@ fig = alert.display_alert(full_path_to_avro, show_ps_stamp=True)
 
 ## MetaData
 The metadata structure is detailed here: [ztf_api](https://irsa.ipac.caltech.edu/docs/program_interface/ztf_api.html)
-
-***
-***
-
-# Access to original `queryIRSA` _no supported anymore_
-
-*as of ztfquery v0.6 queryIRSA is no more available inside ztfquery*
-
-The original `queryIRSA.py` code should still be working. It is actually independent of the rest code and will eventually be removed. 
-
-To import `queryIRSA` in your code (for backward compatibility):
-```
-from ztfquery import queryIRSA
-```
