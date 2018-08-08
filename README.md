@@ -22,7 +22,7 @@ ipython
 ```
 The login and password will be stored crypted under ~/.queryirsa. Remove this file to reload it.
 
-You should also create the global variable `$ZTFDATA` (usually in your `~/.bash_profile` or `~/.cshrc`. Data you will download from IRSA will be saved in the directory indicated by `$ZTFDATA` following the IRSA data structure.
+You should also create the global variable `$ZTFDATA` (usually in your `~/.bash_profile` or `~/.cshrc`). Data you will download from IRSA will be saved in the directory indicated by `$ZTFDATA` following the IRSA data structure.
 
 # Examples
 
@@ -108,7 +108,7 @@ print(time.Time("2018-05-14").jd) # 2458252.5
 
 # Do the Query to see what exists
 zquery.load_metadata(radec=[276.107960,+44.130398], size=0.01, sql_query="fid=3 and obsjd>2458252.5") # takes a few seconds
-# As of when the README was being written, this had 8 entries:
+# As of when the README has being written, this had 8 entries:
 zquery.metatable
 """
 	obsjd	ccdid	filtercode
