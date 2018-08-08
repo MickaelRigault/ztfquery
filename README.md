@@ -1,7 +1,7 @@
 _alpha version: documentation and functionality improving continuously_
 
 # ztfquery
-Python wrapper of ZTF IRSA web IPA
+Python wrapper of ZTF IRSA web API
 
 _You need to have an IRSA account that has access to ZTF Data to be able to get data using `ztfquery`_
 
