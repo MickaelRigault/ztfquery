@@ -5,6 +5,8 @@ Python wrapper of ZTF IRSA web API
 
 _You need to have an IRSA account that has access to ZTF Data to be able to get data using `ztfquery`_
 
+[![PyPI](https://img.shields.io/pypi/v/ztfquery.svg?style=flat-square)](https://pypi.python.org/pypi/ztfquery)
+
 
 # Installation
 
