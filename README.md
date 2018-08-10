@@ -9,6 +9,9 @@ _You need to have an IRSA account that has access to ZTF Data to be able to get 
 
 
 # Installation
+using pip: `pip install ztfquery` (favored)
+
+or for the latest version:
 
 go wherever you want to save the folder and then
 ```bash
