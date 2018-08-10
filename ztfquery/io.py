@@ -8,11 +8,17 @@ import requests
 LOGIN_URL = "https://irsa.ipac.caltech.edu/account/signon/login.do"
 
 import base64
-from Crypto.Cipher import DES
+if sys.version_info > (3,0):
+    from configparser import ConfigParser
+else:
+    from ConfigParser import ConfigParser
+    
 _SOURCE = open(os.path.dirname(os.path.realpath(__file__))+"/data/source").read()
 
-# base64.b64decode( )
+
+_ENCRYPT_FILE = os.path.expanduser("~")+"/.ztfquery"
 _ENCRYPTING_FILE = os.path.expanduser("~")+"/.queryirsa"
+
 
 MDATADIR   = os.getenv('ZTFDATA',"./Data/")
 # ================= #
@@ -29,21 +35,73 @@ def pad(text):
 
 def has_encryption():
     """ Test if an encryption file already exists """
-    return os.path.isfile( _ENCRYPTING_FILE )
+    if os.path.isfile( _ENCRYPTING_FILE ):
+        print("INFO: Following the open of ztfquery code, the IRSA account encoding has changed")
+        print("      ~/.queryirsa file will be *reshaped* and *replaced* by ~/.ztfquery.")
+        print('      ==> Your IRSA username and password will now be stored in ~/.ztfquery')
+        print('  **remove your ~/.queryirsa file to remove this message** ')
+        username, password = _decrypt_()
+        set_account("irsa", username, password)
+        
+    return os.path.isfile( _ENCRYPT_FILE )
 
+
+
+def _load_id_(which, askit=False):
+    import base64
+    config = ConfigParser()
+    config.read( _ENCRYPT_FILE )
+    if which not in config.sections():
+        if not askit:
+            raise AttributeError("No %s account setup. Add then in ~/.ztfquery or run ztfquery.io.set_account(%s)"%(which,which))
+        else:
+            print("No %s account setup, please provide it"%which)
+            set_account(which)
+            config = ConfigParser()
+            config.read( _ENCRYPT_FILE )
+
+            
+    return config[which.lower()]["username"], base64.b64decode(config[which.lower()]["password"][2:-1]).decode("utf-8")
+
+    
+def set_account(which, username=None, password=None):
+    """ Setup the username and password (simply encrypted!) for the given `which` account. 
+    Saved in ~/.ztfquery
+    """
+    import base64
+    import getpass
+    config = ConfigParser()
+    config.read( _ENCRYPT_FILE )
+    if username is None: username = input('Enter your %s login: '%which)
+    if password is None: password = getpass.getpass()
+    password_ = base64.b64encode( password.encode("utf-8") ) 
+    config[which.lower()] = {"username":username, "password": password_ }
+    with open( _ENCRYPT_FILE , 'w') as configfile:
+        config.write(configfile)
+
+def decrypt(which="irsa"):
+    """ """
+    print("DEPRECATED WARNING deprecated: decrypt is deprecated, please use _load_id_() ")
+    return _load_id_(which)
+
+        
 def encrypt():
     """ """
-    import getpass
-    des = DES.new(  base64.b64decode( _SOURCE ), DES.MODE_ECB)
-    fileout = open(_ENCRYPTING_FILE, "wb")
-    login = input('Enter your IRSA login: ') if sys.version_info > (3,0) else raw_input('Enter your IRSA login  (try first within quotes "your_login"')
-    fileout.write(des.encrypt(pad( login )))
-    fileout.write(b"\n")
-    fileout.write(des.encrypt(pad(getpass.getpass())))
-    fileout.close()
+    print("encrypt is deprecated: use set_account() ")
+    raise DeprecationWarning("encrypt is deprecated: use set_account()")
 
-def decrypt():
-    """ """
+    #import getpass
+    #des = DES.new(  base64.b64decode( _SOURCE ), DES.MODE_ECB)
+    #fileout = open(_ENCRYPTING_FILE, "wb")
+    #login = input('Enter your IRSA login: ') if sys.version_info > (3,0) else raw_input('Enter your IRSA login  (try first within quotes "your_login"')
+    #fileout.write(des.encrypt(pad( login )))
+    #fileout.write(b"\n")
+    #fileout.write(des.encrypt(pad(getpass.getpass())))
+    #fileout.close()
+
+def _decrypt_():
+    """ Temporary, to be removed once completely migrated to set_account() """
+    from Crypto.Cipher import DES
     des = DES.new(  base64.b64decode( _SOURCE ), DES.MODE_ECB)
     try:
         return [des.decrypt(l).decode("utf-8").replace(" ","").replace('"',"").replace("'","" )
@@ -84,11 +142,11 @@ def download_single_url(url, fileout=None, mkdir=True,
             os.makedirs(directory)
 
     else:
-        return requests.get(url, stream=False, cookies = get_cookie(*decrypt()) )
+        return requests.get(url, stream=False, cookies = get_cookie(*_load_id_("irsa")) )
     
     # With Progress bar?
     if not show_progress:
-        response = requests.get(url, stream=True, cookies = get_cookie(*decrypt()) )
+        response = requests.get(url, stream=True, cookies = get_cookie(*_load_id_("irsa")) )
         if response.status_code == 200:
             with open(fileout, 'wb') as f:
                 for data in response.iter_content(chunk):
@@ -96,7 +154,7 @@ def download_single_url(url, fileout=None, mkdir=True,
     
     else:
         from astropy.utils.console import ProgressBar
-        response = requests.get(url, stream=True, cookies = get_cookie(*decrypt()) )
+        response = requests.get(url, stream=True, cookies = get_cookie(*_load_id_("irsa")) )
         if response.status_code == 200:
             chunk_barstep = 500
             f = open(fileout, 'wb')
@@ -134,7 +192,7 @@ def load_file(url, localdir = "/tmp", username=None, chunks=1024, outf=None,
     Returns
     -------
     """
-    response = requests.get(url, stream = True, cookies = get_cookie(*decrypt()) if username is None else get_cookie( username, getpass.getpass()) )
+    response = requests.get(url, stream = True, cookies = get_cookie(*_load_id_("irsa")) if username is None else get_cookie( username, getpass.getpass()) )
     response.raise_for_status()
     size = int(response.headers['Content-length'])
     file = '%s/%s' % (localdir, url[url.rindex('/') + 1:]) if outf is None else outf
