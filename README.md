@@ -25,7 +25,7 @@ ipython
 > import ztfquery
 # This will ask you for your login information.
 ```
-The login and password will be stored crypted under ~/.queryirsa. Remove this file to reload it.
+The login and password will be stored crypted under ~/.ztfquery. Remove this file to reload it.
 
 You should also create the global variable `$ZTFDATA` (usually in your `~/.bash_profile` or `~/.cshrc`). Data you will download from IRSA will be saved in the directory indicated by `$ZTFDATA` following the IRSA data structure.
 
@@ -53,6 +53,13 @@ Remark that particular night, no I band filter observation were made.
 """
 ```
 ![](examples/figures/gri_projection_visits_20180510.png)
+
+#### Password protection of NightSummary. 
+
+The first time you will use NightSummary, it will ask for the username and password of ztfops webpage. **These are not your irsa account settings**. 
+
+username and password to ztfops webpage can be found in ZTF's twiki page (ZTFOps)
+
 
 #### Downloading Data from NightSummary object
 
