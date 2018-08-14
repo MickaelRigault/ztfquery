@@ -1,4 +1,4 @@
-_alpha version: documentation and functionality improving continuously_
+_beta version: documentation improving continuously, ready to be used_
 
 # ztfquery
 Python wrapper of ZTF IRSA web API
