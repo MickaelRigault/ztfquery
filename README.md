@@ -181,7 +181,7 @@ zquery.metatable[["obsjd", "seeing", "filtercode"]]
 zquery.download_data("psfcat.fits", show_progress=False)
 ```
 
-**You can download in multiprocessing** simply by adding the keywork `nprocess=X` where X is the number of paralell process you want. The `show_progress` option will then show the overall progress (do not forget to add the `notebook=True` option is this is run from a notebook. For example:
+**You can download in multiprocessing** simply by adding the keywork `nprocess=X` where X is the number of parallel process you want. The `show_progress` option will then show the overall progress (do not forget to add the `notebook=True` option is this is run from a notebook. For example:
 
 ```python
 zquery.download_data("psfcat.fits", show_progress=True, notebook=True, 
