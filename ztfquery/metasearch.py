@@ -127,12 +127,12 @@ class MetaQuery():
 
 
         """
-        from .io import decrypt, get_cookie
+        from .io import _load_id_, get_cookie
         self.build_query(kind=kind, radec=radec, size=size, mcen=mcen,
                           sql_query=sql_query, colnames=colnames, ct="csv", **kwargs)
 
         self.metatable = read_csv( io.StringIO(
-            requests.get( self.query_url, cookies=get_cookie(*decrypt() ) ).content.decode('utf-8')
+            requests.get( self.query_url, cookies=get_cookie(*_load_id_("irsa") ) ).content.decode('utf-8')
             ))
         
     def build_query(self, kind="sci", radec=None, size=None, mcen=None,

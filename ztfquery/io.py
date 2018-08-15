@@ -128,11 +128,19 @@ def get_cookie(username, password):
 
 
 def download_single_url(url, fileout=None, mkdir=True,
-                        show_progress=True, notebook=False, chunk=1024):
+                        overwrite=False, verbose=True,
+                        show_progress=True,notebook=False, chunk=1024):
     """ Download the url target using requests.get.
     the data is returned (if fileout is None) or stored in `fileout`
     Pa
     """
+    if not overwrite and os.path.isfile( fileout ):
+        if verbose:
+            print("%s already exists: skipped"%fileout)
+        return
+    else:
+        if verbose:
+            print("downloading %s"%fileout)
     # = Where should the data be saved?
     if fileout is not None:
         directory = os.path.dirname(fileout)

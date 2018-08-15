@@ -9,6 +9,16 @@ from . import buildurl
 import warnings
 
 
+# This enables multiprocess downloading
+from .io import download_single_url
+def _download_(args):
+    """ To be used within _ZTFDownloader_.download_data() 
+    url, fileout,mkdir,overwrite,verbose = args
+    """
+    url, fileout, mkdir, overwrite, verbose = args
+    download_single_url(url, fileout=fileout, mkdir=mkdir,overwrite=overwrite, verbose=verbose)
+
+
 #############################
 #                           #
 #   Main Query Tools        #
@@ -178,7 +188,7 @@ class _ZTFDownloader_( object ):
     # Generic that should automatically work as long as get_data_path is defined.
     def download_data(self, suffix=None, source="IRSA", download_dir=None,
                      show_progress = True, notebook=False, verbose=True,
-                     nodl = False, overwrite=False, **kwargs):
+                     nodl = False, overwrite=False, nprocess=None,**kwargs):
         """ 
         Parameters
         ----------
@@ -206,7 +216,9 @@ class _ZTFDownloader_( object ):
             Check if the requested data already exist in the target download directory. 
             If so, this will skip the download except if overwrite is set to True.
 
-            
+        nprocess: [None/int] -optional-
+            Number of parallel downloading you want to do. 
+            If None, it will be set to 1 and will not use multiprocess
         """
         from .io import download_single_url
         
@@ -228,15 +240,45 @@ class _ZTFDownloader_( object ):
 
         if nodl:
             return self.to_download_urls, self.download_location
+
+        if nprocess is None:
+            nprocess = 1
+        elif nprocess<1:
+            raise ValueError("nprocess must 1 or higher (None means 1)")
+
+        if nprocess == 1:
+            # Single processing
+            if verbose: print("No parallel downloading")
+            for url, fileout in zip(self.to_download_urls, self.download_location):
+                download_single_url(url,fileout=fileout, show_progress=show_progress,
+                                    notebook=notebook, mkdir=mkdir,
+                                    overwrite=overwrite, verbose=verbose)
+        else:
+            # Multi processing
+            import multiprocessing
+            if show_progress:
+                from astropy.utils.console import ProgressBar
+                bar = ProgressBar( len(self.to_download_urls), ipython_widget=notebook)
+            else:
+                bar = None
+                
+            if verbose:
+                print("parallel downloading ; asking for %d processes"%nprocess)
+                
+            p   = multiprocessing.Pool(nprocess)
             
-        for url, fileout in zip(self.to_download_urls, self.download_location):
-            if verbose: print(url)
-            if not overwrite and os.path.isfile( fileout ):
-                if verbose: print("%s already exists: skipped"%fileout)
-                continue
-            download_single_url(url,fileout=fileout, show_progress=show_progress,
-                                    notebook=notebook, mkdir=mkdir)
-        
+            # Passing arguments
+            mkdir_     = [mkdir]*len(self.to_download_urls)
+            overwrite_ = [overwrite]*len(self.to_download_urls)
+            verbose_   = [verbose]*len(self.to_download_urls)
+            # Da Loop
+            for j, result in enumerate( p.imap_unordered(_download_, zip(self.to_download_urls, self.download_location,
+                                                                mkdir_, overwrite_, verbose_))):
+                if bar is not None:
+                    bar.update(j)
+            if bar is not None:
+                bar.update( len(self.to_download_urls) )
+                
     # --------- #
     #  GETTER   #
     # --------- #

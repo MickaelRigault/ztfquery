@@ -18,6 +18,10 @@ def display_alert(alert, savefile=None, show_ps_stamp=False):
 
 
 
+def query_alert(alertid):
+    """ """
+    print("This service will soon be added")
+    pass
 ####################
 #                  #
 #  Basic Class     #
