@@ -7,11 +7,6 @@ _You need to have an IRSA account that has access to ZTF Data to be able to get 
 
 [![PyPI](https://img.shields.io/pypi/v/ztfquery.svg?style=flat-square)](https://pypi.python.org/pypi/ztfquery)
 
-# Citing
-If you are using ztfquery for your research, please cite it using the follow DOI: 
-
-[![DOI](https://zenodo.org/badge/130460948.svg)](https://zenodo.org/badge/latestdoi/130460948)
-
 
 # Installation
 using pip: `pip install ztfquery` (favored)
