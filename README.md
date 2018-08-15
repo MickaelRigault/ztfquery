@@ -185,7 +185,7 @@ zquery.download_data("psfcat.fits", show_progress=False)
 
 ```python
 zquery.download_data("psfcat.fits", show_progress=True, notebook=True, 
-nprocess=4, verbose=True, overwrite=True)
+                     nprocess=4, verbose=True, overwrite=True)
 ```
 In the above example, `overwrite=True` enables to re-download existing file. 
 By default `overwrite` is `False`, which means that the code checks if you already have the file you want to download where you want to download it and if so, skips it. `verbose` prints additional information like the name of files been downloaded.
