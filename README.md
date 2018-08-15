@@ -181,6 +181,15 @@ zquery.metatable[["obsjd", "seeing", "filtercode"]]
 zquery.download_data("psfcat.fits", show_progress=False)
 ```
 
+**You can download in multiprocessing** simply by adding the keywork `nprocess=X` where X is the number of paralell process you want. The `show_progress` option will then show the overall progress (do not forget to add the `notebook=True` option is this is run from a notebook. For example:
+
+```python
+zquery.download_data("psfcat.fits", show_progress=True, notebook=True, 
+nprocess=4, verbose=True, overwrite=True)
+```
+In the above example, `overwrite=True` enables to re-download existing file. 
+By default `overwrite` is `False`, which means that the code checks if you already have the file you want to download where you want to download it and if so, skips it. `verbose` prints additional information like the name of files been downloaded.
+
 _What is happening inside `download_data()`?_
 
 For each observation made with ZTF (that you have queried using `load_metadata()`) there are plenty of data product made available. Here is the list for the science exposure (default of `load_metadata()`, details [here](https://irsa.ipac.caltech.edu/docs/program_interface/ztf_metadata.html)):
