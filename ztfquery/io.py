@@ -10,8 +10,10 @@ LOGIN_URL = "https://irsa.ipac.caltech.edu/account/signon/login.do"
 import base64
 if sys.version_info > (3,0):
     from configparser import ConfigParser
+    _PYTHON3 = True
 else:
     from ConfigParser import ConfigParser
+    _PYTHON3 = False
     
 _SOURCE = open(os.path.dirname(os.path.realpath(__file__))+"/data/source").read()
 
@@ -60,8 +62,10 @@ def _load_id_(which, askit=False):
             config = ConfigParser()
             config.read( _ENCRYPT_FILE )
 
-            
-    return config[which.lower()]["username"], base64.b64decode(config[which.lower()]["password"][2:-1]).decode("utf-8")
+    if _PYTHON3:
+        return config[which.lower()]["username"], base64.b64decode(config[which.lower()]["password"][2:-1]).decode("utf-8")
+    else:
+        return config.get(which.lower(),"username"), base64.b64decode(config.get(which.lower(),"password")[2:-1]).decode("utf-8")
 
     
 def set_account(which, username=None, password=None):
@@ -74,8 +78,14 @@ def set_account(which, username=None, password=None):
     config.read( _ENCRYPT_FILE )
     if username is None: username = input('Enter your %s login: '%which)
     if password is None: password = getpass.getpass()
-    password_ = base64.b64encode( password.encode("utf-8") ) 
-    config[which.lower()] = {"username":username, "password": password_ }
+    password_ = base64.b64encode( password.encode("utf-8") )
+    if _PYTHON3:
+        config[which.lower()] = {"username":username, "password": password_ }        
+    else:
+        config.set(which.lower(),"username",username)
+        config.set(which.lower(),"password",password_)
+
+        
     with open( _ENCRYPT_FILE , 'w') as configfile:
         config.write(configfile)
 
