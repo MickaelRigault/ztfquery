@@ -82,8 +82,11 @@ def set_account(which, username=None, password=None):
     if _PYTHON3:
         config[which.lower()] = {"username":username, "password": password_ }        
     else:
-        config.set(which.lower(),"username",username)
-        config.set(which.lower(),"password",password_)
+        section = which.lower()
+        if section not in config.sections():
+            config.add_section(section)
+        config.set(section,"username",username)
+        config.set(section,"password",password_)
 
         
     with open( _ENCRYPT_FILE , 'w') as configfile:
