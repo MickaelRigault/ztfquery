@@ -76,8 +76,14 @@ def set_account(which, username=None, password=None):
     import getpass
     config = ConfigParser()
     config.read( _ENCRYPT_FILE )
-    if username is None: username = input('Enter your %s login: '%which)
+    if username is None:
+        if _PYTHON3:
+            username = input('Enter your %s login: '%which)
+        else:
+            username = raw_input('Enter your %s login: '%which)
+            
     if password is None: password = getpass.getpass()
+        
     password_ = base64.b64encode( password.encode("utf-8") )
     if _PYTHON3:
         config[which.lower()] = {"username":username, "password": password_ }        
