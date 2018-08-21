@@ -1,4 +1,6 @@
-_beta version: documentation improving continuously, ready to be used_
+_beta version: documentation improving continuously, ready to be used._
+
+_Tested on python 3 and 2.7_
 
 # ztfquery
 Python wrapper of ZTF IRSA web API
@@ -9,6 +11,7 @@ _You need to have an IRSA account that has access to ZTF Data to be able to get 
 
 
 # Installation
+
 using pip: `pip install ztfquery` (favored)
 
 or for the latest version:
