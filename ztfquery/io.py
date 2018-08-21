@@ -65,7 +65,7 @@ def _load_id_(which, askit=False):
     if _PYTHON3:
         return config[which.lower()]["username"], base64.b64decode(config[which.lower()]["password"][2:-1]).decode("utf-8")
     else:
-        return config.get(which.lower(),"username"), base64.b64decode(config.get(which.lower(),"password")[2:-1]).decode("utf-8")
+        return config.get(which.lower(),"username"), base64.b64decode(config.get(which.lower(),"password"))
 
     
 def set_account(which, username=None, password=None):
