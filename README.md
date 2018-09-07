@@ -32,6 +32,11 @@ The login and password will be stored crypted under ~/.ztfquery. Remove this fil
 
 You should also create the global variable `$ZTFDATA` (usually in your `~/.bash_profile` or `~/.cshrc`). Data you will download from IRSA will be saved in the directory indicated by `$ZTFDATA` following the IRSA data structure.
 
+_new since version 1.1.1_
+
+You can also directly provide your IRSA account settings when running `load_metadata` and `download_data` using the `auth=[your_username, your_password]` parameter. Similarly, directly provide the username and password to the ztf ops page when loading `NightSummary` using the `ztfops_auth` parameter.
+
+
 # Examples
 
 ## Single Day summary
