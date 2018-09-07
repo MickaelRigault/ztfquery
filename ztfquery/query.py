@@ -188,7 +188,8 @@ class _ZTFDownloader_( object ):
     # Generic that should automatically work as long as get_data_path is defined.
     def download_data(self, suffix=None, source="IRSA", download_dir=None,
                      show_progress = True, notebook=False, verbose=True,
-                     nodl = False, overwrite=False, nprocess=None,**kwargs):
+                     nodl = False, overwrite=False, nprocess=None,
+                     auth=None, **kwargs):
         """ 
         Parameters
         ----------
@@ -219,9 +220,20 @@ class _ZTFDownloader_( object ):
         nprocess: [None/int] -optional-
             Number of parallel downloading you want to do. 
             If None, it will be set to 1 and will not use multiprocess
+
+        auth: [str, str] -optional-
+            [username, password] of you IRSA account.
+            If used, information stored in ~/.ztfquery will be ignored.
+
         """
         from .io import download_single_url
-        
+        # login
+        if auth is not None:
+            from .io import get_cookie
+            cookie = get_cookie(*auth)
+        else:
+            cookie = None
+            
         # Data Structure
         self._relative_data_path = self.get_data_path(suffix=suffix, source="None", **kwargs)
         
@@ -252,7 +264,7 @@ class _ZTFDownloader_( object ):
             for url, fileout in zip(self.to_download_urls, self.download_location):
                 download_single_url(url,fileout=fileout, show_progress=show_progress,
                                     notebook=notebook, mkdir=mkdir,
-                                    overwrite=overwrite, verbose=verbose)
+                                    overwrite=overwrite, verbose=verbose, cookies=cookie)
         else:
             # Multi processing
             import multiprocessing
@@ -327,7 +339,7 @@ class ZTFQuery( _ZTFTableHandler_, _ZTFDownloader_ ):
     def load_metadata(self, kind="sci",
                         radec=None, size=None, mcen=None,
                         caltype=None,
-                        sql_query=None, **kwargs):
+                        sql_query=None, auth=None, **kwargs):
         """ Querying for the metadata information that enables to reconstruct the URL to access the data.
         
         [This methods uses the .metasearch library, which is python wrapper of the the IRSA web API
@@ -398,6 +410,10 @@ class ZTFQuery( _ZTFTableHandler_, _ZTFDownloader_ ):
     
         """
         _test_kind_(kind)
+        if auth is not None:
+            from .io import get_cookie
+            kwargs["cookies"] = get_cookie(*auth)
+        
         if kind not in ['cal']:
             # python3 -> self.metaquery = download_metadata(**{**locals(),**kwargs})
             self.metaquery = download_metadata(kind=kind, radec=radec, size=size, mcen=mcen, sql_query=sql_query, **kwargs)
@@ -512,19 +528,26 @@ class ZTFQuery( _ZTFTableHandler_, _ZTFDownloader_ ):
 #                           #
 #############################
 _NIGHT_SUMMARY_URL = "http://www.astro.caltech.edu/~tb/ztfops/sky/"
-def download_night_summary(night):
+def download_night_summary(night, ztfops_auth = None):
     """ 
     Parameters
     ----------
     night: [string]
         Format: YYYYMMDD like for instance 20180429
+
+    ztfops_auth: [string, string] -optional-
+        Provide directly the [username, password] of the ztfops page.
     """
     import requests
     from pandas import DataFrame
-    from .io import _load_id_
+    # = Password and username
+    if ztfops_auth is None:
+        from .io import _load_id_
+        ztfops_auth = _load_id_("ztfops", askit=True)
+        
+    
     summary = requests.get(_NIGHT_SUMMARY_URL+"%s/exp.%s.tbl"%(night,night),
-                               auth=_load_id_("ztfops", askit=True)
-                          ).content.decode('utf-8').splitlines()
+                               auth=ztfops_auth).content.decode('utf-8').splitlines()
     columns = [l.replace(" ","") for l in summary[0].split('|') if len(l.replace(" ",""))>0]
     data    = [l.split() for l in summary[1:] if not l.startswith('|') and len(l)>1]
     dataf   = DataFrame(data=data, columns=[l if l!= "fil" else "fid" for l in columns])

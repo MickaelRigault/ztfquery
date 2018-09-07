@@ -147,7 +147,7 @@ def get_cookie(username, password):
 
 
 def download_single_url(url, fileout=None, mkdir=True,
-                        overwrite=False, verbose=True,
+                        overwrite=False, verbose=True, cookies=None,
                         show_progress=True,notebook=False, chunk=1024):
     """ Download the url target using requests.get.
     the data is returned (if fileout is None) or stored in `fileout`
@@ -160,6 +160,11 @@ def download_single_url(url, fileout=None, mkdir=True,
     else:
         if verbose:
             print("downloading %s"%fileout)
+
+    # = Password and Username
+    if cookies is None:
+        cookies = get_cookie(*_load_id_("irsa"))
+        
     # = Where should the data be saved?
     if fileout is not None:
         directory = os.path.dirname(fileout)
@@ -169,11 +174,11 @@ def download_single_url(url, fileout=None, mkdir=True,
             os.makedirs(directory)
 
     else:
-        return requests.get(url, stream=False, cookies = get_cookie(*_load_id_("irsa")) )
+        return requests.get(url, stream=False, cookies = cookies )
     
     # With Progress bar?
     if not show_progress:
-        response = requests.get(url, stream=True, cookies = get_cookie(*_load_id_("irsa")) )
+        response = requests.get(url, stream=True, cookies = cookies)
         if response.status_code == 200:
             with open(fileout, 'wb') as f:
                 for data in response.iter_content(chunk):
@@ -181,7 +186,7 @@ def download_single_url(url, fileout=None, mkdir=True,
     
     else:
         from astropy.utils.console import ProgressBar
-        response = requests.get(url, stream=True, cookies = get_cookie(*_load_id_("irsa")) )
+        response = requests.get(url, stream=True, cookies = cookies)
         if response.status_code == 200:
             chunk_barstep = 500
             f = open(fileout, 'wb')
@@ -193,7 +198,8 @@ def download_single_url(url, fileout=None, mkdir=True,
                     f.write(data)
             f.close()
 
-def load_file(url, localdir = "/tmp", username=None, chunks=1024, outf=None,
+def load_file(url, localdir = "/tmp", cookies=None,
+                  chunks=1024, outf=None,
                   showpbar=False):
     """Load a file from the specified URL and save it locally.
 
@@ -219,7 +225,7 @@ def load_file(url, localdir = "/tmp", username=None, chunks=1024, outf=None,
     Returns
     -------
     """
-    response = requests.get(url, stream = True, cookies = get_cookie(*_load_id_("irsa")) if username is None else get_cookie( username, getpass.getpass()) )
+    response = requests.get(url, stream = True, cookies = get_cookie(*_load_id_("irsa")) if cookies is None else cookies )
     response.raise_for_status()
     size = int(response.headers['Content-length'])
     file = '%s/%s' % (localdir, url[url.rindex('/') + 1:]) if outf is None else outf

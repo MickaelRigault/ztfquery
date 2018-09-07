@@ -112,7 +112,8 @@ def download_metadata(kind="sci", radec=None, size=None, mcen=None,
 class MetaQuery():
 
     def query(self, kind="sci", radec=None, size=None, mcen=None,
-                  sql_query=None, colnames=None, **kwargs):
+                  sql_query=None, colnames=None,
+                  cookies=None, **kwargs):
         """ Query IRSA to get the metadate needed to know how to access the data themselves.
         
         This method uses `build_query()` and store the downloaded information
@@ -127,18 +128,21 @@ class MetaQuery():
 
 
         """
-        from .io import _load_id_, get_cookie
+        if cookies is None:
+            from .io import _load_id_, get_cookie
+            cookies = get_cookie(*_load_id_("irsa") )
         self.build_query(kind=kind, radec=radec, size=size, mcen=mcen,
                           sql_query=sql_query, colnames=colnames, ct="csv", **kwargs)
 
         self.metatable = read_csv( io.StringIO(
-            requests.get( self.query_url, cookies=get_cookie(*_load_id_("irsa") ) ).content.decode('utf-8')
+            requests.get( self.query_url, cookies=cookies).content.decode('utf-8')
             ))
         
     def build_query(self, kind="sci", radec=None, size=None, mcen=None,
                      sql_query=None, colnames=None, ct="csv", **kwargs):
         """ """
-        self.query_prop = dict(kind=kind, radec=radec, size=size, mcen=mcen, sql_query=sql_query, colnames=colnames, ct=ct, **kwargs)
+        self.query_prop = dict(kind=kind, radec=
+                                   radec, size=size, mcen=mcen, sql_query=sql_query, colnames=colnames, ct=ct, **kwargs)
         self.query_url  = build_query( **self.query_prop )
         
     # ================ #
