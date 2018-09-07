@@ -556,11 +556,11 @@ def download_night_summary(night, ztfops_auth = None):
 
 
 class NightSummary( _ZTFTableHandler_, _ZTFDownloader_ ):
-    def __init__(self, night):
+    def __init__(self, night, ztfops_auth=None):
         """ """
         self.night = night
         
-        self.data_all  = download_night_summary(night)
+        self.data_all  = download_night_summary(night, ztfops_auth=ztfops_auth)
         
         self.data  = self.data_all[self.data_all["type"]=="targ"]
         
