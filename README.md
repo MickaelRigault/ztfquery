@@ -223,6 +223,23 @@ zquery.get_local_data("psfcat.fits")
 **Important: Retrieving data** If you need to get them again later on, after you closed the session, you will need to redo the `load_metadata()` query to find back the structure of the database, otherwise `get_local_data()` will not know what to do. 
 If you need to work offline, I suggest you overwrite the download location within `download_data` using the 'download_dir' option. If provided, all the data will be dumped inside this directory without following the IRSA structure.
 
+***
+
+# Getting Marshal Data
+
+_starting version 1.2.0_
+
+You can now query data stored in the Marshal directly from `ztfquery`.
+
+There are three main utilities:
+1. Getting target datatable (coordinates, classification, redshift etc) 
+2. Getting target spectra
+3. Getting target lightcurves
+
+All of these could be called from `MarshalAccess`, but 2. and 3. (spectra and lightcurves) can directly be downloaded from a native `ztfquery.marshal` function (i.e. with no need to instanciate a `MarshalAccess` object). Below are some examples.
+
+**password protection:** Data right access to the Marshal could directly be passed into functions and methods (using the `auth` argument) or, as usual and as favored, stored crypted into `~/.ztfquery`. The first time you will query for marshal information without explicitly providing an authentification using `auth`, `ztfquery` will prompt for your marshal username and password and will store save. Then anytime `auth` is not given, the username and password stored will be used. 
+
 
 ***
 
