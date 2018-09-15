@@ -27,7 +27,7 @@ KNOWN_SCIENCE_SUFFIXES = {    "sciimg.fits":"(primary science image)",
 
 # SOURCES 
 DATA_BASEURL   = "https://irsa.ipac.caltech.edu/ibe/data/ztf/products/"
-LOCALSOURCE    = os.getenv("ZTFDATA","./Data/")
+from .io import LOCALSOURCE
 DEFAULT_SOURCE = DATA_BASEURL
 
 

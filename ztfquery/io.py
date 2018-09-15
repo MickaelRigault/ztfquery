@@ -22,18 +22,12 @@ _ENCRYPT_FILE = os.path.expanduser("~")+"/.ztfquery"
 _ENCRYPTING_FILE = os.path.expanduser("~")+"/.queryirsa"
 
 
-MDATADIR   = os.getenv('ZTFDATA',"./Data/")
+LOCALSOURCE   = os.getenv('ZTFDATA',"./Data/")
 # ================= #
 #  Crypting         #
 # ================= #
 
-#http://www.astro.caltech.edu/~tb/ztfops/sky/
 
-def pad(text):
-    """ good length password """
-    while len(text) % 8 != 0:
-        text += ' '
-    return text
 
 def has_encryption():
     """ Test if an encryption file already exists """
@@ -50,6 +44,7 @@ def has_encryption():
 
 
 def _load_id_(which, askit=False):
+    """ returns login information for the requested enty"""
     import base64
     config = ConfigParser()
     config.read( _ENCRYPT_FILE )
@@ -67,7 +62,6 @@ def _load_id_(which, askit=False):
     else:
         return config.get(which.lower(),"username"), base64.b64decode(config.get(which.lower(),"password"))
 
-    
 def set_account(which, username=None, password=None):
     """ Setup the username and password (simply encrypted!) for the given `which` account. 
     Saved in ~/.ztfquery
@@ -148,23 +142,29 @@ def get_cookie(username, password):
 
 def download_single_url(url, fileout=None, mkdir=True,
                         overwrite=False, verbose=True, cookies=None,
-                        show_progress=True,notebook=False, chunk=1024):
+                        show_progress=True, notebook=False, chunk=1024, **kwargs):
     """ Download the url target using requests.get.
     the data is returned (if fileout is None) or stored in `fileout`
     Pa
     """
-    if not overwrite and os.path.isfile( fileout ):
+    if fileout is not None and not overwrite and os.path.isfile( fileout ):
         if verbose:
             print("%s already exists: skipped"%fileout)
         return
     else:
-        if verbose:
+        if verbose and fileout:
             print("downloading %s"%fileout)
 
     # = Password and Username
-    if cookies is None:
-        cookies = get_cookie(*_load_id_("irsa"))
+    if cookies is None: cookies = get_cookie(*_load_id_("irsa"))
+
         
+    # - requests options 
+    download_prop = dict(cookies=cookies, stream=True)
+    for k,v in kwargs.items(): download_prop[k] = v
+    if cookies in ["no_cookies"]: _ = download_prop.pop("cookies")
+
+    request_fnc = "get" if not "data" in download_prop else "post"
     # = Where should the data be saved?
     if fileout is not None:
         directory = os.path.dirname(fileout)
@@ -174,11 +174,12 @@ def download_single_url(url, fileout=None, mkdir=True,
             os.makedirs(directory)
 
     else:
-        return requests.get(url, stream=False, cookies = cookies )
-    
+        download_prop["stream"] = False
+        return getattr(requests,request_fnc)(url, **download_prop)
+
     # With Progress bar?
     if not show_progress:
-        response = requests.get(url, stream=True, cookies = cookies)
+        response = getattr(requests,request_fnc)(url, **download_prop)
         if response.status_code == 200:
             with open(fileout, 'wb') as f:
                 for data in response.iter_content(chunk):
@@ -186,7 +187,7 @@ def download_single_url(url, fileout=None, mkdir=True,
     
     else:
         from astropy.utils.console import ProgressBar
-        response = requests.get(url, stream=True, cookies = cookies)
+        response = getattr(requests,request_fnc)(url, **download_prop)
         if response.status_code == 200:
             chunk_barstep = 500
             f = open(fileout, 'wb')
@@ -197,47 +198,3 @@ def download_single_url(url, fileout=None, mkdir=True,
                         bar.update()
                     f.write(data)
             f.close()
-
-def load_file(url, localdir = "/tmp", cookies=None,
-                  chunks=1024, outf=None,
-                  showpbar=False):
-    """Load a file from the specified URL and save it locally.
-
-    Parameters
-    ----------
-    url : [str]
-        The URL from which the file is to be downloaded
-
-    localdir : [str] -optional-
-        The local directory to which the file is to be saved
-
-    chunks: [int] -optional-
-        size of chunks (in Bytes) used to write file to disk.
-
-    outf : [str or None] -optional-
-        if not None, the downloaded file will be saved to fname, 
-        overwriting the localdir option.
-
-    showpbar : [bool] -optional-
-        * DECREPEATED *
-        if True, use tqdm to display the progress bar for the current download.
-
-    Returns
-    -------
-    """
-    response = requests.get(url, stream = True, cookies = get_cookie(*_load_id_("irsa")) if cookies is None else cookies )
-    response.raise_for_status()
-    size = int(response.headers['Content-length'])
-    file = '%s/%s' % (localdir, url[url.rindex('/') + 1:]) if outf is None else outf
-        
-    with open(file, 'wb') as handle:
-        for block in response.iter_content(chunks):
-            handle.write(block)
-            #pbar.update(chunks)
-                    
-    if os.stat(file).st_size!= size:
-        raise RuntimeError(
-            "file size does not match. requested: %d, downloaded: %d"%(
-                size, os.stat(file).st_size))
-    
-    return os.stat(file).st_size
