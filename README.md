@@ -296,6 +296,12 @@ You may also want to directly get the data (i.e. not storing them somewhere), th
 from ztfquery import marshal
 spectra = marshal.download_spec("ZTF18abukavn", dirout=None)
 ```
+Here, `spectra` is a dictionary with the following structure: `{filename_: readlines_array_of_ascii_spectraldata}`
+
+If you have dowloaded spectra using the default dirout output (`dirout='default'`), you can load the spectra using `get_local_spectra(TARGET_NAME)`, which return the same `spectra` `dict` as defined just above (`{filename_: readlines_array_of_ascii_spectraldata}`)
+
+
+### Getting targets Marshal lightcurves
 
 
 ***
