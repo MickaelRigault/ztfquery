@@ -240,6 +240,63 @@ All of these could be called from `MarshalAccess`, but 2. and 3. (spectra and li
 
 **password protection:** Data right access to the Marshal could directly be passed into functions and methods (using the `auth` argument) or, as usual and as favored, stored crypted into `~/.ztfquery`. The first time you will query for marshal information without explicitly providing an authentification using `auth`, `ztfquery` will prompt for your marshal username and password and will store save. Then anytime `auth` is not given, the username and password stored will be used. 
 
+### Getting targets Marshal data
+```python
+from ztfquery import marshal
+# This instanciates a MarshalAccess object
+m = marshal.MarshalAccess()
+# Then downloads all targets you have access to. 
+m.load_target_sources()
+# Target data are stored as a pandas DataFrame into `target_sources`
+print(m.target_sources)
+
+"""
+a long table containing:
+candid name ra dec classification field redshift creationdate  iauname id lastmodified  rcid  release_auth release_status
+"""
+```
+If you only want a subgroup of targets, you can use the `get_target_data()` method:
+```python
+m.get_target_data(["SN2018zd","ZTF18aahflrr","at2018akx"])
+"""
+a table containing:
+'candid name ra dec classification field redshift creationdate  iauname id lastmodified  rcid  release_auth release_status'
+only for the given targets
+"""
+```
+
+You can also directly get their coordinates, redshift or classification (`get_target_{coordinates,redshift,classification}`) e.g.:
+```python
+m.get_target_coordinates(["SN2018zd","ZTF18aahflrr","at2018akx"])
+"""
+	ra	dec
+0	94.513250	94.513250
+2	150.846667	-26.182181
+3	153.923187	14.119114
+"""
+```
+
+### Getting targets Marshal spectra
+
+You can download target spectra stored in the marshal using the `download_spec` function. 
+For instance:
+```python
+from ztfquery import marshal
+marshal.download_spec("ZTF18abukavn")
+```
+As such, spectra will in stored in `$ZTFDATA/marshal/spectra/TARGET_NAME`.
+If you want to provide another directory, simply fill the `dirout` argument, for instance:
+```python
+from ztfquery import marshal
+marshal.download_spec("ZTF18abukavn", dirout="ANY_DIRECTORY_PATH")
+```
+
+You may also want to directly get the data (i.e. not storing them somewhere), then set  `dirout=None`
+```
+from ztfquery import marshal
+spectra = marshal.download_spec("ZTF18abukavn", dirout=None)
+```
+
 
 ***
 
