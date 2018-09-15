@@ -7,10 +7,8 @@ Inspired by https://github.com/ufeindt/marshaltools
 import json
 import requests
 import pandas
-import tarfile
 import os
 import numpy as np
-from io import BytesIO
 from . import io
 
 # list of effects:
@@ -94,7 +92,8 @@ def download_spec(name, dirout="default", auth=None, verbose=False, **kwargs):
     None (or list of data if `dirout=None`)
     """
     # fileout is saved later to manage decompression
-    
+    import tarfile
+    from io import BytesIO
     response = io.download_single_url(MARSHAL_BASEURL+'batch_spec.cgi',  
                                    fileout=None,
                                    data={"name":name},
@@ -337,10 +336,43 @@ class MarshalAccess( object ):
         Returns
         -------
         dict 
-        // {name: return_of ztfquery.marshal.download_spec()}
+        // {name: `return_of ztfquery.marshal.download_spec()`}
         """
         return {name_: download_spec(name, dirout=dirout, auth=auth, **kwargs) for name_ in np.atleast_1d(name)}
+
+
+    def download_lightcurve(self, name, dirout="default", auth=None,  **kwargs):
+        """ 
+
+        Method calling ztfquery.marshal.download_lightcurve()
+
+        Parameters:
+        -----------
+        name: [str or list of]
+            Name of a target on the marshal.
+
+        dirout: [str] -optional-
+            Directory where the data should be stored. 
+            Additional options:
+            - `dirout=None`: The spectra are not saved be returned
+            - `dirout='default'`: The lightcurve will be saved in native target location 
+                              (`$ZTFDATA`/marshal/lightcurves/`name`)
+                              lightcurve saved here can be recovered using `get_local_lightcurve`
+                              * This is favored *
+
+        auth: [str,str] -optional-
+            Marshal [username, password]
             
+
+        **kwargs goes to ztfquery.io.download_single_url()
+
+        Returns
+        -------
+        dict 
+        // {name: `return_of ztfquery.marshal.download_lightcurve()`}
+        """
+        return {name_: download_lightcurve(name, dirout=dirout, auth=auth, **kwargs) for name_ in np.atleast_1d(name)}
+    
     # 
     # LOADER
     #
