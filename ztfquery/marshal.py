@@ -106,8 +106,8 @@ def download_spec(name, dirout="default", auth=None, verbose=False, **kwargs):
     # No directory out? Then reformated data returned
     if dirout is None or dirout in ["None"]:
         if verbose: print("Data returned (dirout=None)")
-        out = [tar.extractfile(member).read().decode("utf-8").splitlines() for member in tar.getmembers()]
-        return out[0] if len(out)==1 else out
+        out = {member:tar.extractfile(member).read().decode("utf-8").splitlines() for member in tar.getmembers()}
+        return out
     # Directory given, then dump data there:
     if dirout in ["default"]:
         dirout = target_spectra_directory(name)
