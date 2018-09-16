@@ -275,6 +275,7 @@ m.get_target_coordinates(["SN2018zd","ZTF18aahflrr","at2018akx"])
 3	153.923187	14.119114
 """
 ```
+_Remark:_ getting information (coordinates, redshift etc) for 1 or 1000 targets roughly takes the same amount of time, so better query all you targets at once.
 
 ### Getting Marshal spectra
 
