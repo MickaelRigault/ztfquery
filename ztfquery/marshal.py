@@ -61,7 +61,7 @@ def get_target_data(name):
     m.load_target_sources()
     return m.get_target_data(name)
     
-def download_spec(name, dirout="default", auth=None, verbose=False, **kwargs):
+def download_spectra(name, dirout="default", auth=None, verbose=False, **kwargs):
     """Download all spectra for a source in the marshal as a tar.gz file
         
     Parameters:
@@ -311,7 +311,7 @@ class MarshalAccess( object ):
     def download_spectra(self, name, dirout="default", auth=None,  **kwargs):
         """ 
 
-        Method calling ztfquery.marshal.download_spec()
+        Method calling ztfquery.marshal.download_spectra()
 
         Parameters:
         -----------
@@ -336,9 +336,9 @@ class MarshalAccess( object ):
         Returns
         -------
         dict 
-        // {name: `return_of ztfquery.marshal.download_spec()`}
+        // {name: `return_of ztfquery.marshal.download_spectra()`}
         """
-        return {name_: download_spec(name, dirout=dirout, auth=auth, **kwargs) for name_ in np.atleast_1d(name)}
+        return {name_: download_spectra(name, dirout=dirout, auth=auth, **kwargs) for name_ in np.atleast_1d(name)}
 
 
     def download_lightcurve(self, name, dirout="default", auth=None,  **kwargs):
