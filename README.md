@@ -284,7 +284,7 @@ For instance:
 from ztfquery import marshal
 marshal.download_spec("ZTF18abukavn")
 ```
-As such, spectra will in stored in `$ZTFDATA/marshal/spectra/TARGET_NAME`.
+As such, spectra will be stored in `$ZTFDATA/marshal/spectra/TARGET_NAME/`.
 If you want to provide another directory, simply fill the `dirout` argument, for instance:
 ```python
 from ztfquery import marshal
@@ -292,19 +292,36 @@ marshal.download_spec("ZTF18abukavn", dirout="ANY_DIRECTORY_PATH")
 ```
 
 You may also want to directly get the data (i.e. not storing them somewhere), then set  `dirout=None`
-```
+```python
 from ztfquery import marshal
 spectra = marshal.download_spec("ZTF18abukavn", dirout=None)
 ```
 Here, `spectra` is a dictionary with the following structure: `{filename_: readlines_array_of_ascii_spectraldata}`
 
-If you have dowloaded spectra using the default dirout output (`dirout='default'`), you can load the spectra using `get_local_spectra(TARGET_NAME)`, which return the same `spectra` `dict` as defined just above (`{filename_: readlines_array_of_ascii_spectraldata}`)
+If you have dowloaded spectra using the default dirout output (`dirout='default'`), you can load the spectra using `get_local_spectra(TARGET_NAME)`, which returns the same `dict` as defined just above (`{filename_: readlines_array_of_ascii_spectraldata}`)
 
 
 ### Getting targets Marshal lightcurves
 
+Similarly to the spectra, you can download the marshal lightcurve using the  `download_lightcurve` function.
+```python
+from ztfquery import marshal
+marshal.download_lightcurve("ZTF18abukavn")
+```
+`download_lightcurve` has the same `dirout` option as `download_spec`, except that it saves lightcurve by default in `$ZTFDATA/marshal/lightcurves/TARGET_NAME/`. Use `get_local_lightcurve()` function to retreive lightcurve downloaded using `dirout="default"`. 
 
-***
+Lightcurves are stored as .csv and returns as pandas DataFrame. You can directly visualize the lightcurve using `plot_lightcurve(lc_dataframe)` providing the pandas DataFrame. 
+
+```python
+from ztfquery import marshal
+# Download lightcurve of ZTF18abukavn
+marshal.download_lightcurve("ZTF18abukavn")
+# Loading it // the returns a dict {filename: DataFrame} because saveral could be there.
+lc_dict = marshal.get_local_lightcurve("ZTF18abukavn")
+# Plot it
+marshal.plot_lightcurve(lc_dict["marshal_lightcurve_ZTF18abukavn.csv"])
+```
+*** 
 
 # Reading Avro Alert
 
