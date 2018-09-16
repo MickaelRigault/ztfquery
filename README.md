@@ -282,19 +282,19 @@ You can download target spectra stored in the marshal using the `download_spec` 
 For instance:
 ```python
 from ztfquery import marshal
-marshal.download_spec("ZTF18abcdef")
+marshal.download_spectra("ZTF18abcdef")
 ```
 As such, spectra will be stored in `$ZTFDATA/marshal/spectra/TARGET_NAME/`.
 If you want to provide another directory, simply fill the `dirout` argument, for instance:
 ```python
 from ztfquery import marshal
-marshal.download_spec("ZTF18abcdef", dirout="ANY_DIRECTORY_PATH")
+marshal.download_spectra("ZTF18abcdef", dirout="ANY_DIRECTORY_PATH")
 ```
 
 You may also want to directly get the data (i.e. not storing them somewhere), then set  `dirout=None`
 ```python
 from ztfquery import marshal
-spectra = marshal.download_spec("ZTF18abcdef", dirout=None)
+spectra = marshal.download_spectra("ZTF18abcdef", dirout=None)
 ```
 Here, `spectra` is a dictionary with the following structure: `{filename_: readlines_array_of_ascii_spectraldata}`
 
