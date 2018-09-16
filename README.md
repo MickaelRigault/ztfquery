@@ -240,7 +240,7 @@ All of these could be called from `MarshalAccess`, but 2. and 3. (spectra and li
 
 **password protection:** Data right access to the Marshal could directly be passed into functions and methods (using the `auth` argument) or, as usual and as favored, stored crypted into `~/.ztfquery`. The first time you will query for marshal information without explicitly providing an authentification using `auth`, `ztfquery` will prompt for your marshal username and password and will store save. Then anytime `auth` is not given, the username and password stored will be used. 
 
-### Getting targets Marshal data
+### Getting Marshal target information
 ```python
 from ztfquery import marshal
 # This instanciates a MarshalAccess object
@@ -276,7 +276,7 @@ m.get_target_coordinates(["SN2018zd","ZTF18aahflrr","at2018akx"])
 """
 ```
 
-### Getting targets Marshal spectra
+### Getting Marshal spectra
 
 You can download target spectra stored in the marshal using the `download_spec` function. 
 For instance:
@@ -301,7 +301,7 @@ Here, `spectra` is a dictionary with the following structure: `{filename_: readl
 If you have dowloaded spectra using the default dirout output (`dirout='default'`), you can load the spectra using `get_local_spectra(TARGET_NAME)`, which returns the same `dict` as defined just above (`{filename_: readlines_array_of_ascii_spectraldata}`)
 
 
-### Getting targets Marshal lightcurves
+### Getting Marshal lightcurves
 
 Similarly to the spectra, you can download the marshal lightcurve using the  `download_lightcurve` function.
 ```python
@@ -322,6 +322,8 @@ lc_dict = marshal.get_local_lightcurve("ZTF18abcdef")
 # Plot it
 marshal.plot_lightcurve(lc_dict["marshal_lightcurve_ZTF18abcdef.csv"])
 ```
+
+![](examples/figures/lc_examples.png)
 *** 
 
 # Reading Avro Alert
