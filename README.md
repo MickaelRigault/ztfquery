@@ -282,19 +282,19 @@ You can download target spectra stored in the marshal using the `download_spec` 
 For instance:
 ```python
 from ztfquery import marshal
-marshal.download_spec("ZTF18abukavn")
+marshal.download_spec("ZTF18abcdef")
 ```
 As such, spectra will be stored in `$ZTFDATA/marshal/spectra/TARGET_NAME/`.
 If you want to provide another directory, simply fill the `dirout` argument, for instance:
 ```python
 from ztfquery import marshal
-marshal.download_spec("ZTF18abukavn", dirout="ANY_DIRECTORY_PATH")
+marshal.download_spec("ZTF18abcdef", dirout="ANY_DIRECTORY_PATH")
 ```
 
 You may also want to directly get the data (i.e. not storing them somewhere), then set  `dirout=None`
 ```python
 from ztfquery import marshal
-spectra = marshal.download_spec("ZTF18abukavn", dirout=None)
+spectra = marshal.download_spec("ZTF18abcdef", dirout=None)
 ```
 Here, `spectra` is a dictionary with the following structure: `{filename_: readlines_array_of_ascii_spectraldata}`
 
@@ -306,7 +306,7 @@ If you have dowloaded spectra using the default dirout output (`dirout='default'
 Similarly to the spectra, you can download the marshal lightcurve using the  `download_lightcurve` function.
 ```python
 from ztfquery import marshal
-marshal.download_lightcurve("ZTF18abukavn")
+marshal.download_lightcurve("ZTF18abcdef")
 ```
 `download_lightcurve` has the same `dirout` option as `download_spec`, except that it saves lightcurve by default in `$ZTFDATA/marshal/lightcurves/TARGET_NAME/`. Use `get_local_lightcurve()` function to retreive lightcurve downloaded using `dirout="default"`. 
 
@@ -314,12 +314,13 @@ Lightcurves are stored as .csv and returns as pandas DataFrame. You can directly
 
 ```python
 from ztfquery import marshal
-# Download lightcurve of ZTF18abukavn
-marshal.download_lightcurve("ZTF18abukavn")
+# Download lightcurve of 
+
+marshal.download_lightcurve("ZTF18abcdef")
 # Loading it // this returns a dict with the format {filename: DataFrame} because one could have saved several .csv.
-lc_dict = marshal.get_local_lightcurve("ZTF18abukavn")
+lc_dict = marshal.get_local_lightcurve("ZTF18abcdef")
 # Plot it
-marshal.plot_lightcurve(lc_dict["marshal_lightcurve_ZTF18abukavn.csv"])
+marshal.plot_lightcurve(lc_dict["marshal_lightcurve_ZTF18abcdef.csv"])
 ```
 *** 
 
