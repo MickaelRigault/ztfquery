@@ -316,7 +316,7 @@ Lightcurves are stored as .csv and returns as pandas DataFrame. You can directly
 from ztfquery import marshal
 # Download lightcurve of ZTF18abukavn
 marshal.download_lightcurve("ZTF18abukavn")
-# Loading it // the returns a dict {filename: DataFrame} because saveral could be there.
+# Loading it // this returns a dict with the format {filename: DataFrame} because one could have saved several .csv.
 lc_dict = marshal.get_local_lightcurve("ZTF18abukavn")
 # Plot it
 marshal.plot_lightcurve(lc_dict["marshal_lightcurve_ZTF18abukavn.csv"])
