@@ -255,6 +255,13 @@ a long table containing:
 candid name ra dec classification field redshift creationdate  iauname id lastmodified  rcid  release_auth release_status
 """
 ```
+You can also download target sources only for one of you program using the `program` arguments, for instance:
+```python
+from ztfquery import marshal
+m = marshal.MarshalAccess()
+m.load_target_sources(program="Cosmology")
+```
+
 If you only want a subgroup of targets, you can use the `get_target_data()` method:
 ```python
 m.get_target_data(["SN2018zd","ZTF18aahflrr","at2018akx"])
@@ -275,7 +282,7 @@ m.get_target_coordinates(["SN2018zd","ZTF18aahflrr","at2018akx"])
 3	153.923187	14.119114
 """
 ```
-_Remark:_ getting information (coordinates, redshift etc) for 1 or 1000 targets roughly takes the same amount of time, so better query all you targets at once.
+_Remark:_ getting information (coordinates, redshift etc) for 1 or 1000 targets roughly takes the same amount of time, so better query all your targets at once.
 
 ### Getting Marshal spectra
 
