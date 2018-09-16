@@ -323,7 +323,7 @@ lc_dict = marshal.get_local_lightcurve("ZTF18abcdef")
 marshal.plot_lightcurve(lc_dict["marshal_lightcurve_ZTF18abcdef.csv"])
 ```
 
-![](examples/figures/lc_example.png)
+![](examples/figures/lc_examples.png)
 *** 
 
 # Reading Avro Alert
