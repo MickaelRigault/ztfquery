@@ -9,6 +9,9 @@ _You need to have an IRSA account that has access to ZTF Data to be able to get 
 
 [![PyPI](https://img.shields.io/pypi/v/ztfquery.svg?style=flat-square)](https://pypi.python.org/pypi/ztfquery)
 
+### Credit
+
+M. Rigault (corresponding author, m.rigault@ipnl.in2p3.fr, CNRS/IN2P3), U. Feindt (Oskar Klein Center, Stockholm University) and M. Giomi (Humboldt Universiteat zu Berlin)
 
 # Installation
 
