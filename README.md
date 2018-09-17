@@ -227,7 +227,7 @@ If you need to work offline, I suggest you overwrite the download location withi
 
 # Getting Marshal Data
 
-_starting version 1.2.0_
+_starting version 1.2.0 | see also https://github.com/ufeindt/marshaltools_
 
 You can now query data stored in the Marshal directly from `ztfquery`.
 
