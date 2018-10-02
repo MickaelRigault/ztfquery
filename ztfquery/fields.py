@@ -21,8 +21,6 @@ CCD_EDGES_DEG = np.asarray([[ _ccd_xmin, _ccd_ymin], [ _ccd_xmin, _ccd_ymax],
 FIELDS_COLOR = {1: "Greens", 2: "Reds", 3:"Oranges"}
 
 
-
-
 ##############################
 #                            #
 #  Fields and References     #
