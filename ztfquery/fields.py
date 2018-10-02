@@ -22,6 +22,42 @@ FIELDS_COLOR = {1: "Greens", 2: "Reds", 3:"Oranges"}
 
 
 
+
+##############################
+#                            #
+#  Fields and References     #
+#                            #
+##############################
+
+def has_field_reference(fieldid, ccdid=1, qid=1, **kwargs):
+    """ get the following dictionary {zg:bool, zr:bool, zi:bool}
+    where bool is True if the field has a reference image and false otherwise
+    
+    **kwargs goes to load_metadata(), for instance auth=[username, password]
+    Returns
+    -------
+    {zg:bool, zr:bool, zi:bool}
+    """
+    from .query import ZTFQuery
+    zquery_ = ZTFQuery()
+    zquery_.load_metadata(kind="ref", sql_query="field=%s and ccdid=%s and qid=%s"%(fieldid,ccdid,qid), **kwargs)
+    return {k: k in zquery_.metatable["filtercode"].values for k in ["zg", "zr","zi"]}
+
+def get_fields_with_band_reference(filter_, ccdid=1, qid=1, **kwargs):
+    """ returns the list of fieldid that have a reference image in the `filter_` band.
+    filter_ is a filtercode entry [zg, zr or zg]
+    
+    **kwargs goes to load_metadata(), for instance auth=[username, password]
+    Returns
+    -------
+    list of fieldid
+    """
+    from .query import ZTFQuery
+    zquery_ = ZTFQuery()
+    zquery_.load_metadata(kind="ref",
+            sql_query="filtercode='%s' and ccdid=%s and qid=%s"%(filter_,ccdid,qid), **kwargs)
+    return zquery_.metatable["field"].values
+
 ##############################
 #                            #
 #  Generic Tools             #

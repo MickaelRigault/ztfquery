@@ -103,8 +103,7 @@ def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
                         for  paddedfield_, filtercode_, paddedccdid_, qid_
                     in zip(paddedfield, filtercode, paddedccdid, qid)]
         
-
-        
+    
 #############################
 #                           #
 #   Main Query Tools        #
