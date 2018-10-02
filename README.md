@@ -9,6 +9,9 @@ _You need to have an IRSA account that has access to ZTF Data to be able to get 
 
 [![PyPI](https://img.shields.io/pypi/v/ztfquery.svg?style=flat-square)](https://pypi.python.org/pypi/ztfquery)
 
+### Credit
+
+M. Rigault (corresponding author, m.rigault@ipnl.in2p3.fr, CNRS/IN2P3), M. Giomi (Humboldt Universiteat zu Berlin) and U. Feindt (Oskar Klein Center, Stockholm University) 
 
 # Installation
 
@@ -227,7 +230,7 @@ If you need to work offline, I suggest you overwrite the download location withi
 
 # Getting Marshal Data
 
-_starting version 1.2.0_
+_starting version 1.2.0 | see also https://github.com/ufeindt/marshaltools_
 
 You can now query data stored in the Marshal directly from `ztfquery`.
 
@@ -255,6 +258,13 @@ a long table containing:
 candid name ra dec classification field redshift creationdate  iauname id lastmodified  rcid  release_auth release_status
 """
 ```
+You can also download target sources only for one of you program using the `program` arguments, for instance:
+```python
+from ztfquery import marshal
+m = marshal.MarshalAccess()
+m.load_target_sources(program="Cosmology")
+```
+
 If you only want a subgroup of targets, you can use the `get_target_data()` method:
 ```python
 m.get_target_data(["SN2018zd","ZTF18aahflrr","at2018akx"])
@@ -275,7 +285,7 @@ m.get_target_coordinates(["SN2018zd","ZTF18aahflrr","at2018akx"])
 3	153.923187	14.119114
 """
 ```
-_Remark:_ getting information (coordinates, redshift etc) for 1 or 1000 targets roughly takes the same amount of time, so better query all you targets at once.
+_Remark:_ getting information (coordinates, redshift etc) for 1 or 1000 targets roughly takes the same amount of time, so better query all your targets at once.
 
 ### Getting Marshal spectra
 
