@@ -156,7 +156,18 @@ To get the reference image metadata simply do:
 from ztfquery import query
 zquery = query.ZTFQuery()
 zquery.load_metadata(kind="ref",radec=[276.107960, +44.130398], size=0.0001)
+zquery.metatable[["field","filtercode", "ccdid","qid"]]
+"""
+	field	filtercode	ccdid	qid
+0	764		zg	1	3
+1	726		zr	15	2
+2	726		zg	15	2
+3	726		zi	15	2
+4	764		zr	1	3
+5	764		zi	1	3
+"""
 ```
+
 
 If you only want reference images of for "g" filter:
 ```python
