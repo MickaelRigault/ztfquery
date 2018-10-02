@@ -120,7 +120,7 @@ so each single exposure will represent 64 field entries.
 
 ### Example 2 position query with filter and time constraints. 
 
-In this second example, we will want to access *the I-band filter (filter #3) observations within 0.01 degree around RA=276.107960 Dec+44.130398 since the 14th of May 2018*.
+In this second example, we will want to access *the I-band filter (filter #3) observations within 0.01 degree around RA=276.107960 Dec=+44.130398 since the 14th of May 2018*.
 
 ```python
 from ztfquery import query
@@ -145,6 +145,26 @@ zquery.metatable
 7	2.458273e+06	15	zi
 """
 ```
+
+
+### Example 3: getting reference image information for a given coordinate
+
+Let's imagine you want have a target at a given coordinate RA=276.107960 Dec=+44.130398. You want the reference image associated to it.
+
+To get the reference image metadata simply do:
+```python
+from ztfquery import query
+zquery = query.ZTFQuery()
+zquery.load_metadata(kind="ref",radec=[276.107960, +44.130398], size=0.0001)
+```
+
+If you only want reference images of for "g" filter:
+```python
+zquery.load_metadata(kind="ref",radec=[276.107960, +44.130398], size=0.0001,  sql_query="fid=1")
+```
+or, instead of `sql_query="fid=1"`, you could use `sql_query="filtercode='zg'"` but be careful with the quotes around _zg_
+
+You can then simply download the refence image by doing `zquery.download_data()` as detailed below.
 
 # Downloading the Data
 
