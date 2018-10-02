@@ -257,6 +257,36 @@ zquery.get_local_data("psfcat.fits")
 **Important: Retrieving data** If you need to get them again later on, after you closed the session, you will need to redo the `load_metadata()` query to find back the structure of the database, otherwise `get_local_data()` will not know what to do. 
 If you need to work offline, I suggest you overwrite the download location within `download_data` using the 'download_dir' option. If provided, all the data will be dumped inside this directory without following the IRSA structure.
 
+
+# Reference Images
+
+_starting with version 1.2.3_
+
+See [here](https://github.com/MickaelRigault/ztfquery/blob/master/README.md#example-3-getting-reference-image-information-for-a-given-coordinate) for an example of how to get the reference image(s) associated to a given coordinates.
+
+If you want to know if a given field (say 400) already have there reference images use:
+```python
+from ztfquery import fields
+fields.has_field_reference(400)
+"""
+{'zg': True, 'zi': False, 'zr': True}
+"""
+```
+
+If you want the list of all field that have, say a I-band image:
+```python
+from ztfquery import fields
+fields.get_fields_with_band_reference("zi")
+"""
+441,  442,  516,  517,  518,  519,  520,  522,  523,  524,  525,
+526,  527,  528,  530,  531,  532,  534,  544,  547,  549,  550,
+564,  565,  566,  567,  568,  569,  570,  571,  572,  573,  574,
+575,  576,  577,  578,  579,  580,  581,  582,  583,  584,  585,
+586,  596,  597,  613,  615,  616,  617,  618,  619,  620,  621,
+622,  623,  624,  625,  626,  627,  628,  629,  630,  631,  632,
+633,  634,  635,  645,  646,  660,...
+"""
+```
 ***
 
 # Getting Marshal Data
