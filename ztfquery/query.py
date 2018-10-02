@@ -18,7 +18,93 @@ def _download_(args):
     url, fileout, mkdir, overwrite, verbose = args
     download_single_url(url, fileout=fileout, mkdir=mkdir,overwrite=overwrite, verbose=verbose)
 
+    
+# Combining metadata with buildurl
+def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
+    """generic method to build the url/fullpath or the requested data.
+        This method is based on the `builurl.py` module of ztfquery.
+        
+        Parameters
+        ----------
+        suffix: [string] -optional-
+            What kind of data do you want?
+            for science sources:
+            - sciimg.fits (primary science image) *[used if suffix is None]*
+            - mskimg.fits (bit-mask image)
+            - psfcat.fits (PSF-fit photometry catalog)
+            - sexcat.fits (nested-aperture photometry catalog)
+            - sciimgdao.psf (spatially varying PSF estimate in DAOPhot's lookup table format)
+            - sciimgdaopsfcent.fits (PSF estimate at science image center as a FITS image)
+            - sciimlog.txt (log output from instrumental calibration pipeline)
+            - scimrefdiffimg.fits.fz (difference image: science minus reference; fpack-compressed)
+            - diffimgpsf.fits (PSF estimate for difference image as a FITS image)
+            - diffimlog.txt (log output from image subtraction and extraction pipeline)
+            - log.txt (overall system summary log from realtime pipeline)
 
+        // if queried metadata is for kind calibration
+
+        """
+    if datakind in ['sci', "raw"]:    
+        filtercode,imgtypecode  = np.asarray(metatable[["filtercode","imgtypecode"]
+                                                                    ].values.T, dtype="str")
+        paddedfield      = np.asarray(["%06d"%f for f in metatable["field"].values],
+                                          dtype="str")
+        paddedccdid      = np.asarray(["%02d"%f for f in metatable["ccdid"].values],
+                                              dtype="str")
+        year, month, day, fracday = np.asarray([[l[:4],l[4:6],l[6:8],l[8:]]
+                                for l in np.asarray(metatable["filefracday"].values,
+                                              dtype="str") ]).T
+  
+        if datakind in ['sci']:
+            qid  = np.asarray(metatable["qid"], dtype="str")
+                # LIST of URL to download [SCIENCE]
+            return  [buildurl.science_path(year_, month_, day_, fracday_, paddedfield_,
+                                filtercode_, paddedccdid_, qid_,
+                                imgtypecode=imgtypecode_, suffix=suffix, source=source)
+                        for year_, month_, day_, fracday_, paddedfield_, filtercode_,
+                        paddedccdid_, qid_, imgtypecode_
+                        in zip(year, month, day, fracday, paddedfield, filtercode, paddedccdid, qid, imgtypecode)]
+        else:
+            # LIST of URL to download [RAW]
+            return  [buildurl.raw_path(year_, month_, day_, fracday_, paddedfield_,
+                              filtercode_, paddedccdid_, 
+                              imgtypecode=imgtypecode_, source=source)
+                        for year_, month_, day_, fracday_, paddedfield_, filtercode_,
+                        paddedccdid_,  imgtypecode_
+                        in zip(year, month, day, fracday, paddedfield, filtercode,
+                                   paddedccdid, imgtypecode)]
+    # CALIBRATION
+    elif datakind in ['cal']:
+        year, month, day = np.asarray([[l[:4],l[4:6],l[6:]]
+                                for l in np.asarray(metatable["nightdate"].values,
+                                                        dtype="str") ]).T
+        paddedccdid      = np.asarray(["%02d"%f for f in metatable["ccdid"].values],
+                                              dtype="str")
+        filtercode, qid,caltype  = np.asarray(metatable[["filtercode", "qid","caltype"]].values.T,
+                                                      dtype="str")
+            # list of url to download [CAL]
+        return  [buildurl.calibration_path(caltype_,
+                                            year_, month_, day_,
+                                            filtercode_, paddedccdid_, qid_,
+                                               suffix=suffix, source=source)
+                            for caltype_, year_, month_, day_, filtercode_, paddedccdid_, qid_
+                     in zip(caltype,year, month, day,filtercode, paddedccdid, qid) ]
+    # PIXELS
+    elif datakind in ['ref']:
+        paddedfield      = np.asarray(["%06d"%f for f in metatable["field"].values], dtype="str")
+        paddedccdid      = np.asarray(["%02d"%f for f in metatable["ccdid"].values], dtype="str")
+        filtercode, qid  = np.asarray(metatable[["filtercode", "qid"]].values.T, dtype="str")
+ 
+        return [buildurl.reference_path( paddedfield_,
+                                            filtercode_, paddedccdid_, qid_,
+                                            suffix=suffix,
+                                            fieldprefix="000", # This is how it is defined in IRSA
+                                            source=source)
+                        for  paddedfield_, filtercode_, paddedccdid_, qid_
+                    in zip(paddedfield, filtercode, paddedccdid, qid)]
+        
+
+        
 #############################
 #                           #
 #   Main Query Tools        #
@@ -450,61 +536,8 @@ class ZTFQuery( _ZTFTableHandler_, _ZTFDownloader_ ):
         // if queried metadata is for kind calibration
             
         """
-        # PIXELS
-        if self.datakind in ['sci', "raw"]:
-            
-            filtercode,imgtypecode  = np.asarray(self.metatable[["filtercode","imgtypecode"]
-                                                                    ].values.T, dtype="str")
-            paddedfield      = np.asarray(["%06d"%f for f in self.metatable["field"].values],
-                                              dtype="str")
-            paddedccdid      = np.asarray(["%02d"%f for f in self.metatable["ccdid"].values],
-                                              dtype="str")
-            year, month, day, fracday = np.asarray([[l[:4],l[4:6],l[6:8],l[8:]]
-                                for l in np.asarray(self.metatable["filefracday"].values,
-                                              dtype="str") ]).T
-  
-            if self.datakind in ['sci']:
-                qid  = np.asarray(self.metatable["qid"], dtype="str")
-                # LIST of URL to download [SCIENCE]
-                return  [buildurl.science_path(year_, month_, day_, fracday_, paddedfield_,
-                                filtercode_, paddedccdid_, qid_,
-                                imgtypecode=imgtypecode_, suffix=suffix, source=source)
-                                
-                            for year_, month_, day_, fracday_, paddedfield_, filtercode_,
-                            paddedccdid_, qid_, imgtypecode_
-                            in zip(year, month, day, fracday, paddedfield, filtercode,
-                                       paddedccdid, qid, imgtypecode)]
-            else:
-                # LIST of URL to download [RAW]
-                return  [buildurl.raw_path(year_, month_, day_, fracday_, paddedfield_,
-                              filtercode_, paddedccdid_, 
-                              imgtypecode=imgtypecode_, source=source)
-                        for year_, month_, day_, fracday_, paddedfield_, filtercode_,
-                        paddedccdid_,  imgtypecode_
-                        in zip(year, month, day, fracday, paddedfield, filtercode,
-                                   paddedccdid, imgtypecode)]
-        # CALIBRATION
-        elif self.datakind in ['cal']:
-            year, month, day = np.asarray([[l[:4],l[4:6],l[6:]]
-                                for l in np.asarray(self.metatable["nightdate"].values,
-                                                        dtype="str") ]).T
-            paddedccdid      = np.asarray(["%02d"%f for f in self.metatable["ccdid"].values],
-                                              dtype="str")
-            filtercode, qid,caltype  = np.asarray(self.metatable[["filtercode",
-                                                                "qid","caltype"]].values.T,
-                                                      dtype="str")
-            # list of url to download [CAL]
-            return  [buildurl.calibration_path(caltype_,
-                                                                year_, month_, day_,
-                                                                filtercode_, paddedccdid_, qid_,
-                                                                suffix=suffix, source=source)
-                                        for caltype_, year_, month_, day_, filtercode_, paddedccdid_, qid_
-                                        in zip(caltype,year, month, day,filtercode, paddedccdid, qid) ]
-        # PIXELS
-        elif self.datakind in ['ref']:
-            raise NotImplementedError("REFERENCE QUERYING NOT READY YET")
+        return metatable_to_url(self.metatable, datakind=self.datakind, suffix=suffix, source=source)
 
-        
     # =============== #
     #  Properties     #
     # =============== #

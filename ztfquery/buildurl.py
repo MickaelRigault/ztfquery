@@ -181,10 +181,11 @@ def calibration_path(caltype,
 # ------------- #
 #  References   #
 # ------------- #
-def reference_path(fieldprefix, paddedfield,
+def reference_path(paddedfield,
                   filtercode,
                   paddedccdid, qid,
-                  suffix="refimg.fits",
+                  fieldprefix="000",
+                  suffix=None,
                   source=""):
     """   
 
@@ -208,7 +209,10 @@ def reference_path(fieldprefix, paddedfield,
         - refunc.fits
 
     """
+    if suffix is None:
+        suffix = "refimg.fits"
     source = _source_to_location_(source)
+    
     return source+'ref/'+fieldprefix+'/field'+paddedfield+'/'+filtercode+'/ccd'+paddedccdid+'/q'+qid+'/ztf_'+paddedfield+'_'+filtercode+'_c'+paddedccdid+'_q'+qid+'_%s'%suffix
 
 
