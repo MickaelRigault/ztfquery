@@ -11,7 +11,7 @@ MAINTAINER_EMAIL = 'm.rigault@ipnl.in2p3.fr'
 URL = 'https://github.com/MickaelRigault/ztfquery'
 LICENSE = 'BSD (3-clause)'
 DOWNLOAD_URL = 'https://github.com/MickaelRigault/ztfquery/tarball/1.2'
-VERSION = '1.2.3'
+VERSION = '1.2.4'
 
 try:
     from setuptools import setup, find_packages
