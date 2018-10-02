@@ -91,7 +91,7 @@ def get_camera_corner(ra_field, dec_field, steps=5,
         ra += ra_field
 
         
-        ra -= 180 # assumes center = 180
+        ra -= origin # assumes center = 180
 
         if inrad:
             ra *= _DEG2RA
@@ -122,7 +122,38 @@ def display_field(ax, fieldid, origin=180, facecolor="0.8", lower_dec=None, edge
         ax.add_patch(Polygon( get_camera_corner(ra,dec, inrad=True, origin=origin, east_left=True),
                                 facecolor=facecolor,edgecolor=edgecolor, **kwargs))
         
-    
+def get_field_vertices(fieldid, origin=180, indeg=True):
+    """ """
+    coef = 1 if not indeg else 180/np.pi
+    return np.asarray([ get_camera_corner(ra,dec, inrad=True, origin=origin, east_left=True)
+                        for ra,dec in field_to_coords( np.asarray(np.atleast_1d(fieldid), dtype="int")   )])*coef
+
+def get_fields_containing_target(ra,dec, origin=360):
+    """ return the list of fields into which the position ra, dec is. 
+    Remark that this is based on predefined field positions. Hence, small attrition could affect this.
+
+    Parameters
+    ----------
+    ra,dec: [float,float]
+       coordinates in degree. 
+
+    origin: [float] -optional-
+       If ra is defined between 0 and 360, use origin=360. [default]
+       If ra is defined between -180 and 180 use origin=180
+       
+    Returns
+    -------
+    list (all the field ID that contain the given ra,dec coordinates)
+    """
+    try:
+        from shapely import geometry
+    except ImportError:
+        raise ImportError("You need shapely to use this function. pip install shapely")
+
+    coordpoint = geometry.Point(ra,dec)
+    return [f for f in FIELD_DATAFRAME["ID"].values
+            if geometry.Polygon( get_field_vertices(f, origin=origin)[0]).contains(coordpoint)]
+        
 ##############################
 #                            #
 #  Individual Field Class    #

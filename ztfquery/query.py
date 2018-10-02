@@ -554,6 +554,41 @@ def download_night_summary(night, ztfops_auth = None):
     dataf["fid"][dataf["fid"]=="4"] = "3"
     return dataf
 
+def download_allnight_summary(ztfops_auth = None):
+    """ 
+    Parameters
+    ----------
+    night: [string]
+        Format: YYYYMMDD like for instance 20180429
+
+    ztfops_auth: [string, string] -optional-
+        Provide directly the [username, password] of the ztfops page.
+    """
+    import requests
+    from pandas import DataFrame
+    # = Password and username
+    if ztfops_auth is None:
+        from .io import _load_id_
+        ztfops_auth = _load_id_("ztfops", askit=True)
+        
+    
+    summary = requests.get(_NIGHT_SUMMARY_URL+"allexp.tbl",
+                               auth=ztfops_auth).content.decode('utf-8').splitlines()
+    columns = [l.replace(" ","") for l in summary[0].split('|') if len(l.replace(" ",""))>0]
+    data    = [l.split() for l in summary[1:] if not l.startswith('|') and len(l)>0]
+    data_   = []
+    for d in data:
+        dd = d.split()
+        if len(dd) == 13:
+            dd.insert(-2, "")
+        if len(dd) !=14:
+            print(dd)
+            continue
+        data_.append(dd)
+            
+    dataf   = DataFrame(data=data_, columns=[l if l!= "fil" else "fid" for l in columns])
+    dataf["fid"][dataf["fid"]=="4"] = "3"
+    return dataf
 
 class NightSummary( _ZTFTableHandler_, _ZTFDownloader_ ):
     def __init__(self, night, ztfops_auth=None):

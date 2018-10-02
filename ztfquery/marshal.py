@@ -11,6 +11,7 @@ import os
 import numpy as np
 from . import io
 
+import matplotlib.pyplot as mpl
 # list of effects:
 #    list_program_sources.cgi | auth, data={'programidx' : str(programidx)}  # list of sources associated to the program
 #    list_programs.cgi | auth # list of program you belong to
@@ -121,21 +122,9 @@ def download_spectra(name, dirout="default", auth=None, verbose=False, **kwargs)
 # -------------- #
 #  PLOT LC       #
 # -------------- #
-def plot_lightcurve(lc_dataframe, ax=None, title=None, show_legend=True):
-    """ """
-    import matplotlib.pyplot as mpl
-    from astropy.time import Time
-    if ax is None:
-        fig = mpl.figure(figsize=[7,4])
-        ax  = fig.add_axes([0.1,0.12,0.67,0.8])
-    else:
-        fig = ax.figure
-    
-    lc_dataframe["inst_filter"] = [d.split("+")[-1].replace('"',"")
-                                       for d in lc_dataframe["instrument"]+":"+lc_dataframe["filter"]]
 
-    GENERIC = dict(alpha=1, mew=0.2, mec="0.7", ecolor="0.7", ls="None")
-    PROP = { # ZTF
+GENERIC = dict(alpha=1, mew=0.4, mec="0.7", ecolor="0.7", ls="None")
+PROP    = { # ZTF
             "ZTF:r":dict(marker="o",ms=7,  mfc="C3"),
             "ZTF:g":dict(marker="o",ms=7,  mfc="C2"),
             "ZTF:i":dict(marker="o",ms=7, mfc="C1"),
@@ -153,9 +142,22 @@ def plot_lightcurve(lc_dataframe, ax=None, title=None, show_legend=True):
             "IOO:i":   dict(marker="d",ms=6, mfc=mpl.cm.Oranges(0.6)),
             "IOO:z":   dict(marker="d", ms=6,mfc=mpl.cm.binary(0.8))
             }
-    for v in PROP.values():
-        for k,v_ in GENERIC.items():
-            v[k]=v_
+for v in PROP.values():
+    for k,v_ in GENERIC.items():
+        v[k]=v_
+            
+def plot_lightcurve(lc_dataframe, ax=None, title=None, show_legend=True):
+    """ """
+    import matplotlib.pyplot as mpl
+    from astropy.time import Time
+    if ax is None:
+        fig = mpl.figure(figsize=[7,4])
+        ax  = fig.add_axes([0.1,0.12,0.67,0.8])
+    else:
+        fig = ax.figure
+    
+    lc_dataframe["inst_filter"] = [d.split("+")[-1].replace('"',"")
+                            for d in lc_dataframe["instrument"]+":"+lc_dataframe["filter"]]
     
     # DataPoints
     for filter_ in np.unique(lc_dataframe["inst_filter"]):

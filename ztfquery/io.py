@@ -43,7 +43,7 @@ def has_encryption():
 
 
 
-def _load_id_(which, askit=False):
+def _load_id_(which, askit=True):
     """ returns login information for the requested enty"""
     import base64
     config = ConfigParser()
