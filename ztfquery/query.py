@@ -138,8 +138,11 @@ class _ZTFTableHandler_( object ):
         
     def get_field_obsdensity(self, grid="both", fid=[1,2,3]):
         """ """
-        flagfield = True if fid is None or "fid" not in self._data.columns else np.in1d(np.asarray(self._data["fid"], dtype="int"), fid)
-        return {f_: len(self._data[np.in1d(self._data["field"], f_) * flagfield]) for f_ in self.get_observed_fields(grid=grid)}
+        flagfield = True if fid is None or "fid" not in self._data.columns \
+          else np.in1d(np.asarray(self._data["fid"], dtype="int"), fid)
+          
+        return {f_: len(self._data[np.in1d(self._data["field"], f_) * flagfield])
+                    for f_ in self.get_observed_fields(grid=grid)}
 
     def show_fields(self, field_val,
                     ax=None,
@@ -152,59 +155,15 @@ class _ZTFTableHandler_( object ):
         ----------
         colored_by: 
         """
-        import matplotlib.pyplot as mpl
-        from .fields import display_field
-        if "field" not in self._data.columns:
-            raise AttributeError("No 'field' entry available")
-        if origin != 180:
-            warnings.warn("Only the origin 180 has been implemented. boundaries issue arises otherwise. origin set to 180")
-            origin = 180
-            
-        tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
-        tick_labels = np.remainder(tick_labels+360+origin,360)
-
-        # - Axes definition
-        if ax is None:
-            fig = mpl.figure(figsize=(8,5))
-            ax = fig.add_subplot(111, projection="hammer")
-        else:
-            fig = ax.figure
-
-        ax.set_xticklabels(tick_labels)     # we add the scale on the x axis
-        # - Plotting
-        if show_ztf_fields:
-            from .fields import show_ZTF_fields
-            show_ZTF_fields(ax)
-
-        # Removing the NaNs
-        field_val = {f:v for f,v in field_val.items() if not np.isnan(v)}
-        values = list(field_val.values())
-        if len(values)==0 or not np.any(values):
-            if cax is not None:
-                cax.set_visible(False)
-            return
+        from .fields import show_fields
         
-        if vmin is None: vmin = "0"
-        if type(vmin) == str: vmin=np.percentile(values, float(vmin))
-        if vmax is None: vmax = "100"
-        if type(vmax) == str: vmax=np.percentile(values, float(vmax))
-        if type(cmap) == str: cmap = mpl.get_cmap(cmap)
-        for f,v in field_val.items():
-            display_field(ax, f, facecolor=cmap((v-vmin)/(vmax-vmin)) if vmax-vmin !=0 else cmap(0),origin=origin, 
-                              **kwargs)
+        return show_fields(field_val, ax=ax,
+                    show_ztf_fields=show_ztf_fields,
+                    colorbar=colorbar, cax=cax, clabel=clabel, 
+                    cmap=cmap,origin=origin,
+                    vmin=vmin, vmax=vmax,  **kwargs)
 
-
-
-        if colorbar:
-            if vmax-vmin !=0:
-                from .utils.tools import insert_ax, colorbar
-                if cax is None: cax = insert_ax(ax, "bottom",
-                                            shrunk=0.93, space=-0.0, axspace=0.02)
-                colorbar(cax, cmap, vmin=vmin, vmax=vmax, label=clabel)
-            elif cax is not None:
-                cax.set_visible(False)
-        
-        
+    
     def show_gri_fields(self, title=" ",
                         show_ztf_fields=True,
                         colorbar=True, 
@@ -238,7 +197,8 @@ class _ZTFTableHandler_( object ):
                 
         for i,ax_,cax_ in zip([1,2,3], [axg,axr,axi], [caxg,caxr,caxi]):
             if colored_by in ["visits", "density"]:
-                field_val = {f:v for f,v in self.get_field_obsdensity(grid=grid, fid=[i]).items() if v>0}
+                field_val = {f:v for f,v in
+                            self.get_field_obsdensity(grid=grid, fid=[i]).items() if v>0}
             else:
                 field_val = colored_by[i]
                 

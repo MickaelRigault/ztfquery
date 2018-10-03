@@ -19,6 +19,7 @@ CCD_EDGES_DEG = np.asarray([[ _ccd_xmin, _ccd_ymin], [ _ccd_xmin, _ccd_ymax],
 
 
 FIELDS_COLOR = {1: "Greens", 2: "Reds", 3:"Oranges"}
+FIELDS_SINGLE_COLOR = {"zg": "C2", "zr":"C3", "zi":"C1"}
 
 
 ##############################
@@ -56,6 +57,12 @@ def get_fields_with_band_reference(filter_, ccdid=1, qid=1, **kwargs):
             sql_query="filtercode='%s' and ccdid=%s and qid=%s"%(filter_,ccdid,qid), **kwargs)
     return zquery_.metatable["field"].values
 
+def show_reference_map(band, **kwargs):
+    """ Display the 'field plot' in which field with image reference in the given band are colored. """
+    title   = "Fields with reference in the %s-band"%band[1]
+    field_i = get_fields_with_band_reference(band)
+    return show_fields(field_i, facecolor=FIELDS_SINGLE_COLOR[band], alpha=0.3, title=title, **kwargs)
+    
 ##############################
 #                            #
 #  Generic Tools             #
@@ -136,7 +143,92 @@ def get_camera_corner(ra_field, dec_field, steps=5,
             
         return np.asarray([ra,dec]).T
 
+# ===================== #
+#                       #
+#    SHOW FIELD         #
+#                       #
+# ===================== #
+def show_fields(field_val,ax=None, savefile=None,
+                show_ztf_fields=True, title=None,
+                colorbar=True, cax=None, clabel=" ", 
+                cmap="viridis",origin=180,
+                facecolor=None, 
+                vmin=None, vmax=None,  **kwargs):
+    """ 
+    Parameters
+    ----------
+    colored_by: 
+    """
+    import warnings
+    import matplotlib.pyplot as mpl
+    
+    if origin != 180:
+        warnings.warn("Only the origin 180 has been implemented. boundaries issue arises otherwise. origin set to 180")
+        origin = 180
+            
+    tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
+    tick_labels = np.remainder(tick_labels+360+origin,360)
 
+    # - Axes definition
+    if ax is None:
+        fig = mpl.figure(figsize=(8,5))
+        ax = fig.add_subplot(111, projection="hammer")
+    else:
+        fig = ax.figure
+
+    ax.set_xticklabels(tick_labels)     # we add the scale on the x axis
+    # - Plotting
+    if show_ztf_fields:
+        show_ZTF_fields(ax)
+
+    # Removing the NaNs
+    if type(field_val)==dict:
+        
+        field_val = {f:v for f,v in field_val.items() if not np.isnan(v)}
+        values = list(field_val.values())
+        if len(values)==0 or not np.any(values):
+            if cax is not None:
+                cax.set_visible(False)
+            return
+        
+        if vmin is None: vmin = "0"
+        if type(vmin) == str: vmin=np.percentile(values, float(vmin))
+        if vmax is None: vmax = "100"
+        if type(vmax) == str: vmax=np.percentile(values, float(vmax))
+        if type(cmap) == str: cmap = mpl.get_cmap(cmap)
+        for f,v in field_val.items():
+            display_field(ax, f,
+                    facecolor=cmap((v-vmin)/(vmax-vmin)) if vmax-vmin !=0 else cmap(0),origin=origin, 
+                    **kwargs)
+
+        if colorbar:
+            if vmax-vmin !=0:
+                from .utils.tools import insert_ax, colorbar
+                if cax is None: cax = insert_ax(ax, "bottom",
+                                            shrunk=0.93, space=-0.0, axspace=0.02)
+                colorbar(cax, cmap, vmin=vmin, vmax=vmax, label=clabel)
+            elif cax is not None:
+                cax.set_visible(False)
+    else:
+        field_val = np.atleast_1d(field_val)
+        for f in field_val:
+            display_field(ax, f,
+                        facecolor=facecolor,origin=origin, 
+                    **kwargs)
+
+    if title is not None:
+        fig.text(0.5,0.9, title,
+                     va="top", ha="center", fontsize="large")
+    # Output
+    if savefile is not None:
+        fig.savefig(savefile, dpi=150)
+        
+        
+
+    return {"ax":ax,"fig":fig}
+                
+
+    
 def show_ZTF_fields(ax, maingrid=True, lower_dec=-30, alpha=0.1, facecolor="0.8", edgecolor="0.8", **kwargs):
     """ """
     if maingrid:
