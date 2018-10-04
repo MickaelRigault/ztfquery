@@ -4,7 +4,12 @@
 """  
 https://irsa.ipac.caltech.edu/docs/program_interface/ztf_api.html
 """
-import io
+from .io import _PYTHON3
+if _PYTHON3:
+    from io import StringIO
+else:
+    from StringIO import StringIO
+    
 import requests
 
 import numpy as np
@@ -134,7 +139,7 @@ class MetaQuery():
         self.build_query(kind=kind, radec=radec, size=size, mcen=mcen,
                           sql_query=sql_query, colnames=colnames, ct="csv", **kwargs)
 
-        self.metatable = read_csv( io.StringIO(
+        self.metatable = read_csv( StringIO(
             requests.get( self.query_url, cookies=cookies).content.decode('utf-8')
             ))
         
