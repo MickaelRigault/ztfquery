@@ -380,7 +380,7 @@ Similarly to the spectra, you can download the marshal lightcurve using the  `do
 from ztfquery import marshal
 marshal.download_lightcurve("ZTF18abcdef")
 ```
-`download_lightcurve` has the same `dirout` option as `download_spec`, except that it saves lightcurve by default in `$ZTFDATA/marshal/lightcurves/TARGET_NAME/`. Use `get_local_lightcurve()` function to retreive lightcurve downloaded using `dirout="default"`. 
+`download_lightcurve` has the same `dirout` option as `download_spec`, except that it saves lightcurve by default in `$ZTFDATA/marshal/lightcurves/TARGET_NAME/`. Use `get_local_lightcurves()` function to retreive lightcurve downloaded using `dirout="default"`. 
 
 Lightcurves are stored as .csv and returns as pandas DataFrame. You can directly visualize the lightcurve using `plot_lightcurve(lc_dataframe)` providing the pandas DataFrame. 
 
