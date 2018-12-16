@@ -120,6 +120,7 @@ def raw_path(year, month, day, fracday,
         - b = bias calibration image
         - d = dark calibration image
         - f = dome/screen flatfield calibration image
+
     """
     source = _source_to_location_(source)
     filefracday = "".join([year+month+day+fracday])
@@ -162,7 +163,7 @@ def calibration_path(caltype,
     if caltype.lower() not in ["bias", "hifreqflat"]:
         raise ValueError("Unknown `caltype` %s"%caltype+" caltype must be  'bias' or 'hifreqflat'")
 
-    if suffix is None or suffix in ["basic",".fits"]:
+    if suffix is None or suffix in ["basic",".fits","fits"]:
         suffix = caltype+".fits"
     elif suffix in ["log", "log.txt"]:
         suffix = caltype+"log.txt"

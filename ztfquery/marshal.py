@@ -8,6 +8,7 @@ import json
 import requests
 import pandas
 import os
+import warnings
 import numpy as np
 from . import io
 
@@ -38,7 +39,12 @@ import matplotlib.pyplot as mpl
 
 
 MARSHAL_BASEURL = "http://skipper.caltech.edu:8080/cgi-bin/growth/"
+MARSHAL_LC_DEFAULT_SOUCE = "plot_lc"
 from .io import LOCALSOURCE
+
+
+
+
 
 def _account_id_declined_(username, password):
     """ This returns True if the login information has been rejected"""
@@ -125,23 +131,24 @@ def download_spectra(name, dirout="default", auth=None, verbose=False, **kwargs)
 
 GENERIC = dict(alpha=1, mew=0.4, mec="0.7", ecolor="0.7", ls="None")
 PROP    = { # ZTF
-            "ZTF:r":dict(marker="o",ms=7,  mfc="C3"),
-            "ZTF:g":dict(marker="o",ms=7,  mfc="C2"),
-            "ZTF:i":dict(marker="o",ms=7, mfc="C1"),
+            "ztf:r":dict(marker="o",ms=7,  mfc="C3"),
+            "ztf:g":dict(marker="o",ms=7,  mfc="C2"),
+            "ztf:i":dict(marker="o",ms=7, mfc="C1"),
             # Swift
-            "UVOT:B":   dict(marker="s",  ms=5, mfc="C0"),
-            "UVOT:u":   dict(marker="s",  ms=5, mfc=mpl.cm.Blues(0.7)),
-            "UVOT:UVM2":dict(marker="s", ms=5, mfc=mpl.cm.Purples(0.6)),
-            "UVOT:UVW2":dict(marker="s", ms=5, mfc=mpl.cm.Purples(0.8)),
-            "UVOT:UVW1":dict(marker="s", ms=5, mfc=mpl.cm.Purples(0.4)),
-            "UVOT:V":   dict(marker="s", ms=5, mfc=mpl.cm.Greens(0.9)),
+            "uvot:B":   dict(marker="s",  ms=5, mfc="C0"),
+            "uvot:u":   dict(marker="s",  ms=5, mfc=mpl.cm.Blues(0.7)),
+            "uvot:uvm2":dict(marker="s", ms=5, mfc=mpl.cm.Purples(0.6)),
+            "uvot:uvm2":dict(marker="s", ms=5, mfc=mpl.cm.Purples(0.8)),
+            "uvot:uvm1":dict(marker="s", ms=5, mfc=mpl.cm.Purples(0.4)),
+            "uvot:V":   dict(marker="s", ms=5, mfc=mpl.cm.Greens(0.9)),
             # 
-            "IOO:u":   dict(marker="d", ms=6,mfc=mpl.cm.Blues(0.6)),
-            "IOO:g":   dict(marker="d", ms=6,mfc=mpl.cm.Greens(0.6)),
-            "IOO:r":   dict(marker="d", ms=6,mfc=mpl.cm.Reds(0.7)),
-            "IOO:i":   dict(marker="d",ms=6, mfc=mpl.cm.Oranges(0.6)),
-            "IOO:z":   dict(marker="d", ms=6,mfc=mpl.cm.binary(0.8))
+            "ioo:u":   dict(marker="d", ms=6,mfc=mpl.cm.Blues(0.6)),
+            "ioo:g":   dict(marker="d", ms=6,mfc=mpl.cm.Greens(0.6)),
+            "ioo:r":   dict(marker="d", ms=6,mfc=mpl.cm.Reds(0.7)),
+            "ioo:i":   dict(marker="d",ms=6, mfc=mpl.cm.Oranges(0.6)),
+            "ioo:z":   dict(marker="d", ms=6,mfc=mpl.cm.binary(0.8))
             }
+    
 for v in PROP.values():
     for k,v_ in GENERIC.items():
         v[k]=v_
@@ -156,8 +163,8 @@ def plot_lightcurve(lc_dataframe, ax=None, title=None, show_legend=True):
     else:
         fig = ax.figure
     
-    lc_dataframe["inst_filter"] = [d.split("+")[-1].replace('"',"")
-                            for d in lc_dataframe["instrument"]+":"+lc_dataframe["filter"]]
+    lc_dataframe["inst_filter"] = [d.split("+")[-1].replace('"',"").lower()
+                                   for d in lc_dataframe["instrument"]+":"+lc_dataframe["filter"]]
     
     # DataPoints
     for filter_ in np.unique(lc_dataframe["inst_filter"]):
@@ -211,27 +218,56 @@ def target_lightcurves_directory(name):
     return LOCALSOURCE+"marshal/lightcurves/%s/"%name
 
 # - Get the FullPathes
-def get_local_spectra(name):
+def get_local_spectra(name, only_sedm=False, pysedm=True):
     """ returns list of fullpath of spectra on your computer for the given target name.
     Remark: These spectra have to be stored in the native `$ZTFDATA`/marshal/spectra/`name`
+
+    Parameters
+    ----------
+    name: [str]
+        ZTF name (as in the Marshal)
+
+    only_sedm: [bool] -optional-
+        Do you want only the SEDM spectra ?
+
+    pysedm: [bool] -optional-
+        If only_sedm is True, do you want only the pysedm-based spectra ?
+
+    Returns
+    -------
+    dict  # format: {filename:{data list}, ...}
     """
     dir_ = target_spectra_directory(name)
-    return {d:open(dir_+"%s"%d).read().splitlines() for d in os.listdir( dir_ )}
+    all_files = {d:open(dir_+"%s"%d).read().splitlines() for d in os.listdir( dir_ )
+                    if (only_sedm and "P60" in d) or not only_sedm}
+    if not only_sedm or not pysedm:
+        return all_files
+
+    return {d:v for d,v in all_files.items() if np.any(["SOURCE" in l_ for l_ in v])}
+
     
-def get_local_lightcurves(name):
+def get_local_lightcurves(name, only_marshal=False, source=MARSHAL_LC_DEFAULT_SOUCE):
     """ returns list of fullpath of lightcurves on your computer for the given target name.
     Remark: These lightcurves have to be stored in the native `$ZTFDATA`/marshal/lightcurves/`name`
     """
     dir_ = target_lightcurves_directory(name)
-    
-    return {d: pandas.read_csv(dir_+d) for d in os.listdir( dir_ )}
-
+    dataout = {d: pandas.read_csv(dir_+d) for d in os.listdir( dir_ )}
+    if only_marshal:
+        try:
+            return dataout["marshal_%s_lightcurve_%s.csv"%(source,name)]
+        except:
+            warnings.warn("No marshal lc with source %s identify for %s \n all source returned as a dict"%(source,name))
+            
+    return dataout
 
 # -------------- #
 #  Downloading   #
 # -------------- #
 def download_lightcurve(name, dirout="default",
-                            auth=None, verbose=False, **kwargs):
+                        auth=None, verbose=False,
+                        source=MARSHAL_LC_DEFAULT_SOUCE,
+                        overwrite=False,
+                        **kwargs):
     """Download all spectra for a source in the marshal as a tar.gz file
         
     Parameters:
@@ -245,11 +281,19 @@ def download_lightcurve(name, dirout="default",
         - `dirout=None`: The spectra are not saved be returned
         - `dirout='default'`: The lightcurve will be saved in native target location 
                               (`$ZTFDATA`/marshal/lightcurves/`name`)
-                              lightcurve saved here can be recovered using `get_local_lightcurve`
+                              lightcurve saved here can be recovered using `get_local_lightcurves`
                               * This is favored *
-
+                              
+    source: [str] -optional-
+        Source of the data in the marshal 
+        - print_lc.cgi // basic default one 
+        - plot_lc.cgi  // contains slight more information [default]
+                              
     auth: [str,str] -optional-
         Marshal [username, password]
+
+    overwrite: [bool] -optional-
+        Checks 
 
     verbose: [bool] -optional-
         Prints to know what is going on.
@@ -262,32 +306,47 @@ def download_lightcurve(name, dirout="default",
     None (or pandas.DataFrame)
     """
     # fileout is saved later to manage decompression
+    if source not in ["print_lc","plot_lc"]:
+        raise ValueError("source should be either 'print_lc' or 'plot_lc', '%s' given"%source)
+
+    if dirout in ["None"]: dirout = None
+    if dirout in ["default"]: dirout = target_lightcurves_directory(name)
+        
+    if dirout is not None:
+        fileout = "marshal_%s_lightcurve_%s.csv"%(source, name)
+        if os.path.isfile(dirout+fileout) and not overwrite:
+            warnings.warn("The lightcurve %s already exists. Set overwrite to True to update it."%(fileout))
+            return
+                              
+            
+
     
-    response = io.download_single_url(MARSHAL_BASEURL+'print_lc.cgi',  
+    response = io.download_single_url(MARSHAL_BASEURL+source+'.cgi',  
                                    fileout=None,
                                    data={"name":name},
                                    auth=io._load_id_("marshal") if auth is None else auth,
                                    cookies="no_cookies", show_progress=False, 
                                    **kwargs)
-    
-    # Convert the response into DataFrame
-    data = response.text.split("<table border=0 width=850>")[-1].replace(' ', '').replace('\n', '').split("<br>")
-    dataframe = pandas.DataFrame(data=[d.split(",")[:8] for d in data[1:] if len(d)>0], columns=data[0].split(",")[:8])
+    # Convert the response into DataFrame | depending on the source
+    if source in ['plot_lc']:
+        table_start = [i for i,l in enumerate(response.text.splitlines()) if "table border=0 width=850" in l]
+        lctable_ = pandas.read_html("\n".join(response.text.splitlines()[table_start[0]:]))[0]
+        _ = lctable_.pop(0)
+        dataframe = pandas.DataFrame(lctable_[1:].values, columns=np.asarray(lctable_.iloc[0], dtype="str"))
+    else:
+        data = response.text.split("<table border=0 width=850>")[-1].replace(' ', '').replace('\n', '').split("<br>")
+        dataframe = pandas.DataFrame(data=[d.split(",")[:8] for d in data[1:] if len(d)>0], columns=data[0].split(",")[:8])
+        
     # returns it
-    if dirout is None or dirout in ["None"]:
+    if dirout is None:
         return dataframe
 
     # Directory given, then dump data there:
-    if dirout in ["default"]:
-        dirout = target_lightcurves_directory(name)
-
     if verbose: print("Data will be stored here: %s"%dirout)
     if not os.path.exists(dirout):
         os.makedirs(dirout)
 
-    dataframe.to_csv(dirout+"marshal_lightcurve_%s.csv"%name)
-
-
+    dataframe.to_csv(dirout+fileout, index=False)
 
 #############################
 #                           #
@@ -359,7 +418,7 @@ class MarshalAccess( object ):
             - `dirout=None`: The spectra are not saved be returned
             - `dirout='default'`: The lightcurve will be saved in native target location 
                               (`$ZTFDATA`/marshal/lightcurves/`name`)
-                              lightcurve saved here can be recovered using `get_local_lightcurve`
+                              lightcurve saved here can be recovered using `get_local_lightcurves`
                               * This is favored *
 
         auth: [str,str] -optional-
@@ -429,11 +488,15 @@ class MarshalAccess( object ):
                        auth=io._load_id_("marshal", askit=True) if auth is None else auth, 
                        data={'programidx': self._program_to_programidx_(program, auth=auth), 
                              'getredshift': int(getredshift), 'getclassification': int(getclassification)})
-
+        
+        df = pandas.DataFrame.from_dict(json.loads(r.text))
+        if getclassification:
+            df["classification"] = df["classification"].astype("str")
+            
         if setit:
-            self.set_target_sources( pandas.DataFrame.from_dict(json.loads(r.text)) )
+            self.set_target_sources( df )
         else:
-            return pandas.DataFrame.from_dict(json.loads(r.text))
+            return df
     
     # 
     # SETTER

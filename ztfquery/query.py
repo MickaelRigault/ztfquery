@@ -27,9 +27,11 @@ def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
         Parameters
         ----------
         suffix: [string] -optional-
-            What kind of data do you want?
-            for science sources:
-            - sciimg.fits (primary science image) *[used if suffix is None]*
+            What kind of data do you want? 
+            Here is the list of available options depending the image kind:
+        
+            # Science image (kind="sci"):
+            - sciimg.fits (primary science image) # (default)
             - mskimg.fits (bit-mask image)
             - psfcat.fits (PSF-fit photometry catalog)
             - sexcat.fits (nested-aperture photometry catalog)
@@ -40,6 +42,23 @@ def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
             - diffimgpsf.fits (PSF estimate for difference image as a FITS image)
             - diffimlog.txt (log output from image subtraction and extraction pipeline)
             - log.txt (overall system summary log from realtime pipeline)
+            
+            # Reference image (kind="ref"):
+            -log.txt
+            -refcov.fits
+            -refimg.fits # (default)
+            -refimlog.txt
+            -refpsfcat.fits
+            -refsexcat.fits
+            -refunc.fits
+
+            # Raw images (kind="raw")
+            No Choice so suffix is ignored for raw data
+            
+            # Calibration (kind="cal")
+            - None (#default) returns `caltype`.fits
+            - log:            returns `caltype`log.txt
+            - unc:            returns `caltype`unc.fits
 
         // if queried metadata is for kind calibration
 
@@ -86,7 +105,7 @@ def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
         return  [buildurl.calibration_path(caltype_,
                                             year_, month_, day_,
                                             filtercode_, paddedccdid_, qid_,
-                                               suffix=suffix, source=source)
+                                            suffix=suffix, source=source)
                             for caltype_, year_, month_, day_, filtercode_, paddedccdid_, qid_
                      in zip(caltype,year, month, day,filtercode, paddedccdid, qid) ]
     # PIXELS
@@ -239,9 +258,11 @@ class _ZTFDownloader_( object ):
         Parameters
         ----------
         suffix: [string] -optional-
-            What kind of data do you want?
-            for science sources:
-            - sciimg.fits (primary science image) *[used if suffix is None]*
+            What kind of data do you want? 
+            Here is the list of available options depending on you image kind:
+        
+            # Science image (kind="sci"):
+            - sciimg.fits (primary science image) # (default)
             - mskimg.fits (bit-mask image)
             - psfcat.fits (PSF-fit photometry catalog)
             - sexcat.fits (nested-aperture photometry catalog)
@@ -252,7 +273,23 @@ class _ZTFDownloader_( object ):
             - diffimgpsf.fits (PSF estimate for difference image as a FITS image)
             - diffimlog.txt (log output from image subtraction and extraction pipeline)
             - log.txt (overall system summary log from realtime pipeline)
+            
+            # Reference image (kind="ref"):
+            -log.txt
+            -refcov.fits
+            -refimg.fits # (default)
+            -refimlog.txt
+            -refpsfcat.fits
+            -refsexcat.fits
+            -refunc.fits
 
+            # Raw images (kind="raw")
+            No Choice so suffix is ignored for raw data
+            
+            # Calibration (kind="cal")
+            - None (#default) returns `caltype`.fits
+            - log:            returns `caltype`log.txt
+            - unc:            returns `caltype`unc.fits
 
         download_dir: [string] -optional-
             Directory where the file should be downloaded.
@@ -291,7 +328,7 @@ class _ZTFDownloader_( object ):
                                         for d_ in self._relative_data_path]
             mkdir = True
         else:
-            self.download_location   = [download_dir + "/%s%"%(d_.split("/")[-1])
+            self.download_location   = [download_dir + "/%s"%(d_.split("/")[-1])
                                         for d_ in self._relative_data_path]
             mkdir = False
 
@@ -346,9 +383,11 @@ class _ZTFDownloader_( object ):
         Parameters
         ----------
         suffix: [string] -optional-
-            What kind of data do you want?
-            for science sources:
-            - sciimg.fits (primary science image) *[used if suffix is None]*
+            What kind of data do you want? 
+            Here is the list of available options depending on you image kind:
+        
+            # Science image (kind="sci"):
+            - sciimg.fits (primary science image) # (default)
             - mskimg.fits (bit-mask image)
             - psfcat.fits (PSF-fit photometry catalog)
             - sexcat.fits (nested-aperture photometry catalog)
@@ -359,6 +398,23 @@ class _ZTFDownloader_( object ):
             - diffimgpsf.fits (PSF estimate for difference image as a FITS image)
             - diffimlog.txt (log output from image subtraction and extraction pipeline)
             - log.txt (overall system summary log from realtime pipeline)
+            
+            # Reference image (kind="ref"):
+            -log.txt
+            -refcov.fits
+            -refimg.fits # (default)
+            -refimlog.txt
+            -refpsfcat.fits
+            -refsexcat.fits
+            -refunc.fits
+
+            # Raw images (kind="raw")
+            No Choice so suffix is ignored for raw data
+            
+            # Calibration (kind="cal")
+            - None (#default) returns `caltype`.fits
+            - log:            returns `caltype`log.txt
+            - unc:            returns `caltype`unc.fits
 
         exists: [bool] -optional-
             returns only the file that exists in your computer. 
@@ -478,9 +534,11 @@ class ZTFQuery( _ZTFTableHandler_, _ZTFDownloader_ ):
         Parameters
         ----------
         suffix: [string] -optional-
-            What kind of data do you want?
-            for science sources:
-            - sciimg.fits (primary science image) *[used if suffix is None]*
+            What kind of data do you want? 
+            Here is the list of available options depending on you image kind:
+        
+            # Science image (kind="sci"):
+            - sciimg.fits (primary science image) # (default)
             - mskimg.fits (bit-mask image)
             - psfcat.fits (PSF-fit photometry catalog)
             - sexcat.fits (nested-aperture photometry catalog)
@@ -491,7 +549,23 @@ class ZTFQuery( _ZTFTableHandler_, _ZTFDownloader_ ):
             - diffimgpsf.fits (PSF estimate for difference image as a FITS image)
             - diffimlog.txt (log output from image subtraction and extraction pipeline)
             - log.txt (overall system summary log from realtime pipeline)
+            
+            # Reference image (kind="ref"):
+            -log.txt
+            -refcov.fits
+            -refimg.fits # (default)
+            -refimlog.txt
+            -refpsfcat.fits
+            -refsexcat.fits
+            -refunc.fits
 
+            # Raw images (kind="raw")
+            No Choice so suffix is ignored for raw data
+            
+            # Calibration (kind="cal")
+            - None (#default) returns `caltype`.fits
+            - log:            returns `caltype`log.txt
+            - unc:            returns `caltype`unc.fits
         // if queried metadata is for kind calibration
             
         """
@@ -669,9 +743,11 @@ class NightSummary( _ZTFTableHandler_, _ZTFDownloader_ ):
             ```
 
         suffix: [string] -optional-
-            What kind of data do you want?
-            for science sources:
-            - sciimg.fits (primary science image) *[used if suffix is None]*
+            What kind of data do you want? 
+            Here is the list of available options depending on you image kind:
+        
+            # Science image (kind="sci"):
+            - sciimg.fits (primary science image) # (default)
             - mskimg.fits (bit-mask image)
             - psfcat.fits (PSF-fit photometry catalog)
             - sexcat.fits (nested-aperture photometry catalog)
@@ -683,7 +759,24 @@ class NightSummary( _ZTFTableHandler_, _ZTFDownloader_ ):
             - diffimlog.txt (log output from image subtraction and extraction pipeline)
             - log.txt (overall system summary log from realtime pipeline)
             
-            [ignored for raw data, i.e. no suffixes as there is only 1 data available]
+            # Reference image (kind="ref"):
+            -log.txt
+            -refcov.fits
+            -refimg.fits # (default)
+            -refimlog.txt
+            -refpsfcat.fits
+            -refsexcat.fits
+            -refunc.fits
+
+            # Raw images (kind="raw")
+            No Choice so suffix is ignored for raw data
+
+            # Calibration (kind="cal")
+            - None (#default) returns `caltype`.fits
+            - log:            returns `caltype`log.txt
+            - unc:            returns `caltype`unc.fits
+            
+
 
         // if queried metadata is for kind calibration
             
