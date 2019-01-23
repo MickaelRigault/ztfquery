@@ -176,7 +176,7 @@ def calibration_path(caltype,
     #  Build URL       #
     # ================ #
     filestartdate = "".join([year,month,day])
-    return source+'cal/'+year+'/'+month+day+'/%s/'%caltype.lower()+filtercode+'ccd'+paddedccdid+'/q'+qid+'/ztf_'+filestartdate+'_'+filtercode+'_c'+paddedccdid+'_q'+qid+'_%s'%suffix
+    return source+'cal/'+year+'/'+month+day+'/%s/'%caltype.lower()+filtercode+'/ccd'+paddedccdid+'/q'+qid+'/ztf_'+filestartdate+'_'+filtercode+'_c'+paddedccdid+'_q'+qid+'_%s'%suffix
     
 
 # ------------- #
