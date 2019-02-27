@@ -396,6 +396,23 @@ marshal.plot_lightcurve(lc_dict["marshal_lightcurve_ZTF18abcdef.csv"])
 ```
 
 ![](examples/figures/lc_examples.png)
+
+*** 
+
+# Getting SEDM data
+
+_available starting version 1.4_
+
+`ztfquery` is able to download SEDM data from pharos. For this you need to have pharos account (http://pharos.caltech.edu/)
+
+For example, if you want to download the cube(s) assocated to "ZTF18abqlpgq", simply do:
+```python
+from ztfquery import sedm
+squery = sedm.SEDMQuery()
+squery.download_target_data("ZTF18abqlpgq")
+```
+The data will be stored under `$ZTFDATA+/SEDM/` and each files are stored in there corresponding observation dates (`$ZTFDATA+/SEDM/YYYYMMDD`)
+
 *** 
 
 # Reading Avro Alert
