@@ -442,7 +442,7 @@ cube.show(interactive=True)
 ```
 ![](examples/sedm_example.gif)
 
-See details on pysedm documentation.
+See details on [pysedm documentation.](examples/figures/alert_plotter.png)
 
 ### What Files
 The information about which data has been acquired by SEDM every day are _"what files"_. `ztfquery` is downloading the _what files_ and store them inside `$ZTFDATA+/SEDM/whatfiles.json`. Every time you are requesting for data, if the dates is unknown, it is downloaded and `whatfiles.json` is updated. **This is made automatically, don't worry**. 
