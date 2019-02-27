@@ -403,7 +403,7 @@ marshal.plot_lightcurve(lc_dict["marshal_lightcurve_ZTF18abcdef.csv"])
 
 _available starting version 1.4_
 
-`ztfquery` is able to download SEDM data from pharos. For this you need to have pharos account (http://pharos.caltech.edu/)
+`ztfquery` is able to download SEDM data from pharos. For this you need to have pharos account (http://pharos.caltech.edu/). If you do not have an account yet, send an email to Richard Walters (rsw@astro.caltech.edu) to create one.
 
 For example, if you want to download the cube(s) assocated to "ZTF18abqlpgq", simply do:
 ```python
