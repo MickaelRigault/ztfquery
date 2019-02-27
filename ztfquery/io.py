@@ -140,7 +140,55 @@ def get_cookie(username, password):
     return requests.get(url).cookies
 
 
-def download_single_url(url, fileout=None, mkdir=True,
+def _download_(args):
+    """ To be used within _ZTFDownloader_.download_data() 
+    url, fileout,overwrite,verbose = args
+    """
+    url, fileout,  overwrite, verbose = args
+    download_single_url(url, fileout=fileout, overwrite=overwrite, verbose=verbose)
+
+def download_url(to_download_urls, download_location,
+                show_progress = True, notebook=False, verbose=True,
+                overwrite=False, nprocess=None,cookies=None, **kwargs):
+    """ """
+    if nprocess is None:
+        nprocess = 1
+    elif nprocess<1:
+        raise ValueError("nprocess must 1 or higher (None means 1)")
+
+    if nprocess == 1:
+        # Single processing
+        if verbose: print("No parallel downloading")
+        for url, fileout in zip(to_download_urls, download_location):
+            download_single_url(url,fileout=fileout, show_progress=show_progress,
+                                    notebook=notebook, 
+                                    overwrite=overwrite, verbose=verbose, cookies=cookies, **kwargs)
+    else:
+        # Multi processing
+        import multiprocessing
+        if show_progress:
+            from astropy.utils.console import ProgressBar
+            bar = ProgressBar( len(to_download_urls), ipython_widget=notebook)
+        else:
+            bar = None
+                
+        if verbose:
+            print("parallel downloading ; asking for %d processes"%nprocess)
+                
+        p   = multiprocessing.Pool(nprocess)
+            
+        # Passing arguments
+        overwrite_ = [overwrite]*len(to_download_urls)
+        verbose_   = [verbose]*len(to_download_urls)
+        # Da Loop
+        for j, result in enumerate( p.imap_unordered(_download_, zip(to_download_urls, download_location,
+                                                                 overwrite_, verbose_))):
+            if bar is not None:
+                bar.update(j)
+        if bar is not None:
+            bar.update( len(to_download_urls) )
+            
+def download_single_url(url, fileout=None, 
                         overwrite=False, verbose=True, cookies=None,
                         show_progress=True, notebook=False, chunk=1024, **kwargs):
     """ Download the url target using requests.get.
@@ -169,8 +217,6 @@ def download_single_url(url, fileout=None, mkdir=True,
     if fileout is not None:
         directory = os.path.dirname(fileout)
         if not os.path.exists(directory):
-            if not mkdir:
-                raise IOError("%s does not exists and mkdir option set to False"%directory)
             os.makedirs(directory)
 
     else:

@@ -43,9 +43,6 @@ MARSHAL_LC_DEFAULT_SOUCE = "plot_lc"
 from .io import LOCALSOURCE
 
 
-
-
-
 def _account_id_declined_(username, password):
     """ This returns True if the login information has been rejected"""
     r = requests.post( MARSHAL_BASEURL+'list_programs.cgi',  auth=(username, password) )
@@ -266,7 +263,7 @@ def get_local_lightcurves(name, only_marshal=False, source=MARSHAL_LC_DEFAULT_SO
 def download_lightcurve(name, dirout="default",
                         auth=None, verbose=False,
                         source=MARSHAL_LC_DEFAULT_SOUCE,
-                        overwrite=False,
+                        overwrite=False, return_lc=False,
                         **kwargs):
     """Download all spectra for a source in the marshal as a tar.gz file
         
@@ -286,7 +283,7 @@ def download_lightcurve(name, dirout="default",
                               
     source: [str] -optional-
         Source of the data in the marshal 
-        - print_lc.cgi // basic default one 
+        - print_lc.cgi // basic
         - plot_lc.cgi  // contains slight more information [default]
                               
     auth: [str,str] -optional-
@@ -338,16 +335,18 @@ def download_lightcurve(name, dirout="default",
         dataframe = pandas.DataFrame(data=[d.split(",")[:8] for d in data[1:] if len(d)>0], columns=data[0].split(",")[:8])
         
     # returns it
-    if dirout is None:
+    if dirout is not None:
+        # Directory given, then dump data there:
+        if verbose: print("Data will be stored here: %s"%dirout)
+        if not os.path.exists(dirout):
+            os.makedirs(dirout)
+
+        dataframe.to_csv(dirout+fileout, index=False)
+    else:
+        return_lc=True
+    
+    if return_lc:
         return dataframe
-
-    # Directory given, then dump data there:
-    if verbose: print("Data will be stored here: %s"%dirout)
-    if not os.path.exists(dirout):
-        os.makedirs(dirout)
-
-    dataframe.to_csv(dirout+fileout, index=False)
-
 #############################
 #                           #
 #   Marshall Class          #

@@ -1,8 +1,8 @@
 #! /usr/bin/env python
 #
 
-DESCRIPTION = "access ZTF data on IRSA from Python "
-LONG_DESCRIPTION = """ ZTF data on IRSA from Python """
+DESCRIPTION = "access ZTF data from python "
+LONG_DESCRIPTION = """ ZTF data from python """
 
 DISTNAME = 'ztfquery'
 AUTHOR = 'Mickael Rigault'
@@ -10,8 +10,8 @@ MAINTAINER = 'Mickael Rigault'
 MAINTAINER_EMAIL = 'm.rigault@ipnl.in2p3.fr'
 URL = 'https://github.com/MickaelRigault/ztfquery'
 LICENSE = 'BSD (3-clause)'
-DOWNLOAD_URL = 'https://github.com/MickaelRigault/ztfquery/tarball/1.3'
-VERSION = '1.3.1'
+DOWNLOAD_URL = 'https://github.com/MickaelRigault/ztfquery/tarball/1.4'
+VERSION = '1.4.0'
 
 try:
     from setuptools import setup, find_packages

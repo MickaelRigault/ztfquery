@@ -10,14 +10,7 @@ import warnings
 
 
 # This enables multiprocess downloading
-from .io import download_single_url
-def _download_(args):
-    """ To be used within _ZTFDownloader_.download_data() 
-    url, fileout,mkdir,overwrite,verbose = args
-    """
-    url, fileout, mkdir, overwrite, verbose = args
-    download_single_url(url, fileout=fileout, mkdir=mkdir,overwrite=overwrite, verbose=verbose)
-
+from . import io
     
 # Combining metadata with buildurl
 def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
@@ -308,7 +301,6 @@ class _ZTFDownloader_( object ):
             If used, information stored in ~/.ztfquery will be ignored.
 
         """
-        from .io import download_single_url
         # login
         if auth is not None:
             from .io import get_cookie
@@ -326,52 +318,17 @@ class _ZTFDownloader_( object ):
         if download_dir is None: # Local IRSA structure
             self.download_location   = [buildurl._source_to_location_("local") + d_
                                         for d_ in self._relative_data_path]
-            mkdir = True
         else:
             self.download_location   = [download_dir + "/%s"%(d_.split("/")[-1])
                                         for d_ in self._relative_data_path]
-            mkdir = False
-
+            
         if nodl:
             return self.to_download_urls, self.download_location
-
-        if nprocess is None:
-            nprocess = 1
-        elif nprocess<1:
-            raise ValueError("nprocess must 1 or higher (None means 1)")
-
-        if nprocess == 1:
-            # Single processing
-            if verbose: print("No parallel downloading")
-            for url, fileout in zip(self.to_download_urls, self.download_location):
-                download_single_url(url,fileout=fileout, show_progress=show_progress,
-                                    notebook=notebook, mkdir=mkdir,
-                                    overwrite=overwrite, verbose=verbose, cookies=cookie)
-        else:
-            # Multi processing
-            import multiprocessing
-            if show_progress:
-                from astropy.utils.console import ProgressBar
-                bar = ProgressBar( len(self.to_download_urls), ipython_widget=notebook)
-            else:
-                bar = None
-                
-            if verbose:
-                print("parallel downloading ; asking for %d processes"%nprocess)
-                
-            p   = multiprocessing.Pool(nprocess)
-            
-            # Passing arguments
-            mkdir_     = [mkdir]*len(self.to_download_urls)
-            overwrite_ = [overwrite]*len(self.to_download_urls)
-            verbose_   = [verbose]*len(self.to_download_urls)
-            # Da Loop
-            for j, result in enumerate( p.imap_unordered(_download_, zip(self.to_download_urls, self.download_location,
-                                                                mkdir_, overwrite_, verbose_))):
-                if bar is not None:
-                    bar.update(j)
-            if bar is not None:
-                bar.update( len(self.to_download_urls) )
+        
+        # Actual Download
+        io.download_url(self.to_download_urls, self.download_location,
+                        show_progress = show_progress, notebook=notebook, verbose=verbose,
+                        overwrite=overwrite, nprocess=nprocess, cookies=cookie)
                 
     # --------- #
     #  GETTER   #

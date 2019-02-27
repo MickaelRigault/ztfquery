@@ -37,7 +37,7 @@ class AlertReader():
         self.alert = alert
 
         
-    @staticmethodret
+    @staticmethod
     def load(avrofile):
         """ """
         import fastavro
