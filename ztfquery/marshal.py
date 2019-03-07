@@ -150,7 +150,7 @@ for v in PROP.values():
     for k,v_ in GENERIC.items():
         v[k]=v_
             
-def plot_lightcurve(lc_dataframe, ax=None, title=None, show_legend=True):
+def plot_lightcurve(lc_dataframe, savefile=None, ax=None, title=None, show_legend=True):
     """ """
     import matplotlib.pyplot as mpl
     from astropy.time import Time
@@ -162,16 +162,28 @@ def plot_lightcurve(lc_dataframe, ax=None, title=None, show_legend=True):
     
     lc_dataframe["inst_filter"] = [d.split("+")[-1].replace('"',"").lower()
                                    for d in lc_dataframe["instrument"]+":"+lc_dataframe["filter"]]
-    
+    if 'magpsf' in lc_dataframe.columns:
+        keys = {'filter':'inst_filter',
+                'mag':'magpsf',
+                'mag.err':'sigmamagpsf',
+                'upmag':'limmag',
+                'jdobs':'jdobs'}
+    else:
+        keys = {'filter':'inst_filter',
+                'mag':'mag',
+                'mag.err':'emag',
+                'upmag':'limmag',
+                'jdobs':'jdobs'}
+                
     # DataPoints
-    for filter_ in np.unique(lc_dataframe["inst_filter"]):
+    for filter_ in np.unique(lc_dataframe[keys["filter"]]):
         if filter_ not in  PROP:
             print("WARNING: Unknown instrument: %s | magnitude not shown"%filter_)
             continue
             
-        jd, mag, magerr = lc_dataframe[lc_dataframe["inst_filter"].isin([filter_]) & 
-                                       ~lc_dataframe["magpsf"].isin([99.00])][
-                            ["jdobs","magpsf","sigmamagpsf"]
+        jd, mag, magerr = lc_dataframe[lc_dataframe[keys["filter"]].isin([filter_]) & 
+                                       ~lc_dataframe[keys["mag"]].isin([99.00])][
+                            [keys["jdobs"],keys["mag"],keys["mag.err"]]
                         ].values.T
         
         ax.errorbar([Time(jd_, format="jd").datetime for jd_ in jd], 
@@ -179,14 +191,14 @@ def plot_lightcurve(lc_dataframe, ax=None, title=None, show_legend=True):
                      label="%s"%filter_, **PROP[filter_.replace('"',"")])
     # Upper Limits       
     ax.invert_yaxis()  
-    for filter_ in np.unique(lc_dataframe["inst_filter"]):
+    for filter_ in np.unique(lc_dataframe[keys["filter"]]):
         if filter_ not in  PROP:
             print("WARNING: Unknown instrument: %s | upper limits not shown"%filter_)
             continue
 
-        jdup, upmag = lc_dataframe[lc_dataframe["inst_filter"].isin([filter_]) & 
-                                 lc_dataframe["magpsf"].isin([99.00])][
-                            ["jdobs","limmag"]
+        jdup, upmag = lc_dataframe[lc_dataframe[keys["filter"]].isin([filter_]) & 
+                                 lc_dataframe[keys["mag"]].isin([99.00])][
+                            [keys["jdobs"],keys["upmag"]]
                         ].values.T
         ax.errorbar([Time(jd_, format="jd").datetime for jd_ in jdup], 
                                 upmag, yerr=0.15, lolims=True,alpha=0.3,
@@ -200,6 +212,9 @@ def plot_lightcurve(lc_dataframe, ax=None, title=None, show_legend=True):
         ax.set_title(title)
     if show_legend:
         ax.legend(loc=[1.02,0.], fontsize="medium" )
+    if savefile:
+        fig.savefile(savefile)
+        
     return {"ax":ax, "fig":fig}
 
 # -------------- #
@@ -243,7 +258,7 @@ def get_local_spectra(name, only_sedm=False, pysedm=True):
     return {d:v for d,v in all_files.items() if np.any(["SOURCE" in l_ for l_ in v])}
 
     
-def get_local_lightcurves(name, only_marshal=False, source=MARSHAL_LC_DEFAULT_SOUCE):
+def get_local_lightcurves(name, only_marshal=True, source=MARSHAL_LC_DEFAULT_SOUCE):
     """ returns list of fullpath of lightcurves on your computer for the given target name.
     Remark: These lightcurves have to be stored in the native `$ZTFDATA`/marshal/lightcurves/`name`
     """
