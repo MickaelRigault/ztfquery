@@ -75,7 +75,8 @@ def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
                                 imgtypecode=imgtypecode_, suffix=suffix, source=source)
                         for year_, month_, day_, fracday_, paddedfield_, filtercode_,
                         paddedccdid_, qid_, imgtypecode_
-                        in zip(year, month, day, fracday, paddedfield, filtercode, paddedccdid, qid, imgtypecode)]
+                        in zip(year, month, day, fracday, paddedfield, filtercode,
+                               paddedccdid, qid, imgtypecode)]
         else:
             # LIST of URL to download [RAW]
             return  [buildurl.raw_path(year_, month_, day_, fracday_, paddedfield_,
@@ -108,10 +109,10 @@ def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
         filtercode, qid  = np.asarray(metatable[["filtercode", "qid"]].values.T, dtype="str")
  
         return [buildurl.reference_path( paddedfield_,
-                                            filtercode_, paddedccdid_, qid_,
-                                            suffix=suffix,
-                                            fieldprefix="000", # This is how it is defined in IRSA
-                                            source=source)
+                                filtercode_, paddedccdid_, qid_,
+                                suffix=suffix,
+                                fieldprefix=paddedfield_[:3], # This is how it is defined in IRSA
+                                source=source)
                         for  paddedfield_, filtercode_, paddedccdid_, qid_
                     in zip(paddedfield, filtercode, paddedccdid, qid)]
         

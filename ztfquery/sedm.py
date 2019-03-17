@@ -4,7 +4,7 @@
 """  Access SEDM data from pharos """
 
 
-MARSHAL_BASEURL = "http://pharos.caltech.edu"
+PHAROS_BASEURL = "http://pharos.caltech.edu"
 import os
 import requests
 import json
@@ -12,9 +12,13 @@ import numpy as np
 import pandas
 from . import io
 
-SEDMLOCALSOURCE = io.LOCALSOURCE+"SEDM"
+SEDMLOCAL_BASESOURCE = io.LOCALSOURCE+"SEDM"
+SEDMLOCALSOURCE = SEDMLOCAL_BASESOURCE+"/redux"
+if not os.path.exists(SEDMLOCAL_BASESOURCE):
+    os.makedirs(SEDMLOCAL_BASESOURCE)
 if not os.path.exists(SEDMLOCALSOURCE):
     os.makedirs(SEDMLOCALSOURCE)
+    
 
 #######################
 #                     #
@@ -23,7 +27,7 @@ if not os.path.exists(SEDMLOCALSOURCE):
 #######################
 def _download_sedm_data_(night, pharosfile, fileout=None, verbose=False):
     """ """
-    url = MARSHAL_BASEURL+"/data/%s/"%night+pharosfile
+    url = PHAROS_BASEURL+"/data/%s/"%night+pharosfile
     if verbose:
         print(url)
     return io.download_single_url(url,fileout=fileout,
@@ -35,7 +39,7 @@ def _relative_to_source_(relative_datapath, source=None):
     if source is None:
         return relative_datapath
     if source in ["pharos"]:
-        return [MARSHAL_BASEURL+"/data/"+l for l in relative_datapath]
+        return [PHAROS_BASEURL+"/data/"+l for l in relative_datapath]
     if source in ["local"]:
         return [SEDMLOCALSOURCE+"/"+l for l in relative_datapath]
     
@@ -53,7 +57,7 @@ def get_night_file(night):
 #######################
 class _SEDMFiles_():
     """ """
-    SOURCEFILE = SEDMLOCALSOURCE+"whatfiles.json"
+    SOURCEFILE = SEDMLOCAL_BASESOURCE+"whatfiles.json"
     def __init__(self):
         """ """
         self.load()
@@ -186,7 +190,8 @@ class SEDMQuery( object ):
         # Actual Download
         io.download_url(self.to_download_urls, self.download_location,
                         show_progress = show_progress, notebook=notebook, verbose=verbose,
-                        overwrite=overwrite, nprocess=nprocess, auth=self._properties["auth"] if auth is None else auth)
+                        overwrite=overwrite, nprocess=nprocess,
+                        auth=self._properties["auth"] if auth is None else auth)
     # -------- #
     #  GETTER  # 
     # -------- #
@@ -321,7 +326,7 @@ class SEDMQuery( object ):
                                             }),
                          "headers":{'content-type': 'application/json'}}
             
-        t = requests.post(MARSHAL_BASEURL+"/get_user_observations", **requests_prop).text
+        t = requests.post(PHAROS_BASEURL+"/get_user_observations", **requests_prop).text
         if "data" not in t:
             raise IOError("night file download fails. Check you authentification maybe?")
         return np.sort(json.loads(t)["data"])

@@ -201,7 +201,7 @@ def download_single_url(url, fileout=None,
         return
     else:
         if verbose and fileout:
-            print("downloading %s"%fileout)
+            print("downloading %s to %s"%(url,fileout))
 
     # = Password and Username
     if cookies is None: cookies = get_cookie(*_load_id_("irsa"))
