@@ -227,6 +227,13 @@ zquery.download_data("psfcat.fits", show_progress=True, notebook=True,
 In the above example, `overwrite=True` enables to re-download existing file. 
 By default `overwrite` is `False`, which means that the code checks if you already have the file you want to download where you want to download it and if so, skips it. `verbose` prints additional information like the name of files been downloaded.
 
+**You can download simply a part of the data** (starting version >1.4.2): `download_data()` have an `indexes` options. Simply provide the indexes of the `metatable` you want to download, only these will be downloaded.
+```python
+zquery.download_data("psfcat.fits", indexes=[4,6,12,40])
+```
+
+
+
 _What is happening inside `download_data()`?_
 
 For each observation made with ZTF (that you have queried using `load_metadata()`) there are plenty of data product made available. Here is the list for the science exposure (default of `load_metadata()`, details [here](https://irsa.ipac.caltech.edu/docs/program_interface/ztf_metadata.html)):
