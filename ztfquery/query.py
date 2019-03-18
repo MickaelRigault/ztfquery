@@ -244,7 +244,8 @@ class _ZTFDownloader_( object ):
 
     
     # Generic that should automatically work as long as get_data_path is defined.
-    def download_data(self, suffix=None, source="IRSA", download_dir=None,
+    def download_data(self, suffix=None, source="IRSA", indexes=None,
+                     download_dir=None,
                      show_progress = True, notebook=False, verbose=True,
                      nodl = False, overwrite=False, nprocess=None,
                      auth=None, **kwargs):
@@ -310,7 +311,7 @@ class _ZTFDownloader_( object ):
             cookie = None
             
         # Data Structure
-        self._relative_data_path = self.get_data_path(suffix=suffix, source="None", **kwargs)
+        self._relative_data_path = self.get_data_path(suffix=suffix, source="None", indexes=indexes, **kwargs)
         
         # The IRSA location
         self.to_download_urls    = [buildurl._source_to_location_(source) + d_
@@ -334,7 +335,7 @@ class _ZTFDownloader_( object ):
     # --------- #
     #  GETTER   #
     # --------- #
-    def get_local_data(self, suffix=None, exists=True):
+    def get_local_data(self, suffix=None, exists=True, indexes=None):
         """ the lists of files stored in your local copy of the ztf database.
         [This methods uses the get_data_path() method assuming source='local']
 
@@ -383,7 +384,7 @@ class _ZTFDownloader_( object ):
         -------
         list
         """
-        files = self.get_data_path(suffix=suffix, source="local")
+        files = self.get_data_path(suffix=suffix, source="local", indexes=indexes)
         if not exists:
             return files
         return [f for f in files if os.path.isfile( f )]
@@ -485,7 +486,7 @@ class ZTFQuery( _ZTFTableHandler_, _ZTFDownloader_ ):
             self.metaquery = download_metadata(kind=kind, sql_query=sql_query, **kwargs)
             
     
-    def get_data_path(self, suffix=None, source=None):
+    def get_data_path(self, suffix=None, source=None, indexes=None):
         """ generic method to build the url/fullpath or the requested data.
         This method is based on the `builurl.py` module of ztfquery.
         
@@ -527,7 +528,8 @@ class ZTFQuery( _ZTFTableHandler_, _ZTFDownloader_ ):
         // if queried metadata is for kind calibration
             
         """
-        return metatable_to_url(self.metatable, datakind=self.datakind, suffix=suffix, source=source)
+        return metatable_to_url(self.metatable if indexes is None else self.metatable.loc[np.atleast_1d(indexes)],
+                                    datakind=self.datakind, suffix=suffix, source=source)
 
     # =============== #
     #  Properties     #
