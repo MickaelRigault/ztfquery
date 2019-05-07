@@ -525,7 +525,7 @@ class MarshalAccess( object ):
     # 
     # GETTER
     #
-    def get_target_data(self, name):
+    def get_target_data(self, name, verbose=True):
         """ target_sources entry corresponding to the given name(s)
         
         Parameters
@@ -537,6 +537,11 @@ class MarshalAccess( object ):
         -------
         DataFrame Row(s)
         """
+        if not hasattr(self,"target_sources"):
+            if verbose: print("INFO: I am downloading target_sources metadata, it may take some time (~1min). \n"+
+                                  "You may fasten this part by first doing self.load_target_sources(YOUR_PROGRAM)")
+                
+            self.load_target_sources()
         return self.target_sources[self.target_sources["name"].isin(np.atleast_1d(name))]
 
     def get_target_coordinates(self, name):
