@@ -528,6 +528,11 @@ class ZTFQuery( _ZTFTableHandler_, _ZTFDownloader_ ):
         // if queried metadata is for kind calibration
             
         """
+        if not hasattr(self,"metaquery"):
+            raise AttributeError("metaquery has not been loaded. Run load_metadata(). ")
+        if self.metaquery.nentries ==0:
+            warnings.warn("No entry associated to the query you made: metatable is empty")
+            return []
         return metatable_to_url(self.metatable if indexes is None else self.metatable.loc[np.atleast_1d(indexes)],
                                     datakind=self.datakind, suffix=suffix, source=source)
 
