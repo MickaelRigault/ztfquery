@@ -479,7 +479,7 @@ class ZTFQuery( _ZTFTableHandler_, _ZTFDownloader_ ):
             self.metaquery = download_metadata(kind=kind, radec=radec, size=size, mcen=mcen, sql_query=sql_query, **kwargs)
         else:
             for k in ["radec", "size", "mcen"]:
-                if locals()[k] is not None: warnings.warn("Calibration data requested, %s entry ignored"%k)
+                if locals()[k] is not None: warnings.warn("You are querying 'calibration data', the following entry is ignored: %s"%k)
             if "caltype" not in sql_query and caltype is not None and caltype:
                 sql_query = "caltype=%s"%caltype if sql_query is None else sql_query+"+AND+caltype='%s'"%caltype
                 

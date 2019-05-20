@@ -11,7 +11,7 @@ else:
     from StringIO import StringIO
     
 import requests
-
+import warnings
 import numpy as np
 from pandas import read_csv
 
@@ -118,7 +118,7 @@ class MetaQuery():
 
     def query(self, kind="sci", radec=None, size=None, mcen=None,
                   sql_query=None, colnames=None,
-                  cookies=None, **kwargs):
+                  cookies=None, test_query=True, **kwargs):
         """ Query IRSA to get the metadate needed to know how to access the data themselves.
         
         This method uses `build_query()` and store the downloaded information
@@ -142,6 +142,13 @@ class MetaQuery():
         self.metatable = read_csv( StringIO(
             requests.get( self.query_url, cookies=cookies).content.decode('utf-8')
             ))
+
+        if len(self.metatable.columns) == 1 and "<?xml version" in self.metatable.columns[0]:
+            warnings.warn("The query you made failed:" +"\n"+self.query_url)
+        elif self.nentries ==0:
+            warnings.warn("The query ran successfully, but no data returned. (bad query [check self.query_url]? wrong password [ztfquery.io._load_id_('irsa')] ?)")
+        
+                              
         
     def build_query(self, kind="sci", radec=None, size=None, mcen=None,
                      sql_query=None, colnames=None, ct="csv", **kwargs):
