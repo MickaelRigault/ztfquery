@@ -18,7 +18,7 @@ from pandas import read_csv
 
 __all__ = ["download_metadata"]
 
-
+IRSA_DOC = "https://irsa.ipac.caltech.edu/docs/program_interface/ztf_metadata.html"
 
 SEARCH_BASEURL = "https://irsa.ipac.caltech.edu/ibe/search/ztf/products/"
 
@@ -144,7 +144,7 @@ class MetaQuery():
             ))
 
         if len(self.metatable.columns) == 1 and "<?xml version" in self.metatable.columns[0]:
-            warnings.warn("The query you made failed:" +"\n"+self.query_url)
+            warnings.warn("The query you made failed:" +"\n"+self.query_url+"\n"+"see queriable entries here: %s"%IRSA_DOC)
         elif self.nentries ==0:
             warnings.warn("The query ran successfully, but no data returned. (bad query [check self.query_url]? wrong password [ztfquery.io._load_id_('irsa')] ?)")
         
