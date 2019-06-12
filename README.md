@@ -424,7 +424,19 @@ To plot the lightcurve, simply do:
 lcq.show()
 ```
 
+You can also query by ID:
+```
+from ztfquery import lightcurve
+lcq = lightcurve.LCQuery()
+lcq.query_id([686103400067717,686103400106565])
+```
 
+or any kind of query using the list of parameter from the [LightCurve Query API](https://irsa.ipac.caltech.edu/docs/program_interface/ztf_lightcurve_api.html)
+
+```
+from ztfquery import lightcurve
+lcq = lightcurve.LCQuery.download_data(circle=[298.0025,29.87147,0.0014], bandname="g")
+```
 
 *** 
 
