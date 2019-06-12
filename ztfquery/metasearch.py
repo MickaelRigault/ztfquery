@@ -118,7 +118,7 @@ class MetaQuery():
 
     def query(self, kind="sci", radec=None, size=None, mcen=None,
                   sql_query=None, colnames=None,
-                  cookies=None, test_query=True, **kwargs):
+                  cookies=None, **kwargs):
         """ Query IRSA to get the metadate needed to know how to access the data themselves.
         
         This method uses `build_query()` and store the downloaded information

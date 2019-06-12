@@ -5,6 +5,8 @@
 
 
 import numpy as np
+from .lightcurve import FILTER_COLORS, FILTER_CODE
+
 
 def display_alert(alert, savefile=None, show_ps_stamp=False):
     """ """
@@ -28,10 +30,7 @@ def query_alert(alertid):
 #                  #
 ####################
 class AlertReader():
-    """ """
-    FILTER_COLORS = ["C2","C3","C1"]
-    FILTER_CODE   = ["ztf-g","ztf-r","ztf-i"]
-    
+    """ """    
     def __init__(self, alert):
         """ Input: Avro alert loaded. If you have a avrofile, use .load()"""
         self.alert = alert
@@ -107,7 +106,7 @@ class AlertReader():
                     flag_fid = fid==i
                     ax.errorbar([Time(jd_, format="jd").datetime for jd_ in jd[flag_fid]], 
                                     mag[flag_fid], yerr= magerr[flag_fid], 
-                                    label="magpsf %s"%self.FILTER_CODE[j], mfc=self.FILTER_COLORS[j], **prop)
+                                    label="magpsf %s"%FILTER_CODE[j], mfc=FILTER_COLORS[j], **prop)
             
         def show_fid_uplim(ax):
             """ """
@@ -120,7 +119,7 @@ class AlertReader():
                     flag_fid = fidup==i
                     ax.errorbar([Time(jd_, format="jd").datetime for jd_ in jdup[flag_fid]], 
                                 upmag[flag_fid], yerr=0.2, lolims=True,
-                                    color=self.FILTER_COLORS[j], ls="None", 
+                                    color=FILTER_COLORS[j], ls="None", 
                                     label="_no_legend_")
                 
         # ----------- #
@@ -173,10 +172,10 @@ class AlertReader():
         #  Alert      #
         # ----------- #
         prop['marker'] = "D"
-        prop['mec'] = self.FILTER_COLORS[self.alert["candidate"]["fid"]-1]
+        prop['mec'] = FILTER_COLORS[self.alert["candidate"]["fid"]-1]
         axlc.errorbar(Time(self.alert["candidate"]["jd"], format="jd").datetime, self.alert["candidate"]["magpsf"], 
                     yerr= self.alert["candidate"]["sigmapsf"],
-                    mfc=self.FILTER_COLORS[self.alert["candidate"]["fid"]-1],label="_no_legend_", **prop)
+                    mfc=FILTER_COLORS[self.alert["candidate"]["fid"]-1],label="_no_legend_", **prop)
     
         # add text
         info = []
@@ -193,7 +192,7 @@ class AlertReader():
         fig.text(0.68,0.6, " \n".join(info), va="top", fontsize="medium", color="0.4")
         fig.text(0.005,0.995, "alert: ID: %s (RA: %.5f | Dec: %.5f | Filter: %s)"%(self.alert.get("candid"),
                                                                                    self.alert['candidate']['ra'],self.alert['candidate']['dec'],
-                                                                                   self.FILTER_CODE[self.alert['candidate']['fid']-1]),
+                                                                                   FILTER_CODE[self.alert['candidate']['fid']-1]),
                      fontsize="medium", color="k", va="top", ha="left")
         axlc.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%y'))
 
