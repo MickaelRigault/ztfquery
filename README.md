@@ -403,6 +403,28 @@ marshal.plot_lightcurve(lc_dict["marshal_lightcurve_ZTF18abcdef.csv"])
 ```
 
 ![](examples/figures/lc_examples.png)
+*** 
+
+# Getting IRSA LightCurves
+
+*These are not lightcurves generated from alert packets. These are from the matching the epochal catalogs. Totally independent of alerts. The variable star/AGN community will be most interested in these.*
+
+ztfquery (starting version>1.5.0) enables to access the [LightCurve Query API](https://irsa.ipac.caltech.edu/docs/program_interface/ztf_lightcurve_api.html).
+
+You can directly query by coordinates (Ra, DEC and radius in arcsec):
+```
+from ztfquery import lightcurve
+lcq = lightcurve.LCQuery()
+lcq.query_position(197.501495, +75.721959, 5)
+```
+Data are stored in `lcq.data`.
+
+To plot the lightcurve, simply do:
+```
+lcq.show()
+```
+
+
 
 *** 
 
