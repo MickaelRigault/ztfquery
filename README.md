@@ -13,6 +13,13 @@ _You need to have an IRSA account that has access to ZTF Data to be able to get 
 
 M. Rigault (corresponding author, m.rigault@ipnl.in2p3.fr, CNRS/IN2P3), M. Giomi (Humboldt Universiteat zu Berlin) and U. Feindt (Oskar Klein Center, Stockholm University) 
 
+### Acknowledgment
+
+If you have used `ztfquery` for a research you are publishing, please **include the following in your acknowledgments**:
+_"The ztfquery code was funded by the European Research Council (ERC) under the European Union's Horizon 2020 research and innovation programme (grant agreement n°759194 - USNAC, PI: Rigault)."_
+
+
+
 # Installation
 
 using pip: `pip install ztfquery` (favored)
