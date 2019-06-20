@@ -132,7 +132,7 @@ class SEDMQuery( object ):
 
 
     def download_target_data(self, target, which="cube", extension="fits", timerange=["2018-09-01", None],
-                                 nodl=False, auth=None,
+                                 nodl=False, auth=None, download_dir="default",
                                  show_progress=False, notebook=False, verbose=True,
                                  overwrite=False, nprocess=None ):
         """ 
@@ -182,8 +182,13 @@ class SEDMQuery( object ):
         """
         # Build the path (local and url)
         relative_path = self.get_data_path(target, which=which,extension=extension, timerange=timerange, source="pharos")
-        self.to_download_urls, self.download_location = [_relative_to_source_(relative_path, "pharos"),
-                                                         _relative_to_source_(relative_path, "local")]
+        self.to_download_urls  = _relative_to_source_(relative_path, "pharos")
+        self.download_location = _relative_to_source_(relative_path, "local")
+        if download_dir is None or download_dir in ["default"]:
+            self.download_location = [_relative_to_source_(relative_path, "local")]
+        else:
+            self.download_location = [download_dir+f.split("/")[-1] for f in self.to_download_urls]
+            
         if nodl:
             return self.to_download_urls, self.download_location
         
