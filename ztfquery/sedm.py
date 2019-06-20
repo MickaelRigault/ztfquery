@@ -62,14 +62,14 @@ class _SEDMFiles_():
         """ """
         self.load()
 
-    def download_nightrange(self, start="2018-08-01", end="now"):
+    def download_nightrange(self, start="2018-08-01", end="now", update=False):
         """ """
         if end is None or end in ["today", "now"]:
             from datetime import datetime 
             today = datetime.today()
             end   = today.isoformat().split("T")[0]
             
-        self.add_night(["%4d%02d%02d"%(tt.year,tt.month, tt.day) for tt in pandas.date_range(start=start, end=end) ])
+        self.add_night(["%4d%02d%02d"%(tt.year,tt.month, tt.day) for tt in pandas.date_range(start=start, end=end) ], update=update)
         
     def add_night(self, night, update=False):
         """ night (or list of) with the given format YYYYMMDD 
