@@ -234,7 +234,9 @@ class SEDMQuery( object ):
         """ provide your authentification. """
         self._properties["auth"] = auth
 
-
+    # ----------- #
+    # Downloader  #
+    # ----------- #
     def download_night_fluxcal(self, night, nodl=False, auth=None, download_dir="default",
                                  show_progress=False, notebook=False, verbose=True,
                                  overwrite=False, nprocess=None):
@@ -271,8 +273,6 @@ class SEDMQuery( object ):
                                           show_progress=show_progress, notebook=notebook, verbose=verbose,
                                           overwrite=overwrite, nprocess=nprocess)
 
-        
-        
     def download_target_data(self, target, which="cube", extension="fits", timerange=["2018-08-01", None],
                                  nodl=False, auth=None, download_dir="default",
                                  show_progress=False, notebook=False, verbose=True,
@@ -367,15 +367,13 @@ class SEDMQuery( object ):
         else:
             self.download_location = [download_dir+f.split("/")[-1] for f in self.to_download_urls]
             
-        if nodl:
-            return self.to_download_urls, self.download_location
-        
-        # Actual Download
-        io.download_url(self.to_download_urls, self.download_location,
+        if not nodl:
+            io.download_url(self.to_download_urls, self.download_location,
                         show_progress = show_progress, notebook=notebook, verbose=verbose,
                         overwrite=overwrite, nprocess=nprocess,
                         auth=self._properties["auth"] if auth is None else auth)
         
+        return self.to_download_urls, self.download_location
     # -------- #
     #  GETTER  # 
     # -------- #
@@ -415,11 +413,11 @@ class SEDMQuery( object ):
         for night, fileid in self.get_target_data(target, timerange=timerange)[["night","filename"]].values:
             all_data+=[l for l in self.get_night_data(night, source=source) if fileid.split(".")[0] in l
                                and (which in ["*", "all"] or 
-                                   (which in ["cube"] and "/e3d" in l) or
-                                   (which in ["spec"] and "/spec_" in l) or
-                                   (which in ["ccd"] and "/crr_" in l)
+                                   ((which in ["cube"] or "cube" in which) and "/e3d" in l) or
+                                   ((which in ["spec"] or "spec" in which) and "/spec_" in l) or
+                                   ((which in ["ccd"] or "ccd" in which) and "/crr_" in l)
                                     )
-                                and (extension in ["*", "all"] or extension in l)
+                                and (extension in ["*", "all"] or extension in l or l.split(".")[-1] in extension)
                                ]
         return all_data
     
