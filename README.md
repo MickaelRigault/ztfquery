@@ -22,7 +22,7 @@ _Tested on python 3 and 2.7_
 
 ### Credit
 
-M. Rigault (corresponding author, m.rigault@ipnl.in2p3.fr, CNRS/IN2P3), M. Giomi (Humboldt Universiteat zu Berlin) and U. Feindt (Oskar Klein Center, Stockholm University) 
+M. Rigault (corresponding author, m.rigault@ipnl.in2p3.fr, CNRS/IN2P3), with help from M. Giomi (Humboldt Universiteat zu Berlin) and U. Feindt (Oskar Klein Center, Stockholm University) 
 
 ### Acknowledgment
 
