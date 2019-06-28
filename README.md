@@ -1,7 +1,3 @@
-_beta version: documentation improving continuously, ready to be used._
-
-_Tested on python 3 and 2.7_
-
 # ztfquery
 
 [![PyPI](https://img.shields.io/pypi/v/ztfquery.svg?style=flat-square)](https://pypi.python.org/pypi/ztfquery)
