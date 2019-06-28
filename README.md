@@ -3,11 +3,22 @@ _beta version: documentation improving continuously, ready to be used._
 _Tested on python 3 and 2.7_
 
 # ztfquery
-Python wrapper of ZTF IRSA web API
-
-_You need to have an IRSA account that has access to ZTF Data to be able to get data using `ztfquery`_
 
 [![PyPI](https://img.shields.io/pypi/v/ztfquery.svg?style=flat-square)](https://pypi.python.org/pypi/ztfquery)
+
+**ztfquery is a python tool to download ztf (and SEDM) data. It contains**:
+
+- a wrapper of the IRSA web API that enable to get ztf data _(requires access for full data, but not public data)_:
+	- Images and pipeline products, e.g. catalog ;
+	- LightCurves (not from image subtraction).
+	
+- tools to monitor the ZTF night activities aka "night summary" _(requires access)_
+
+- tools to download ZTF-Marshal data, including alert lightcurves and target coordinates _(requires access)_
+
+- tools to download SEDM data, including IFU cubes and target spectra _(requires access)_
+
+- A simple alert reader.
 
 ### Credit
 
