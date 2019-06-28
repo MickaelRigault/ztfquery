@@ -8,15 +8,15 @@ _Tested on python 3 and 2.7_
 
 **ztfquery is a python tool to download ztf (and SEDM) data. It contains**:
 
-- a wrapper of the IRSA web API that enable to get ztf data _(requires access for full data, but not public data)_:
+- a wrapper of the [IRSA web API](https://irsa.ipac.caltech.edu/docs/program_interface/ztf_api.html) that enable to get ztf data _(requires access for full data, but not public data)_:
 	- Images and pipeline products, e.g. catalog ;
 	- LightCurves (not from image subtraction).
 	
 - tools to monitor the ZTF night activities aka "night summary" _(requires access)_
 
-- tools to download ZTF-Marshal data, including alert lightcurves and target coordinates _(requires access)_
+- tools to download [Marshal](http://skipper.caltech.edu:8080/cgi-bin/growth/marshal.cgi) data, including alert lightcurves and target coordinates _(requires access)_
 
-- tools to download SEDM data, including IFU cubes and target spectra _(requires access)_
+- tools to download SEDM data, including IFU cubes and target spectra, from [pharos](http://pharos.caltech.edu) _(requires access)_
 
 - A simple alert reader.
 
