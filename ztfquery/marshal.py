@@ -11,8 +11,12 @@ import os
 import warnings
 import numpy as np
 from . import io
-
-import matplotlib.pyplot as mpl
+try:
+    import matplotlib.pyplot as mpl
+    _HAS_MPL = True
+except ImportError:
+    warnings.warn("cannot import matplotlib (front-end error most likely)")
+    _HAS_MPL = False
 # list of effects:
 #    list_program_sources.cgi | auth, data={'programidx' : str(programidx)}  # list of sources associated to the program
 #    list_programs.cgi | auth # list of program you belong to
@@ -125,30 +129,29 @@ def download_spectra(name, dirout="default", auth=None, verbose=False, **kwargs)
 # -------------- #
 #  PLOT LC       #
 # -------------- #
-
-GENERIC = dict(alpha=1, mew=0.4, mec="0.7", ecolor="0.7", ls="None")
-PROP    = { # ZTF
-            "ztf:r":dict(marker="o",ms=7,  mfc="C3"),
-            "ztf:g":dict(marker="o",ms=7,  mfc="C2"),
-            "ztf:i":dict(marker="o",ms=7, mfc="C1"),
-            # Swift
-            "uvot:B":   dict(marker="s",  ms=5, mfc="C0"),
-            "uvot:u":   dict(marker="s",  ms=5, mfc=mpl.cm.Blues(0.7)),
-            "uvot:uvm2":dict(marker="s", ms=5, mfc=mpl.cm.Purples(0.6)),
-            "uvot:uvm2":dict(marker="s", ms=5, mfc=mpl.cm.Purples(0.8)),
-            "uvot:uvm1":dict(marker="s", ms=5, mfc=mpl.cm.Purples(0.4)),
-            "uvot:V":   dict(marker="s", ms=5, mfc=mpl.cm.Greens(0.9)),
-            # 
-            "ioo:u":   dict(marker="d", ms=6,mfc=mpl.cm.Blues(0.6)),
-            "ioo:g":   dict(marker="d", ms=6,mfc=mpl.cm.Greens(0.6)),
-            "ioo:r":   dict(marker="d", ms=6,mfc=mpl.cm.Reds(0.7)),
-            "ioo:i":   dict(marker="d",ms=6, mfc=mpl.cm.Oranges(0.6)),
-            "ioo:z":   dict(marker="d", ms=6,mfc=mpl.cm.binary(0.8))
-            }
-    
-for v in PROP.values():
-    for k,v_ in GENERIC.items():
-        v[k]=v_
+if _HAS_MPL:
+    GENERIC = dict(alpha=1, mew=0.4, mec="0.7", ecolor="0.7", ls="None")
+    PROP    = { # ZTF
+                    "ztf:r":dict(marker="o",ms=7,  mfc="C3"),
+                    "ztf:g":dict(marker="o",ms=7,  mfc="C2"),
+                    "ztf:i":dict(marker="o",ms=7, mfc="C1"),
+                    # Swift
+                    "uvot:B":   dict(marker="s",  ms=5, mfc="C0"),
+                    "uvot:u":   dict(marker="s",  ms=5, mfc=mpl.cm.Blues(0.7)),
+                    "uvot:uvm2":dict(marker="s", ms=5, mfc=mpl.cm.Purples(0.6)),
+                    "uvot:uvm2":dict(marker="s", ms=5, mfc=mpl.cm.Purples(0.8)),
+                    "uvot:uvm1":dict(marker="s", ms=5, mfc=mpl.cm.Purples(0.4)),
+                    "uvot:V":   dict(marker="s", ms=5, mfc=mpl.cm.Greens(0.9)),
+                    # 
+                    "ioo:u":   dict(marker="d", ms=6,mfc=mpl.cm.Blues(0.6)),
+                    "ioo:g":   dict(marker="d", ms=6,mfc=mpl.cm.Greens(0.6)),
+                    "ioo:r":   dict(marker="d", ms=6,mfc=mpl.cm.Reds(0.7)),
+                    "ioo:i":   dict(marker="d",ms=6, mfc=mpl.cm.Oranges(0.6)),
+                    "ioo:z":   dict(marker="d", ms=6,mfc=mpl.cm.binary(0.8))
+                    }
+    for v in PROP.values():
+        for k,v_ in GENERIC.items():
+            v[k]=v_
             
 def plot_lightcurve(lc_dataframe, savefile=None, ax=None, title=None, show_legend=True):
     """ """
