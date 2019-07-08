@@ -1,7 +1,3 @@
-_beta version: documentation improving continuously, ready to be used._
-
-_Tested on python 3 and 2.7_
-
 # ztfquery
 
 [![PyPI](https://img.shields.io/pypi/v/ztfquery.svg?style=flat-square)](https://pypi.python.org/pypi/ztfquery)
@@ -51,57 +47,15 @@ ipython
 ```
 The login and password will be stored crypted under ~/.ztfquery. Remove this file to reload it.
 
+You can also directly provide account settings when running `load_metadata` and `download_data` using the `auth=[your_username, your_password]` parameter. Similarly, directly provide the username and password to the ztf ops page when loading `NightSummary` using the `ztfops_auth` parameter.
+
+### Setting your I/O
+
 You should also create the global variable `$ZTFDATA` (usually in your `~/.bash_profile` or `~/.cshrc`). Data you will download from IRSA will be saved in the directory indicated by `$ZTFDATA` following the IRSA data structure.
 
-_new since version 1.1.1_
-
-You can also directly provide your IRSA account settings when running `load_metadata` and `download_data` using the `auth=[your_username, your_password]` parameter. Similarly, directly provide the username and password to the ztf ops page when loading `NightSummary` using the `ztfops_auth` parameter.
 
 
-# Examples
-
-## Single Day summary
-You want to see what ZTF has observed during a given night (say 10th of May 2018, i.e. 20180510):
-```python
-from ztfquery import query
-may1018 = query.NightSummary('20180510')
-# The Information concerning the science targets are saved in the attribute `data` 
-print(may1018.data)
-# The entire information, including the calibration exposure are in `data_all`
-```
-`data` and `data_all` are Pandas DataFrame.
-
-If you now want to visualize which fields have been observed:
-```python
-fig = may1018.show_gri_fields(title="Observed Fields \n 2018-05-10")
-fig.show()
-"""
-Number of g (upper left), r (upper right), I (lower) observations for night 20180510. 
-The grey tile shows the primary ZTF grid for dec>-30deg.
-Remark that particular night, no I band filter observation were made. 
-"""
-```
-![](examples/figures/gri_projection_visits_20180510.png)
-
-#### Password protection of NightSummary. 
-
-The first time you will use NightSummary, it will ask for the username and password of ztfops webpage. **These are not your irsa account settings**. 
-
-username and password to ztfops webpage can be found in ZTF's twiki page (ZTFOps)
-
-
-#### Downloading Data from NightSummary object
-
-As of v0.6, you can directly download ztf data. For details, see *Downloading the Data* section below.
-
-As a short example, if you want to download the science images from "quadran 1" of "ccd 6" simply do:
-```python
-may1018.set_metadata("sci", paddedccdid="06", qid="01")
-
-# Let's only try to download target observation for program ID 2 (partnership)
-mask = (may1018.data["type"]=="targ") * (may1018.data["pid"]=="2")
-may1018.download_data("sciimg.fits", show_progress=False, mask=mask)
-```
+# Getting ZTF Data from IRSA | Examples
 
 ## Generic Query
 
@@ -194,6 +148,48 @@ zquery.load_metadata(kind="ref",radec=[276.107960, +44.130398], size=0.0001,  sq
 or, instead of `sql_query="fid=1"`, you could use `sql_query="filtercode='zg'"` but be careful with the quotes around _zg_
 
 You can then simply download the refence image by doing `zquery.download_data()` as detailed below.
+## Single Day summary
+You want to see what ZTF has observed during a given night (say 10th of May 2018, i.e. 20180510):
+```python
+from ztfquery import query
+may1018 = query.NightSummary('20180510')
+# The Information concerning the science targets are saved in the attribute `data` 
+print(may1018.data)
+# The entire information, including the calibration exposure are in `data_all`
+```
+`data` and `data_all` are Pandas DataFrame.
+
+If you now want to visualize which fields have been observed:
+```python
+fig = may1018.show_gri_fields(title="Observed Fields \n 2018-05-10")
+fig.show()
+"""
+Number of g (upper left), r (upper right), I (lower) observations for night 20180510. 
+The grey tile shows the primary ZTF grid for dec>-30deg.
+Remark that particular night, no I band filter observation were made. 
+"""
+```
+![](examples/figures/gri_projection_visits_20180510.png)
+
+#### Password protection of NightSummary. 
+
+The first time you will use NightSummary, it will ask for the username and password of ztfops webpage. **These are not your irsa account settings**. 
+
+username and password to ztfops webpage can be found in ZTF's twiki page (ZTFOps)
+
+
+#### Downloading Data from NightSummary object
+
+As of v0.6, you can directly download ztf data. For details, see *Downloading the Data* section below.
+
+As a short example, if you want to download the science images from "quadran 1" of "ccd 6" simply do:
+```python
+may1018.set_metadata("sci", paddedccdid="06", qid="01")
+
+# Let's only try to download target observation for program ID 2 (partnership)
+mask = (may1018.data["type"]=="targ") * (may1018.data["pid"]=="2")
+may1018.download_data("sciimg.fits", show_progress=False, mask=mask)
+```
 
 # Downloading the Data
 
@@ -312,6 +308,50 @@ fields.get_fields_with_band_reference("zi")
 633,  634,  635,  645,  646,  660,...
 """
 ```
+
+# Single Day summary
+You want to see what ZTF has observed during a given night (say 10th of May 2018, i.e. 20180510):
+```python
+from ztfquery import query
+may1018 = query.NightSummary('20180510')
+# The Information concerning the science targets are saved in the attribute `data` 
+print(may1018.data)
+# The entire information, including the calibration exposure are in `data_all`
+```
+`data` and `data_all` are Pandas DataFrame.
+
+If you now want to visualize which fields have been observed:
+```python
+fig = may1018.show_gri_fields(title="Observed Fields \n 2018-05-10")
+fig.show()
+"""
+Number of g (upper left), r (upper right), I (lower) observations for night 20180510. 
+The grey tile shows the primary ZTF grid for dec>-30deg.
+Remark that particular night, no I band filter observation were made. 
+"""
+```
+![](examples/figures/gri_projection_visits_20180510.png)
+
+#### Password protection of NightSummary. 
+
+The first time you will use NightSummary, it will ask for the username and password of ztfops webpage. **These are not your irsa account settings**. 
+
+username and password to ztfops webpage can be found in ZTF's twiki page (ZTFOps)
+
+
+#### Downloading Data from NightSummary object
+
+As of v0.6, you can directly download ztf data. For details, see *Downloading the Data* section below.
+
+As a short example, if you want to download the science images from "quadran 1" of "ccd 6" simply do:
+```python
+may1018.set_metadata("sci", paddedccdid="06", qid="01")
+
+# Let's only try to download target observation for program ID 2 (partnership)
+mask = (may1018.data["type"]=="targ") * (may1018.data["pid"]=="2")
+may1018.download_data("sciimg.fits", show_progress=False, mask=mask)
+```
+
 ***
 
 # Getting Marshal Data
