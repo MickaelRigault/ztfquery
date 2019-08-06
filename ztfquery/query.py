@@ -95,6 +95,7 @@ def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
                                               dtype="str")
         filtercode, qid,caltype  = np.asarray(metatable[["filtercode", "qid","caltype"]].values.T,
                                                       dtype="str")
+        filtercode[filtercode=="0"] = "00" # such that it is what IRSA expects.
             # list of url to download [CAL]
         return  [buildurl.calibration_path(caltype_,
                                             year_, month_, day_,
