@@ -15,7 +15,7 @@ else:
     from ConfigParser import ConfigParser
     _PYTHON3 = False
     
-_SOURCE = open(os.path.dirname(os.path.realpath(__file__))+"/data/source").read()
+_SOURCEDIR = os.path.dirname(os.path.realpath(__file__))
 
 
 _ENCRYPT_FILE = os.path.expanduser("~")+"/.ztfquery"
