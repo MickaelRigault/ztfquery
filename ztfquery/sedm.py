@@ -10,6 +10,7 @@ import requests
 import json
 import numpy as np
 import pandas
+import warnings
 from . import io
 
 SEDMLOCAL_BASESOURCE = io.LOCALSOURCE+"SEDM"
@@ -207,7 +208,10 @@ class _SEDMFiles_():
         for night_ in np.atleast_1d(night):
             if night_ in self._pharoslist and not update:
                 continue
-            self._pharoslist[night_] = [l.replace("/data/","") for l in get_pharos_night_data(night_)]
+            try:
+                self._pharoslist[night_] = [l.replace("/data/","") for l in get_pharos_night_data(night_)]
+            except:
+                warnings.warn("Pharos List download: Failed for %s"%night_)
             
         self.dump("pharosfile")
 
