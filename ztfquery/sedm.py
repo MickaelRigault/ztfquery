@@ -128,7 +128,7 @@ class _SEDMFiles_():
     # -------- #
     #    I/O   #
     # -------- # 
-    def download_nightrange(self, start="2018-08-01", end="now", update=False, pharosfiles=False):
+    def download_nightrange(self, start="2018-08-01", end="now", update=False, pharosfiles=False, dump=True):
         """ """
         if end is None or end in ["today", "now"]:
             from datetime import datetime 
@@ -138,6 +138,9 @@ class _SEDMFiles_():
         self.add_night(["%4d%02d%02d"%(tt.year,tt.month, tt.day) for tt in pandas.date_range(start=start, end=end) ], update=update)
         if pharosfiles:
             self.add_pharoslist(["%4d%02d%02d"%(tt.year,tt.month, tt.day) for tt in pandas.date_range(start=start, end=end) ], update=update)
+
+        if dump:
+            self.dump("whatfile" if not pharosfiles else "both")
             
     def add_night(self, night, update=False):
         """ night (or list of) with the given format YYYYMMDD 
@@ -166,16 +169,28 @@ class _SEDMFiles_():
             
         self._build_dataframe_()
         
-    def dump(self, which="whatfile"):
-        """ """
-        if which == "whatfile":
+    def dump(self, which="both"):
+        """ Save the current version of whatfiles and or pharos files on your computer.
+
+        Parameters
+        ----------
+        which: [str] -optional-
+            what kind of data do you want to dump ?
+            - whatfile
+            - pharosfile
+            - both
+        """
+        if not which in ["whatfile","pharosfile","both","*", "all"]:
+            raise ValueError("which can only be whatfile or pharosfile or both")
+        
+        if which in ["whatfile", "both","*", "all"]:
             with open(self.SOURCEFILE, 'w') as outfile:
-                json.dump(self._data, outfile)                             
-        elif which == "pharosfile":
+                json.dump(self._data, outfile)
+                
+        if which in ["pharosfile","both","*", "all"]:
             with open(self.PHAROSFILES, 'w') as outfile:
                 json.dump(self._pharoslist, outfile)
-        else:
-            raise ValueError("which can only be whatfile or pharosfile")
+        
     
     def _build_dataframe_(self):
         """ """
@@ -190,7 +205,7 @@ class _SEDMFiles_():
     def add_pharoslist(self, night, update=False):
         """ """
         for night_ in np.atleast_1d(night):
-            if night_ in self._data and not update:
+            if night_ in self._pharoslist and not update:
                 continue
             self._pharoslist[night_] = [l.replace("/data/","") for l in get_pharos_night_data(night_)]
             
@@ -201,7 +216,7 @@ class _SEDMFiles_():
     # ================ #
     @property
     def datetime(self):
-        """ pandas.to_datetime(p._sedmwhatfiles.data["night"]) """
+        """ pandas.to_datetime(p.sedmwhatfiles.data["night"]) """
         return pandas.to_datetime(self.data["night"])
     
 ##################
@@ -214,7 +229,7 @@ class SEDMQuery( object ):
     PROPERTIES = ["auth", "date"]
     def __init__(self, auth=None, date=None):
         """ """
-        self._sedmwhatfiles = _SEDMFiles_()
+        self.sedmwhatfiles = _SEDMFiles_()
         self.reset()
         self.set_date(date)
         self.set_auth(io._load_id_("pharos") if auth is None else auth)
@@ -463,9 +478,30 @@ class SEDMQuery( object ):
         -------
         dict {date:[list of fileid ],...}
         """
-        self._sedmwhatfiles.download_nightrange(*timerange)
-        return self._sedmwhatfiles.get_target_data(target, timerange=timerange)
+        self.update_sedmdata(timerange)
+        return self.sedmwhatfiles.get_target_data(target, timerange=timerange)
 
+    def update_sedmdata(self, timerange=["2018-08-01", None], pharosfiles=True, dump=True, **kwargs):
+        """ update the local SEDm whatfiles 
+        
+        Parameters
+        ----------
+        timerange: [iso format dates] -optional-
+            time range between which you are looking for file.
+            If the dates are not yet stored in you whatfiles.json, this will first download it.
+            if the second data is None, it means 'today'
+
+        pharosfiles: [bool] -optional-
+            Do you also what to get the list of files accessible from pharos for the given timerange ?
+
+        dump: [bool] -optional-
+            Once all what is requested is downloaded, shall the local file be updated too ?
+
+        **kwargs goes to download_nightrange()
+
+        """
+        self.sedmwhatfiles.download_nightrange(*timerange, pharosfiles=pharosfiles, dump=dump, **kwargs)
+        
     # = Get Night Data = #
     def get_night_data(self, date, source="pharos"):
         """  get all the data of the given date you have access to:
@@ -485,14 +521,14 @@ class SEDMQuery( object ):
         list of file
         """
         if source in ["pharos", "sedm"]:
-            if date not in self._sedmwhatfiles._pharoslist.keys():
-                self._sedmwhatfiles.add_pharoslist(date, update=True)
-            return self._sedmwhatfiles.get_pharos_night_data(date)
+            if date not in self.sedmwhatfiles._pharoslist.keys():
+                self.sedmwhatfiles.add_pharoslist(date, update=True)
+            return self.sedmwhatfiles.get_pharos_night_data(date)
         
         if source in ["what"]:
-            if date not in self._sedmwhatfiles.data["night"]:
-                self._sedmwhatfiles.add_night(date)
-            return self._sedmwhatfiles.data[self._sedmwhatfiles.data["night"]==date]
+            if date not in self.sedmwhatfiles.data["night"]:
+                self.sedmwhatfiles.add_night(date)
+            return self.sedmwhatfiles.data[self.sedmwhatfiles.data["night"]==date]
             
         elif source in ["local"]:
             return self._get_local_night_data_(date)

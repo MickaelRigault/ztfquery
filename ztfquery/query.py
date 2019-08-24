@@ -79,7 +79,8 @@ def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
                                paddedccdid, qid, imgtypecode)]
         else:
             # LIST of URL to download [RAW]
-            return  [buildurl.raw_path(year_, month_, day_, fracday_, paddedfield_,
+            return  [buildurl.raw_path(year_, month_, day_, fracday_,
+                                           paddedfield_ if imgtypecode_ != "f" else '000000',  # because sometime they do have a field, why is that ?,
                               filtercode_, paddedccdid_, 
                               imgtypecode=imgtypecode_, source=source)
                         for year_, month_, day_, fracday_, paddedfield_, filtercode_,
@@ -280,7 +281,7 @@ class _ZTFDownloader_( object ):
             -refunc.fits
 
             # Raw images (kind="raw")
-            No Choice so suffix is ignored for raw data
+            No Choice. Suffix is ignored for raw data
             
             # Calibration (kind="cal")
             - None (#default) returns `caltype`.fits
@@ -461,6 +462,15 @@ class ZTFQuery( _ZTFTableHandler_, _ZTFDownloader_ ):
             The mcen parameter indicates that only the most centered image/image set 
             (with respect to POS) should be returned, rather than all images/image sets containing POS. 
 
+        // If Raw //
+        INFO: 
+            sql_query has a entry to select the kind of data you are looking for:
+            - 'imgtypecode'- 
+            Currently, the possible values for "imgtypecode" pertaining to raw image data files are:
+                o = science (on-sky) 
+                b = bias calibration image
+                d = dark calibration image
+                f = dome/screen flatfield calibration image
 
         // If Calibration //
         caltype: [strin]

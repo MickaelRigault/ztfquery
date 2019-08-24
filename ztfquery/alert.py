@@ -36,13 +36,13 @@ class AlertReader():
         self.alert = alert
 
         
-    @staticmethod
-    def load(avrofile):
+    @classmethod
+    def load(cls, avrofile):
         """ """
         import fastavro
         with open(avrofile, "rb") as fo:
             av = next(fastavro.reader(fo), None)
-        return AlertReader(av)
+        return cls(av)
     
 
     # ================ #
