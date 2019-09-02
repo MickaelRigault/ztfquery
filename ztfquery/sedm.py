@@ -292,7 +292,8 @@ class SEDMQuery( object ):
                                           show_progress=show_progress, notebook=notebook, verbose=verbose,
                                           overwrite=overwrite, nprocess=nprocess)
 
-    def download_target_data(self, target, which="cube", extension="fits", timerange=["2018-08-01", None],
+    def download_target_data(self, target, which="cube", extension="fits",
+                                 timerange=["2018-08-01", None],
                                  nodl=False, auth=None, download_dir="default",
                                  show_progress=False, notebook=False, verbose=True,
                                  overwrite=False, nprocess=None ):
@@ -485,7 +486,7 @@ class SEDMQuery( object ):
         self.update_sedmdata(timerange)
         return self.sedmwhatfiles.get_target_data(target, timerange=timerange)
 
-    def update_sedmdata(self, timerange=["2018-08-01", None], pharosfiles=True, dump=True, **kwargs):
+    def update_sedmdata(self, timerange=["2018-08-01", None], pharosfiles=False, dump=True, **kwargs):
         """ update the local SEDm whatfiles 
         
         Parameters

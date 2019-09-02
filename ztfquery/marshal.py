@@ -69,62 +69,6 @@ def get_target_data(name):
     m.load_target_sources()
     return m.get_target_data(name)
     
-def download_spectra(name, dirout="default", auth=None, verbose=False, **kwargs):
-    """Download all spectra for a source in the marshal as a tar.gz file
-        
-    Parameters:
-    -----------
-    name: [str]
-        Name of a target on the marshal.
-
-    dirout: [str] -optional-
-        Directory where the data should be stored. 
-        Additional options:
-        - `dirout=None`: The spectra are not saved be returned
-        - `dirout='default'`: The spectra will be saved in native target location 
-                              (`$ZTFDATA`/marshal/spectra/`name`)
-                              Spectra saved here can be recovered using `get_local_spectra`
-                              * This is favored *
-
-    auth: [str,str] -optional-
-        Marshal [username, password]
-
-    verbose: [bool] -optional-
-        Prints to know what is going on.
-
-        
-    **kwargs goes to ztfquery.io.download_single_url()
-
-    Returns
-    -------
-    None (or list of data if `dirout=None`)
-    """
-    # fileout is saved later to manage decompression
-    import tarfile
-    from io import BytesIO
-    response = io.download_single_url(MARSHAL_BASEURL+'batch_spec.cgi',  
-                                   fileout=None,
-                                   data={"name":name},
-                                   auth=io._load_id_("marshal") if auth is None else auth,
-                                   cookies="no_cookies", show_progress=False, 
-                                   **kwargs)
-    
-    tar = tarfile.open(fileobj=BytesIO( response.content ), mode='r')
-    
-    # No directory out? Then reformated data returned
-    if dirout is None or dirout in ["None"]:
-        if verbose: print("Data returned (dirout=None)")
-        out = {member.name:tar.extractfile(member).read().decode("utf-8").splitlines() for member in tar.getmembers()}
-        return out
-    # Directory given, then dump data there:
-    if dirout in ["default"]:
-        dirout = target_spectra_directory(name)
-
-    if verbose: print("Data will be stored here: %s"%dirout)
-    if not os.path.exists(dirout):
-        os.makedirs(dirout)
-
-    tar.extractall(dirout)
 
 # -------------- #
 #  PLOT LC       #
@@ -232,6 +176,16 @@ def target_lightcurves_directory(name):
     """ where Marshal lightcurves are stored """
     return LOCALSOURCE+"marshal/lightcurves/%s/"%name
 
+def target_alerts_directory(name):
+    """ where Marshal lightcurves are stored """
+    return LOCALSOURCE+"marshal/alerts/%s/"%name
+
+
+def program_datasource_filepath(program):
+    """ Where target sources are stored in your local files """
+    basename = "" if program in [None,"all", "*"] else "%s_"%program
+    return LOCALSOURCE+"marshal/"+basename+"target_sources.csv"
+
 # - Get the FullPathes
 def get_local_spectra(name, only_sedm=False, pysedm=True):
     """ returns list of fullpath of spectra on your computer for the given target name.
@@ -275,9 +229,74 @@ def get_local_lightcurves(name, only_marshal=True, source=MARSHAL_LC_DEFAULT_SOU
             
     return dataout
 
+
+def get_local_alerts(name):
+    """ """
+    filepath = target_alerts_directory(name)+"marshal_alerts_%s.csv"%(name)
+    return pandas.read_csv(filepath)
+    
+
 # -------------- #
 #  Downloading   #
 # -------------- #
+def download_spectra(name, dirout="default", auth=None, verbose=False, **kwargs):
+    """Download all spectra for a source in the marshal as a tar.gz file
+        
+    Parameters:
+    -----------
+    name: [str]
+        Name of a target on the marshal.
+
+    dirout: [str] -optional-
+        Directory where the data should be stored. 
+        Additional options:
+        - `dirout=None`: The spectra are not saved be returned
+        - `dirout='default'`: The spectra will be saved in native target location 
+                              (`$ZTFDATA`/marshal/spectra/`name`)
+                              Spectra saved here can be recovered using `get_local_spectra`
+                              * This is favored *
+
+    auth: [str,str] -optional-
+        Marshal [username, password]
+
+    verbose: [bool] -optional-
+        Prints to know what is going on.
+
+        
+    **kwargs goes to ztfquery.io.download_single_url()
+
+    Returns
+    -------
+    None (or list of data if `dirout=None`)
+    """
+    # fileout is saved later to manage decompression
+    import tarfile
+    from io import BytesIO
+    response = io.download_single_url(MARSHAL_BASEURL+'batch_spec.cgi',  
+                                   fileout=None,
+                                   data={"name":name},
+                                   auth=io._load_id_("marshal") if auth is None else auth,
+                                   cookies="no_cookies", show_progress=False, 
+                                   **kwargs)
+    
+    tar = tarfile.open(fileobj=BytesIO( response.content ), mode='r')
+    
+    # No directory out? Then reformated data returned
+    if dirout is None or dirout in ["None"]:
+        if verbose: print("Data returned (dirout=None)")
+        out = {member.name:tar.extractfile(member).read().decode("utf-8").splitlines() for member in tar.getmembers()}
+        return out
+    # Directory given, then dump data there:
+    if dirout in ["default"]:
+        dirout = target_spectra_directory(name)
+
+    if verbose: print("Data will be stored here: %s"%dirout)
+    if not os.path.exists(dirout):
+        os.makedirs(dirout)
+
+    tar.extractall(dirout)
+
+    
 def download_lightcurve(name, dirout="default",
                         auth=None, verbose=False,
                         source=MARSHAL_LC_DEFAULT_SOUCE,
@@ -333,9 +352,6 @@ def download_lightcurve(name, dirout="default",
             warnings.warn("The lightcurve %s already exists. Set overwrite to True to update it."%(fileout))
             return
                               
-            
-
-    
     response = io.download_single_url(MARSHAL_BASEURL+source+'.cgi',  
                                    fileout=None,
                                    data={"name":name},
@@ -365,6 +381,75 @@ def download_lightcurve(name, dirout="default",
     
     if return_lc:
         return dataframe
+
+def download_alerts(name, dirout="default",
+                        auth=None, verbose=False,
+                        overwrite=False, return_it=False,
+                        **kwargs):
+    """Download all spectra for a source in the marshal as a tar.gz file
+        
+    Parameters:
+    -----------
+    name: [str]
+        Name of a target on the marshal.
+
+    dirout: [str] -optional-
+        Directory where the data should be stored. 
+        Additional options:
+        - `dirout=None`: The spectra are not saved be returned
+        - `dirout='default'`: The lightcurve will be saved in native target location 
+                              (`$ZTFDATA`/marshal/alerts/`name`)
+                              lightcurve saved here can be recovered using `get_local_alerts`
+                              * This is favored *
+                                                            
+    auth: [str,str] -optional-
+        Marshal [username, password]
+
+    overwrite: [bool] -optional-
+        Checks 
+
+    verbose: [bool] -optional-
+        Prints to know what is going on.
+
+    **kwargs goes to ztfquery.io.download_single_url()
+
+    Returns
+    -------
+    None (or pandas.DataFrame)
+    """
+    fileout = "marshal_alerts_%s.csv"%(name)
+    if dirout in ["None"]: dirout = None
+    if dirout in ["default"]: dirout = target_alerts_directory(name)
+    if os.path.isfile(dirout+fileout) and not overwrite:
+        warnings.warn("The alert %s already exists. Set overwrite to True to update it."%(fileout))
+        return
+    
+    response = io.download_single_url(MARSHAL_BASEURL+'view_avro.cgi',  
+                                   fileout=None,
+                                   data={"name":name},
+                                   auth=io._load_id_("marshal") if auth is None else auth,
+                                   cookies="no_cookies", show_progress=False, 
+                                   **kwargs)
+    
+    dataframe = pandas.DataFrame([json.loads(l.split("</pre>")[0])
+                                for l in response.text.split("<table>")[-1].replace(' ', '').replace('\n', '').split("<br><pre>")[1:]]
+                                )
+    
+    # returns it
+    if dirout is not None:
+        # Directory given, then dump data there:
+        if verbose: print("Alerts will be stored here: %s"%dirout)
+        if not os.path.exists(dirout):
+            os.makedirs(dirout)
+
+        dataframe.to_csv(dirout+fileout, index=False)
+    else:
+        return_it=True
+    
+    if return_it:
+        return dataframe
+
+    
 #############################
 #                           #
 #   Marshall Class          #
@@ -384,9 +469,43 @@ class MarshalAccess( object ):
     #  Main Methods  #
     # -------------- #
     #
+    #  I/O
+    #
+    def writeto(self, filename=None):
+        """ Store the target_sources in the given file. 
+        = By default files are stored as function of program ids (if any) =
+
+        Parameters
+        ----------
+        
+        Returns
+        -------
+        None
+        """
+        fileout = program_datasource_filepath(self._loaded_program)
+        self.target_sources.to_csv(fileout, index=False)
+
+    @classmethod
+    def load_local(cls, program):
+        """ """
+        filepath = program_datasource_filepath(program)
+        return cls.load_datafile( filepath, program=program)
+
+    @classmethod
+    def load_datafile(cls, dataframefile, program="unknown"):
+        """ """
+        if not os.path.isfile(dataframefile):
+            raise IOError("%s does not exists (program requested %s)"%(dataframefile,program))
+
+        this = cls()
+        this.set_target_sources( pandas.read_csv(dataframefile), program=program )
+        return this
+        
+    #
     # DOWNLOADER
     #
-    def download_spectra(self, name, dirout="default", auth=None,  **kwargs):
+    @staticmethod
+    def download_spectra(name, dirout="default", auth=None, return_it=False, **kwargs):
         """ 
 
         Method calling ztfquery.marshal.download_spectra()
@@ -416,10 +535,13 @@ class MarshalAccess( object ):
         dict 
         // {name: `return_of ztfquery.marshal.download_spectra()`}
         """
-        return {name_: download_spectra(name, dirout=dirout, auth=auth, **kwargs) for name_ in np.atleast_1d(name)}
-
-
-    def download_lightcurve(self, name, dirout="default", auth=None,  **kwargs):
+        out = {name_: download_spectra(name, dirout=dirout, auth=auth, **kwargs) for name_ in np.atleast_1d(name)}
+        if return_it:
+            print("NOTHING IMPLEMENTED FOR SPECTRA")
+            return
+        
+    @staticmethod
+    def download_lightcurve(name, dirout="default", auth=None, return_it=False, **kwargs):
         """ 
 
         Method calling ztfquery.marshal.download_lightcurve()
@@ -449,7 +571,45 @@ class MarshalAccess( object ):
         dict 
         // {name: `return_of ztfquery.marshal.download_lightcurve()`}
         """
-        return {name_: download_lightcurve(name, dirout=dirout, auth=auth, **kwargs) for name_ in np.atleast_1d(name)}
+        out = {name_: download_lightcurve(name, dirout=dirout, auth=auth, return_lc=return_it, **kwargs) for name_ in np.atleast_1d(name)}
+        if return_it:
+            return out
+
+    @staticmethod
+    def download_alerts(name, dirout="default", auth=None, return_it=False, **kwargs):
+        """ 
+
+        Method calling ztfquery.marshal.download_alerts()
+
+        Parameters:
+        -----------
+        name: [str or list of]
+            Name of a target on the marshal.
+
+        dirout: [str] -optional-
+            Directory where the data should be stored. 
+            Additional options:
+            - `dirout=None`: The spectra are not saved be returned
+            - `dirout='default'`: The lightcurve will be saved in native target location 
+                              (`$ZTFDATA`/marshal/lightcurves/`name`)
+                              lightcurve saved here can be recovered using `get_local_lightcurves`
+                              * This is favored *
+
+        auth: [str,str] -optional-
+            Marshal [username, password]
+            
+
+        **kwargs goes to ztfquery.io.download_single_url()
+
+        Returns
+        -------
+        dict 
+        // {name: `return_of ztfquery.marshal.download_alerts()`}
+        """
+        out = {name_: download_alerts(name, dirout=dirout, auth=auth,return_it=return_it, **kwargs) for name_ in np.atleast_1d(name)}
+        
+        if return_it:
+            return out
     
     # 
     # LOADER
@@ -500,34 +660,54 @@ class MarshalAccess( object ):
         -------
         None (or pandas.DataFrame if setit=False, see above)
         """
-        
+     
+        requested_program = self._program_to_programidx_(program, auth=auth)
         r = requests.post(MARSHAL_BASEURL+'list_program_sources.cgi', 
                        auth=io._load_id_("marshal", askit=True) if auth is None else auth, 
-                       data={'programidx': self._program_to_programidx_(program, auth=auth), 
+                       data={'programidx': requested_program, 
                              'getredshift': int(getredshift), 'getclassification': int(getclassification)})
         
         df = pandas.DataFrame.from_dict(json.loads(r.text))
+        
+        
         if getclassification:
             df["classification"] = df["classification"].astype("str")
             
         if setit:
-            self.set_target_sources( df )
+            self.set_target_sources( df, program=program )
         else:
             return df
     
     # 
     # SETTER
     #
-    def set_target_sources(self, target_source_dataframe):
+    def set_target_sources(self, target_source_dataframe, program="unknown"):
         """ Provide a Pandas.DataFrame containing the target source information 
             as obtained by `load_target_sources`
         """
         
-        self.target_sources =  target_source_dataframe 
+        self.target_sources =  target_source_dataframe
+        self._loaded_program = program
         
     # 
     # GETTER
     #
+    @staticmethod
+    def get_target_spectra(name, only_sedm=False, pysedm=True):
+        """ """
+        return get_local_spectra(name, only_sedm=only_sedm, pysedm=pysedm)
+
+    @staticmethod
+    def get_target_lightcurves(name, only_marshal=True, source=MARSHAL_LC_DEFAULT_SOUCE):
+        """ """
+        return get_local_lightcurves(name, only_marshal=only_marshal, source=source)
+
+    @staticmethod
+    def get_target_alerts(name):
+        """ """
+        return get_local_alerts(name)
+    
+    
     def get_target_data(self, name, verbose=True):
         """ target_sources entry corresponding to the given name(s)
         
