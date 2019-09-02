@@ -471,7 +471,7 @@ class MarshalAccess( object ):
     #
     #  I/O
     #
-    def writeto(self, filename=None):
+    def store(self):
         """ Store the target_sources in the given file. 
         = By default files are stored as function of program ids (if any) =
 
@@ -483,6 +483,11 @@ class MarshalAccess( object ):
         None
         """
         fileout = program_datasource_filepath(self._loaded_program)
+        if not os.path.isfile( fileout ):
+            dirout  = "/".join(fileout.split("/")[:-1])
+            if not os.path.exists(dirout):
+                os.mkdir(dirout)
+                
         self.target_sources.to_csv(fileout, index=False)
 
     @classmethod
@@ -707,7 +712,6 @@ class MarshalAccess( object ):
         """ """
         return get_local_alerts(name)
     
-    
     def get_target_data(self, name, verbose=True):
         """ target_sources entry corresponding to the given name(s)
         
@@ -726,7 +730,7 @@ class MarshalAccess( object ):
                 
             self.load_target_sources()
         return self.target_sources[self.target_sources["name"].isin(np.atleast_1d(name))]
-
+    
     def get_target_coordinates(self, name):
         """ Target(s) coordinates ["ra", "dec"] in degree
         
@@ -777,6 +781,35 @@ class MarshalAccess( object ):
         """
         return self.get_target_data(name)["classification"]
 
+    def get_target_metadataquery(self, name, priorcreation=100, postlast=100, size=0.01):
+        """ get a dict you can use as kwargs for ztfquery's load_metadata()
+
+        Parameters
+        ----------
+        name: [str or list of]
+            one or several target name(s) from `target_sources`
+
+        priorcreation: [float] -optional-
+            how many days before the target creation date do you want to go back
+
+        postlast: [float] -optional-
+            how many days after the target last change you want to go ?
+
+        Returns
+        -------
+        dict(radec, size, sql_query)
+        """
+        if len(np.atleast_1d(name))>1:
+            return [self.get_target_metadataquery(name_, dayprior=dayprior, daypost=daypost, size=size) for name_ in name]
+        
+        from astropy.time import Time
+        targetdata = self.get_target_data(name)
+        ra,dec     = targetdata[["ra","dec"]].values[0]
+        tcreation  = Time(targetdata["creationdate"].values[0], format="iso").jd
+        tlast      = Time(targetdata["lastmodified"].values[0], format="iso").jd
+
+        return dict(radec=[ra,dec], size=size, sql_query="obsjd BETWEEN %d and %d"%(tcreation-priorcreation,
+                                                                                    tlast+postlast))
     
     # -------------- #
     #  Internal      #
