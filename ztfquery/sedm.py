@@ -122,6 +122,11 @@ class _SEDMFiles_():
         data_ = self.data if timerange is None else self.get_data_betweenrange(*timerange)
         return data_[data_["target"].isin(np.atleast_1d(target))]
 
+    def get_observed_targets(self, timerange=None):
+        """ """
+        data_ = self.data if timerange is None else self.get_data_betweenrange(*timerange)
+        return np.unique(data_["target"])
+    
     def get_nights_with_target(self, target, timerange=None):
         """ """
         return np.unique( self.get_target_data(target, timerange=timerange)["night"] )
@@ -343,7 +348,12 @@ class SEDMQuery( object ):
         Void or list (see nodl)
         """
         # Build the path (local and url)
-        relative_path = self.get_data_path(target, which=which,extension=extension, timerange=timerange, source="pharos")
+        if "astrom" in which or "guider" in which:
+            print("TMP which=astrom fixe")
+            relative_path = [l.replace("e3d","guider").replace(target,"astrom") for l in self.get_data_path(target, which="cube",extension="fits", timerange=timerange, source="pharos")]
+        else:
+            relative_path = self.get_data_path(target, which=which,extension=extension, timerange=timerange, source="pharos")
+            
         return self._download_from_relative_path_(relative_path, nodl=nodl, auth=auth, download_dir=download_dir,
                                           show_progress=show_progress, notebook=notebook, verbose=verbose,
                                           overwrite=overwrite, nprocess=nprocess)
@@ -435,10 +445,12 @@ class SEDMQuery( object ):
                                and (which in ["*", "all"] or 
                                    ((which in ["cube"] or "cube" in which) and "/e3d" in l) or
                                    ((which in ["spec"] or "spec" in which) and "/spec_" in l) or
-                                   ((which in ["ccd"] or "ccd" in which) and "/crr_" in l)
+                                   ((which in ["ccd"] or "ccd" in which) and "/crr_" in l) or
+                                   ((which in ["wcs","guider","astrom"] or "guider" in which) and "/guider_" in l and "astrom" in which)
                                     )
                                 and (extension in ["*", "all"] or extension in l or l.split(".")[-1] in extension)
                                ]
+            
         return all_data
     
     def get_local_data(self, target, which="cube", extension="fits", **kwargs):
@@ -465,7 +477,7 @@ class SEDMQuery( object ):
         """
         return self.get_data_path(target, which=which, extension=extension, source="local", **kwargs)
 
-    def get_target_data(self, target, timerange=["2018-08-01", None]):
+    def get_target_data(self, target, timerange=None):
         """ dictionary containing the dates and file id corresponding to the given target.
         this is based on the whatfiles.json stored in your computer under the SEDM directory
         
@@ -474,18 +486,29 @@ class SEDMQuery( object ):
         target: [string] 
             Name of a source (e.g. ZTF18abuhzfc) of any part of a filename (i.e. 20180913_06_28_51)
 
-        timerange: [iso format dates] -optional-
+        timerange: [iso format dates / None] -optional-
             time range between which you are looking for file.
             If the dates are not yet stored in you whatfiles.json, this will first download it.
             if the second data is None, it means 'today'
+            - 
+            if None the instance timerange is not updated.
 
         Returns
         -------
         dict {date:[list of fileid ],...}
         """
-        self.update_sedmdata(timerange)
+        if timerange is not None:
+            self.update_sedmdata(timerange)
+
         return self.sedmwhatfiles.get_target_data(target, timerange=timerange)
 
+
+    def get_standards(self, timerange=None, use="*"):
+        """ """
+        std_names = np.unique([k for k in self.sedmwhatfiles.get_observed_targets(timerange) if 'STD' in k and (use in ["*","all"] or k in use)])
+        return self.get_target_data(std_names, timerange)
+        
+        
     def update_sedmdata(self, timerange=["2018-08-01", None], pharosfiles=False, dump=True, **kwargs):
         """ update the local SEDm whatfiles 
         

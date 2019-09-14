@@ -632,7 +632,7 @@ class MarshalAccess( object ):
     
     def load_target_sources(self, program="*", 
                             getredshift=True, getclassification=True, 
-                            setit=True, auth=None):
+                            setit=True, auth=None, store=True):
         """ download target source information and store them as a 
             pandas.DataFrame as self.target_sources 
             (or returns it, see setit parameter)
@@ -670,17 +670,23 @@ class MarshalAccess( object ):
         r = requests.post(MARSHAL_BASEURL+'list_program_sources.cgi', 
                        auth=io._load_id_("marshal", askit=True) if auth is None else auth, 
                        data={'programidx': requested_program, 
-                             'getredshift': int(getredshift), 'getclassification': int(getclassification)})
+                             'getredshift': int(getredshift),
+                             'getclassification': int(getclassification)})
         
         df = pandas.DataFrame.from_dict(json.loads(r.text))
         
         
         if getclassification:
             df["classification"] = df["classification"].astype("str")
+
+
             
         if setit:
             self.set_target_sources( df, program=program )
-        else:
+        if store:
+            self.store()
+            
+        if not setit:
             return df
     
     # 
@@ -800,17 +806,47 @@ class MarshalAccess( object ):
         dict(radec, size, sql_query)
         """
         if len(np.atleast_1d(name))>1:
-            return [self.get_target_metadataquery(name_, dayprior=dayprior, daypost=daypost, size=size) for name_ in name]
+            return [self.get_target_metadataquery(name_, dayprior=dayprior,
+                                                  daypost=daypost, size=size) for name_ in name]
         
-        from astropy.time import Time
         targetdata = self.get_target_data(name)
-        ra,dec     = targetdata[["ra","dec"]].values[0]
-        tcreation  = Time(targetdata["creationdate"].values[0], format="iso").jd
-        tlast      = Time(targetdata["lastmodified"].values[0], format="iso").jd
+        ra,dec     = self.get_target_coordinates(name).values[0]
+        tcreation, tlast = self.get_target_jdrange(name, format="jd")
 
-        return dict(radec=[ra,dec], size=size, sql_query="obsjd BETWEEN %d and %d"%(tcreation-priorcreation,
-                                                                                    tlast+postlast))
-    
+        return self.get_metadataquery(ra,dec, tcreation-priorcreation,tlast+postlast,
+                                          size=size)
+
+    def get_target_jdrange(self, name, format="jd"):
+        """ get the target time range defined as [creation data, lastmodified]
+        
+        Parameters
+        ----------
+        name: [str or list of]
+            One or several target name(s) from `target_sources`
+            
+        format: [string] -optional-
+            What should be returned:
+            - 'time': this returns the astropy.time
+            - anything else: should be an argument of astropy.time
+              e.g.: jd, iso, mjd
+
+        Returns
+        -------
+        Creation data, Last modified
+        """
+        from astropy.time import Time
+        creation, lastmod = self.get_target_data(name)[["creationdate","lastmodified"]].values[0]
+        tcreation  = Time(creation, format="iso")
+        tlast      = Time(lastmod,  format="iso")
+        if format in ["Time", "time"]:
+            return tcreation, tlast
+        return getattr(tcreation,format),getattr(tlast,format)
+
+    @staticmethod
+    def get_metadataquery(ra,dec, jdmin, jdmax, size=0.01):
+        """ """
+        return dict(radec=[ra,dec], size=size,
+                    sql_query="obsjd BETWEEN %d and %d"%(jdmin, jdmax))
     # -------------- #
     #  Internal      #
     # -------------- #
