@@ -285,7 +285,7 @@ class SEDMQuery( object ):
             If None, it will be set to 1 and will not use multiprocess
 
         auth: [str, str] -optional-
-            [username, password] of you IRSA account.
+            [username, password] of you pharos account.
             If used, information stored in ~/.ztfquery will be ignored.
             
         Returns
@@ -340,7 +340,7 @@ class SEDMQuery( object ):
             If None, it will be set to 1 and will not use multiprocess
 
         auth: [str, str] -optional-
-            [username, password] of you IRSA account.
+            [username, password] of you pharos account.
             If used, information stored in ~/.ztfquery will be ignored.
             
         Returns
@@ -384,7 +384,7 @@ class SEDMQuery( object ):
             If None, it will be set to 1 and will not use multiprocess
 
         auth: [str, str] -optional-
-            [username, password] of you IRSA account.
+            [username, password] of you pharos account.
             If used, information stored in ~/.ztfquery will be ignored.
             
         Returns

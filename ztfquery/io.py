@@ -4,7 +4,7 @@
 import os
 import sys
 import requests
-
+import warnings
 LOGIN_URL = "https://irsa.ipac.caltech.edu/account/signon/login.do"
 
 import base64
@@ -27,22 +27,6 @@ LOCALSOURCE   = os.getenv('ZTFDATA',"./Data/")
 #  Crypting         #
 # ================= #
 
-
-
-def has_encryption():
-    """ Test if an encryption file already exists """
-    if os.path.isfile( _ENCRYPTING_FILE ):
-        print("INFO: Following the open of ztfquery code, the IRSA account encoding has changed")
-        print("      ~/.queryirsa file will be *reshaped* and *replaced* by ~/.ztfquery.")
-        print('      ==> Your IRSA username and password will now be stored in ~/.ztfquery')
-        print('  **remove your ~/.queryirsa file to remove this message** ')
-        username, password = _decrypt_()
-        set_account("irsa", username, password)
-        
-    return os.path.isfile( _ENCRYPT_FILE )
-
-
-
 def _load_id_(which, askit=True):
     """ returns login information for the requested enty"""
     import base64
@@ -62,7 +46,7 @@ def _load_id_(which, askit=True):
     else:
         return config.get(which.lower(),"username"), base64.b64decode(config.get(which.lower(),"password"))
 
-def set_account(which, username=None, password=None):
+def set_account(which, username=None, password=None, test=True, force=False):
     """ Setup the username and password (simply encrypted!) for the given `which` account. 
     Saved in ~/.ztfquery
     """
@@ -70,14 +54,28 @@ def set_account(which, username=None, password=None):
     import getpass
     config = ConfigParser()
     config.read( _ENCRYPT_FILE )
+    # - Name & Password
     if username is None:
         if _PYTHON3:
             username = input('Enter your %s login: '%which)
         else:
             username = raw_input('Enter your %s login: '%which)
             
-    if password is None: password = getpass.getpass()
+    if password is None:
+        password = getpass.getpass()
         
+    # - Check inputs
+    if test:
+        wrong_ = False
+        if which == "irsa":
+            if not test_irsa_account([username, password]):
+                warnings.warn("The irsa_test for you account returns False. Most likely you provided incorrect logins")
+                wrong_ = True
+        else:
+            warnings.warn("No test designed for %s. Cannot test if logins are correct."%which)
+        if wrong_ and not force:
+            raise ValueError("Bad username/passworg for %s. force=False so the logins are not stored. "%which)
+            
     password_ = base64.b64encode( password.encode("utf-8") )
     if _PYTHON3:
         config[which.lower()] = {"username":username, "password": password_ }        
@@ -91,37 +89,17 @@ def set_account(which, username=None, password=None):
         
     with open( _ENCRYPT_FILE , 'w') as configfile:
         config.write(configfile)
-
-def decrypt(which="irsa"):
-    """ """
-    print("DEPRECATED WARNING deprecated: decrypt is deprecated, please use _load_id_() ")
-    return _load_id_(which)
-
         
-def encrypt():
-    """ """
-    print("encrypt is deprecated: use set_account() ")
-    raise DeprecationWarning("encrypt is deprecated: use set_account()")
 
-    #import getpass
-    #des = DES.new(  base64.b64decode( _SOURCE ), DES.MODE_ECB)
-    #fileout = open(_ENCRYPTING_FILE, "wb")
-    #login = input('Enter your IRSA login: ') if sys.version_info > (3,0) else raw_input('Enter your IRSA login  (try first within quotes "your_login"')
-    #fileout.write(des.encrypt(pad( login )))
-    #fileout.write(b"\n")
-    #fileout.write(des.encrypt(pad(getpass.getpass())))
-    #fileout.close()
+#
+# TEST
+# 
+def test_irsa_account(auth=None):
+    """  returns True if the IRSA account is correctly set. """
+    if auth is None:
+        auth = _load_id_("irsa")
+    return ".ipac.caltech.edu" in get_cookie(*auth)._cookies
 
-def _decrypt_():
-    """ Temporary, to be removed once completely migrated to set_account() """
-    from Crypto.Cipher import DES
-    des = DES.new(  base64.b64decode( _SOURCE ), DES.MODE_ECB)
-    try:
-        return [des.decrypt(l).decode("utf-8").replace(" ","").replace('"',"").replace("'","" )
-                for l in open(_ENCRYPTING_FILE, "rb").read().splitlines()]
-    except:
-        raise IOError("decrypt() Failed. Try to run ztfquery.tools.encrypt() without (or with) quotes on you loggin ; the opposite of what you did.")
-    
 
 # ================= #
 #   Logging Tools   #
@@ -181,7 +159,8 @@ def download_url(to_download_urls, download_location,
         overwrite_ = [overwrite]*len(to_download_urls)
         verbose_   = [verbose]*len(to_download_urls)
         # Da Loop
-        for j, result in enumerate( p.imap_unordered(_download_, zip(to_download_urls, download_location,
+        for j, result in enumerate( p.imap_unordered(_download_, zip(to_download_urls,
+                                                                    download_location,
                                                                  overwrite_, verbose_))):
             if bar is not None:
                 bar.update(j)
