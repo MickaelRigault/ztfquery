@@ -152,20 +152,20 @@ def download_url(to_download_urls, download_location,
                 
         if verbose:
             print("parallel downloading ; asking for %d processes"%nprocess)
-                
-        p   = multiprocessing.Pool(nprocess)
-            
+
         # Passing arguments
         overwrite_ = [overwrite]*len(to_download_urls)
         verbose_   = [verbose]*len(to_download_urls)
-        # Da Loop
-        for j, result in enumerate( p.imap_unordered(_download_, zip(to_download_urls,
+        with multiprocessing.Pool(nprocess) as p:
+            # Da Loop
+            for j, result in enumerate( p.imap_unordered(_download_, zip(to_download_urls,
                                                                     download_location,
                                                                  overwrite_, verbose_))):
+                if bar is not None:
+                    bar.update(j)
+                    
             if bar is not None:
-                bar.update(j)
-        if bar is not None:
-            bar.update( len(to_download_urls) )
+                bar.update( len(to_download_urls) )
             
 def download_single_url(url, fileout=None, 
                         overwrite=False, verbose=True, cookies=None,
