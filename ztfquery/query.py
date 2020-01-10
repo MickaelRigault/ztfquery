@@ -713,7 +713,7 @@ class NightSummary( _ZTFTableHandler_, _ZTFDownloader_ ):
         # -> python3    self._metadata = **{DEFAULT[kind], **kwargs}; self._metadata["kind"] = kind
             
     # WRONG SO FAR
-    def get_data_path(self, mask=None, suffix=None, source=None, verbose=False, ):
+    def get_data_path(self, mask=None, suffix=None, source=None, verbose=False, indexes=None):
         """ generic method to build the url/fullpath or the requested data.
         This method is based on the `builurl.py` module of ztfquery.
         
