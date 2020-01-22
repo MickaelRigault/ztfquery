@@ -5,6 +5,7 @@ import os
 import sys
 import requests
 import warnings
+import numpy as np
 LOGIN_URL = "https://irsa.ipac.caltech.edu/account/signon/login.do"
 
 import base64
