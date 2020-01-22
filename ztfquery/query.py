@@ -251,6 +251,7 @@ class _ZTFDownloader_( object ):
                      show_progress = True, notebook=False, verbose=True,
                      nodl = False, overwrite=False, nprocess=None,
                      auth=None, filecheck=True, erasebad=True,
+                     ignore_warnings=False,
                      **kwargs):
         """ 
         Parameters
@@ -331,6 +332,10 @@ class _ZTFDownloader_( object ):
             return self.to_download_urls, self.download_location
         
         # Actual Download
+        with warnings.catch_warnings():
+            if ignore_warnings:
+                warnings.simplefilter("ignore")
+
         io.download_url(self.to_download_urls, self.download_location,
                         show_progress = show_progress, notebook=notebook, verbose=verbose,
                         overwrite=overwrite, nprocess=nprocess, cookies=cookie,
