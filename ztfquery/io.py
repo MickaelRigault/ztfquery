@@ -206,6 +206,8 @@ def test_files(filename, erasebad=True, nprocess=1, show_progress=True, notebook
     elif nprocess<1:
         raise ValueError("nprocess must 1 or higher (None means 1)")
 
+    filename = np.atleast_1(filename)
+    
     if nprocess == 1:
         fileissue = [f for f in filename if not _test_file_(f, erasebad=erasebad, **kwargs)]
     else:
