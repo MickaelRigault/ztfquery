@@ -250,7 +250,8 @@ class _ZTFDownloader_( object ):
                      download_dir=None,
                      show_progress = True, notebook=False, verbose=True,
                      nodl = False, overwrite=False, nprocess=None,
-                     auth=None, **kwargs):
+                     auth=None, filecheck=True, erasebad=True,
+                     **kwargs):
         """ 
         Parameters
         ----------
@@ -332,12 +333,19 @@ class _ZTFDownloader_( object ):
         # Actual Download
         io.download_url(self.to_download_urls, self.download_location,
                         show_progress = show_progress, notebook=notebook, verbose=verbose,
-                        overwrite=overwrite, nprocess=nprocess, cookies=cookie)
+                        overwrite=overwrite, nprocess=nprocess, cookies=cookie,
+                        filecheck=filecheck, erasebad=erasebad)
+
+        if filecheck:
+            fileissue = [f for f in self.download_location if not io._test_file_(f, erasebad=erasebad, fromdl=False)]
+            if len(fileissue) > 0:
+                warnings.warn("%d file failed (returned)"%len(fileissue))
+                
                 
     # --------- #
     #  GETTER   #
     # --------- #
-    def get_local_data(self, suffix=None, exists=True, indexes=None):
+    def get_local_data(self, suffix=None, exists=True, filecheck=True, indexes=None, badfiles=False):
         """ the lists of files stored in your local copy of the ztf database.
         [This methods uses the get_data_path() method assuming source='local']
 
@@ -389,8 +397,142 @@ class _ZTFDownloader_( object ):
         files = self.get_data_path(suffix=suffix, source="local", indexes=indexes)
         if not exists:
             return files
-        return [f for f in files if os.path.isfile( f )]
 
+        localfile = [f for f in files if os.path.isfile( f )]
+        if filecheck or badfiles:
+            badfiles_ = io.test_files(localfile, erasebad=False)
+            if badfiles:
+                return badfiles_
+            elif badfiles_ is not None and len(badfiles_)>1:
+                return [f for f in localfile if f not in badfiles_]
+        return localfile
+
+    def get_missing_data_index(self, suffix=None, which="any"):
+        """ 
+        Parameters
+        ----------
+        suffix: [string] -optional-
+            What kind of data do you want? 
+            Here is the list of available options depending on you image kind:
+        
+            # Science image (kind="sci"):
+            - sciimg.fits (primary science image) # (default)
+            - mskimg.fits (bit-mask image)
+            - psfcat.fits (PSF-fit photometry catalog)
+            - sexcat.fits (nested-aperture photometry catalog)
+            - sciimgdao.psf (spatially varying PSF estimate in DAOPhot's lookup table format)
+            - sciimgdaopsfcent.fits (PSF estimate at science image center as a FITS image)
+            - sciimlog.txt (log output from instrumental calibration pipeline)
+            - scimrefdiffimg.fits.fz (difference image: science minus reference; fpack-compressed)
+            - diffimgpsf.fits (PSF estimate for difference image as a FITS image)
+            - diffimlog.txt (log output from image subtraction and extraction pipeline)
+            - log.txt (overall system summary log from realtime pipeline)
+            
+            # Reference image (kind="ref"):
+            -log.txt
+            -refcov.fits
+            -refimg.fits # (default)
+            -refimlog.txt
+            -refpsfcat.fits
+            -refsexcat.fits
+            -refunc.fits
+
+            # Raw images (kind="raw")
+            No Choice so suffix is ignored for raw data
+            
+            # Calibration (kind="cal")
+            - None (#default) returns `caltype`.fits
+            - log:            returns `caltype`log.txt
+            - unc:            returns `caltype`unc.fits
+
+
+        which: [string] -optional-
+            Which missing data are you looking for:
+            - any/all: missing because bad local files or because not downloaded yet.
+            - bad/corrupted: missing because the local files are corrupted
+            - notdl/dl/nodl: missing because not downloaded. 
+
+        Returns
+        -------
+        list of self.metadata indexes
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            if which in ["all", "any"]:
+                all_local = self.get_data_path(suffix ,source="local")
+                actual_local = self.get_local_data(suffix, exists=True, filecheck=True)            
+            elif which in ["bad", "corrupted"]:
+                all_local = self.get_local_data(suffix, exists=True, filecheck=False)
+                actual_local = self.get_local_data(suffix, exists=True, filecheck=True)
+            elif which in ["notdl", "dl","nodl"]:
+                all_local = self.get_data_path(suffix ,source="local")
+                actual_local = self.get_local_data(suffix, exists=False, filecheck=False)
+            else:
+                raise ValueError("cannot parse which %s: any, bad, notdl available"%which)
+
+        id_ = [i for i,f in enumerate(all_local) if f not in actual_local]
+        return self.metatable.index[id_]
+        
+    def purge_corrupted_local_data(self, suffix=None, erasebad=False, indexes=None,  verbose=True):
+        """ 
+        Parameters
+        ----------
+        suffix: [string] -optional-
+            What kind of data do you want? 
+            Here is the list of available options depending on you image kind:
+        
+            # Science image (kind="sci"):
+            - sciimg.fits (primary science image) # (default)
+            - mskimg.fits (bit-mask image)
+            - psfcat.fits (PSF-fit photometry catalog)
+            - sexcat.fits (nested-aperture photometry catalog)
+            - sciimgdao.psf (spatially varying PSF estimate in DAOPhot's lookup table format)
+            - sciimgdaopsfcent.fits (PSF estimate at science image center as a FITS image)
+            - sciimlog.txt (log output from instrumental calibration pipeline)
+            - scimrefdiffimg.fits.fz (difference image: science minus reference; fpack-compressed)
+            - diffimgpsf.fits (PSF estimate for difference image as a FITS image)
+            - diffimlog.txt (log output from image subtraction and extraction pipeline)
+            - log.txt (overall system summary log from realtime pipeline)
+            
+            # Reference image (kind="ref"):
+            -log.txt
+            -refcov.fits
+            -refimg.fits # (default)
+            -refimlog.txt
+            -refpsfcat.fits
+            -refsexcat.fits
+            -refunc.fits
+
+            # Raw images (kind="raw")
+            No Choice so suffix is ignored for raw data
+            
+            # Calibration (kind="cal")
+            - None (#default) returns `caltype`.fits
+            - log:            returns `caltype`log.txt
+            - unc:            returns `caltype`unc.fits
+
+
+        erasebad: [bool] -optional-
+            Do you want to remove from your local directory the corrupted files ?
+        
+        Returns
+        -------
+        list of files
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            badfiles = self.get_local_data(suffix=suffix, exists=True, filecheck=True, indexes=indexes, badfiles=True )
+            
+        if erasebad:
+            if verbose:
+                print("Removing %d files"%len(badfiles))
+            for file_ in badfiles:
+                os.remove(file_)
+        else:
+            if verbose:
+                print("%d files to be removed (run this with erasebad=True)"%len(badfiles))
+                
+        return badfiles
 
     
 class ZTFQuery( _ZTFTableHandler_, _ZTFDownloader_ ):

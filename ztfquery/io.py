@@ -93,7 +93,8 @@ def set_account(which, username=None, password=None, test=True, force=False):
 
 #
 # TEST
-# 
+#
+# - Password testing
 def test_irsa_account(auth=None):
     """  returns True if the IRSA account is correctly set. """
     if auth is None:
@@ -101,6 +102,184 @@ def test_irsa_account(auth=None):
     return ".ipac.caltech.edu" in get_cookie(*auth)._cookies
 
 
+
+# - File testing
+def get_localfiles(extension="*", startpath=None):
+    """ Look for all file with the given extension recursively starting from `startpath`.
+    (based on glob)
+    
+    Parameters
+    ----------
+    extension: [string] -optional-
+        All the 'file.{}'.format(extension) will be looked at.
+        (first '.' ignored such that extension='.fits' is equivalent to extension='fits')
+
+    startpath: [None or path] -optional-
+        From which directory does this start to look at.
+        If None: $ZTFDATA (stored as io.LOCALSOURCE) will be used.
+
+    Returns
+    -------
+    list of file.
+    """
+    from glob import glob
+    if startpath is None:
+        startpath = LOCALSOURCE
+    if extension.startswith("."):
+        extension = extension[1:]
+        
+    return [f for f in glob(startpath + "**/*.%s"%extension, recursive=True)]
+
+def run_full_filecheck(extension="*", startpath=None,
+                        erasebad=True, nprocess=4, show_progress=True, notebook=False, **kwargs ):
+    """ Look for all file with the given extension recursively starting from `startpath` and checks if the file 
+    is usable ok not. This returns the bad files.
+    
+    Parameters
+    ----------
+
+    // Data files
+    extension: [string] -optional-
+        All the 'file.{}'.format(extension) will be looked at.
+        (first '.' ignored such that extension='.fits' is equivalent to extension='fits')
+
+    startpath: [None or path] -optional-
+        From which directory does this start to look at.
+        If None: $ZTFDATA (stored as io.LOCALSOURCE) will be used.
+
+    // Check options
+
+    erasebad: [bool] -optional-
+        Do you want to remove from your local directory the corrupted files ?
+        
+    nprocess: [int] -optional-
+        Number of paralell processing
+
+    show_progress: [bool] -optional-
+        Do you want to show the progress bar ?
+        
+    notebook: [bool]
+        Are you running from a notebook. 
+        Ignored if show_progress=False
+
+    Returns
+    -------
+    list of corrupted/bad files (might already be removed, see erasebad)
+
+    """
+    all_ztffiles = get_localfiles(extension=extension, startpath=startpath)
+    print("%d files to check"%len(all_ztffiles))
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        badfiles = test_files(all_ztffiles,erasebad=erasebad, nprocess=nprocess, show_progress=show_progress, notebook=notebook, **kwargs)
+        
+    return badfiles
+    
+def test_files(filename, erasebad=True, nprocess=1, show_progress=True, notebook=False, **kwargs ):
+    """ 
+    
+    Parameters
+    ----------
+    filename: [fiulepath or list of]
+        File(s) to be checked. 
+
+    erasebad: [bool] -optional-
+        Do you want to remove from your local directory the corrupted files ?
+        
+    nprocess: [int] -optional-
+        Number of paralell processing
+
+    show_progress: [bool] -optional-
+        Do you want to show the progress bar ?
+        
+    notebook: [bool]
+        Are you running from a notebook. 
+        Ignored if show_progress=False
+       
+    Returns
+    -------
+    list of corrupted/bad files (might already be removed, see erasebad)
+
+    """
+    if nprocess is None:
+        nprocess = 1
+    elif nprocess<1:
+        raise ValueError("nprocess must 1 or higher (None means 1)")
+
+    if nprocess == 1:
+        fileissue = [f for f in filename if not _test_file_(f, erasebad=erasebad, **kwargs)]
+    else:
+        import multiprocessing
+        if show_progress:
+            from astropy.utils.console import ProgressBar
+            bar = ProgressBar( len(filename), ipython_widget=notebook)
+        else:
+            bar = None
+
+        erasebad_   = [erasebad]*len(filename)
+        fileissue = []
+        with multiprocessing.Pool(nprocess) as p:
+            # Da Loop
+            for j, isgood in enumerate( p.imap(_test_file_multiprocess_, zip(filename, erasebad_)) ):
+                if bar is not None:
+                    bar.update(j)
+                if not isgood:
+                    fileissue.append(filename[j])
+                    
+            if bar is not None:
+                bar.update( len(filename) )
+                
+    if len(fileissue) >0:
+        warnings.warn("%d file failed (returned)"%len(fileissue))
+        return fileissue
+        
+
+def _test_file_multiprocess_(args):
+    """ """
+    filename, erasebad = args
+    return _test_file_(filename, erasebad=erasebad, fromdl=False)
+
+def _test_file_(filename, erasebad=True, fromdl=False):
+    """ """
+    # Fits file
+    if ".fits" in filename:
+        from astropy.io import fits
+        try:
+            _ = fits.getdata(filename)
+        except FileNotFoundError:
+            warnings.warn("[Errno 2] No such file or directory: %s"%filename)
+        except:
+            _fileissue_(filename, erasebad=erasebad, fromdl=fromdl)
+            return False
+        
+    # txt file        
+    elif ".txt" in filename:
+        try:
+            _ = open(filename).read().splitlines()
+        except FileNotFoundError:
+            warnings.warn("[Errno 2] No such file or directory: %s"%filename)
+        except:
+            _fileissue_(filename, erasebad=erasebad, fromdl=fromdl)
+            return False
+        
+    # other extensions        
+    else:
+        warnings.warn("no file testing made for .%s files"%filename.split(".")[-1])
+
+    return True
+
+def _fileissue_(filename, erasebad=True, fromdl=False):
+    """ """
+    if fromdl:
+        warnings.warn("Download failed %s seems corrupted (cannot open)"%filename)
+    else:
+        warnings.warn("cannot open file %s"%filename)
+    if erasebad:
+        warnings.warn("removing %s")
+        os.remove(filename)
+    else:
+        warnings.warn("%s NOT ERASED")
+    
 # ================= #
 #   Logging Tools   #
 # ================= #
@@ -127,7 +306,8 @@ def _download_(args):
 
 def download_url(to_download_urls, download_location,
                 show_progress = True, notebook=False, verbose=True,
-                overwrite=False, nprocess=None,cookies=None, **kwargs):
+                overwrite=False, nprocess=None,cookies=None,
+                **kwargs):
     """ """
     if nprocess is None:
         nprocess = 1
@@ -169,7 +349,9 @@ def download_url(to_download_urls, download_location,
             
 def download_single_url(url, fileout=None, 
                         overwrite=False, verbose=True, cookies=None,
-                        show_progress=True, notebook=False, chunk=1024, **kwargs):
+                        show_progress=True, notebook=False, chunk=1024,
+                        filecheck=True, erasebad=True,
+                        **kwargs):
     """ Download the url target using requests.get.
     the data is returned (if fileout is None) or stored in `fileout`
     Pa
@@ -183,13 +365,16 @@ def download_single_url(url, fileout=None,
             print("downloading %s to %s"%(url,fileout))
 
     # = Password and Username
-    if cookies is None: cookies = get_cookie(*_load_id_("irsa"))
+    if cookies is None:
+        cookies = get_cookie(*_load_id_("irsa"))
 
-        
     # - requests options 
     download_prop = dict(cookies=cookies, stream=True)
-    for k,v in kwargs.items(): download_prop[k] = v
-    if cookies in ["no_cookies"]: _ = download_prop.pop("cookies")
+    for k,v in kwargs.items():
+        download_prop[k] = v
+        
+    if cookies in ["no_cookies"]:
+        _ = download_prop.pop("cookies")
 
     request_fnc = "get" if not "data" in download_prop else "post"
     # = Where should the data be saved?
@@ -223,3 +408,7 @@ def download_single_url(url, fileout=None,
                         bar.update()
                     f.write(data)
             f.close()
+            
+    if filecheck:
+        _test_file_(fileout, erasebad=erasebad, fromdl=True)
+        
