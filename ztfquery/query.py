@@ -337,7 +337,7 @@ class _ZTFDownloader_( object ):
                         filecheck=filecheck, erasebad=erasebad)
 
         if filecheck:
-            fileissue = [f for f in self.download_location if not io._test_file_(f, erasebad=erasebad, fromdl=False)]
+            fileissue = io.test_files(f, erasebad=erasebad)
             if len(fileissue) > 0:
                 warnings.warn("%d file failed (returned)"%len(fileissue))
                 
