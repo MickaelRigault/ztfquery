@@ -335,8 +335,7 @@ class _ZTFDownloader_( object ):
         with warnings.catch_warnings():
             if ignore_warnings:
                 warnings.simplefilter("ignore")
-
-        io.download_url(self.to_download_urls, self.download_location,
+            io.download_url(self.to_download_urls, self.download_location,
                         show_progress = show_progress, notebook=notebook, verbose=verbose,
                         overwrite=overwrite, nprocess=nprocess, cookies=cookie,
                         filecheck=filecheck, erasebad=erasebad)
