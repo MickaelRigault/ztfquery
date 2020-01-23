@@ -6,7 +6,8 @@
 https://irsa.ipac.caltech.edu/docs/program_interface/ztf_metadata.html
 """
 import os
-
+import warnings
+import numpy as np
 # ========================== #
 #                            #
 #   Generic Query            #
@@ -27,6 +28,8 @@ KNOWN_SCIENCE_SUFFIXES = {    "sciimg.fits":"(primary science image)",
 
 # SOURCES 
 DATA_BASEURL   = "https://irsa.ipac.caltech.edu/ibe/data/ztf/products/"
+ZTFIRSA_BASE = ["/ref/","/sci/","/raw/","/cal/"]
+
 from .io import LOCALSOURCE
 DEFAULT_SOURCE = DATA_BASEURL
 
@@ -34,6 +37,18 @@ DEFAULT_SOURCE = DATA_BASEURL
 # ================== #
 #  Building the URL  #
 # ================== #
+def _localsource_to_source_(localfilepath, source=None):
+    """ """
+    filesource = _source_to_location_(source)
+    if LOCALSOURCE not in localfilepath:
+        raise ValueError("Cannot parse the location of the given file. %s, %s expected to be part of the path"%(localfilepath,LOCALSOURCE))
+
+    if np.any([k in localfilepath for k in ZTFIRSA_BASE]):
+        return localfilepath.replace(LOCALSOURCE, filesource), "irsa"
+    else:
+        warnings.warn("Cannot recover the online url, only IRSA ZTF files are implemented.")
+        return None, "None"
+    
 def _source_to_location_(source):
     """ convert flexible source naming into actual source path """
     if source is None: source = "irsa"

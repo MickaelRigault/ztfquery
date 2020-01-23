@@ -24,6 +24,8 @@ _ENCRYPTING_FILE = os.path.expanduser("~")+"/.queryirsa"
 
 
 LOCALSOURCE   = os.getenv('ZTFDATA',"./Data/")
+
+
 # ================= #
 #  Crypting         #
 # ================= #
@@ -132,7 +134,9 @@ def get_localfiles(extension="*", startpath=None):
     return [f for f in glob(startpath + "**/*.%s"%extension, recursive=True)]
 
 def run_full_filecheck(extension="*", startpath=None,
-                        erasebad=True, nprocess=4, show_progress=True, notebook=False, **kwargs ):
+                        erasebad=True, redownload=False, 
+                        nprocess=4, show_progress=True, notebook=False,
+                        **kwargs ):
     """ Look for all file with the given extension recursively starting from `startpath` and checks if the file 
     is usable ok not. This returns the bad files.
     
@@ -153,6 +157,10 @@ def run_full_filecheck(extension="*", startpath=None,
     erasebad: [bool] -optional-
         Do you want to remove from your local directory the corrupted files ?
         
+    redownload: [bool] -optional-
+        Shall corrupted file be automatically re downloaded ?
+        (Only works for IRSA files ('/sci/','/raw/', '/ref/', '/cal/')
+
     nprocess: [int] -optional-
         Number of paralell processing
 
@@ -172,11 +180,14 @@ def run_full_filecheck(extension="*", startpath=None,
     print("%d files to check"%len(all_ztffiles))
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        badfiles = test_files(all_ztffiles,erasebad=erasebad, nprocess=nprocess, show_progress=show_progress, notebook=notebook, **kwargs)
+        badfiles = test_files(all_ztffiles, erasebad=erasebad, nprocess=nprocess,
+                             show_progress=show_progress, notebook=notebook,
+                             redownload=redownload, **kwargs)
         
     return badfiles
     
-def test_files(filename, erasebad=True, nprocess=1, show_progress=True, notebook=False, **kwargs ):
+def test_files(filename, erasebad=True, nprocess=1, show_progress=True, notebook=False,
+                   redownload=False, **kwargs ):
     """ 
     
     Parameters
@@ -187,6 +198,10 @@ def test_files(filename, erasebad=True, nprocess=1, show_progress=True, notebook
     erasebad: [bool] -optional-
         Do you want to remove from your local directory the corrupted files ?
         
+    redownload: [bool] -optional-
+        Shall corrupted file be automatically re downloaded ?
+        (Only works for IRSA files ('/sci/','/raw/', '/ref/', '/cal/')
+
     nprocess: [int] -optional-
         Number of paralell processing
 
@@ -210,7 +225,9 @@ def test_files(filename, erasebad=True, nprocess=1, show_progress=True, notebook
     filename = np.atleast_1d(filename)
     
     if nprocess == 1:
-        fileissue = [f for f in filename if not _test_file_(f, erasebad=erasebad, **kwargs)]
+        fileissue = [f for f in filename if not _test_file_(f, erasebad=erasebad,
+                                                            redownload=redownload,
+                                                            **kwargs)]
     else:
         import multiprocessing
         if show_progress:
@@ -221,6 +238,7 @@ def test_files(filename, erasebad=True, nprocess=1, show_progress=True, notebook
 
         erasebad_   = [erasebad]*len(filename)
         fileissue = []
+        
         with multiprocessing.Pool(nprocess) as p:
             # Da Loop
             for j, isgood in enumerate( p.imap(_test_file_multiprocess_, zip(filename, erasebad_)) ):
@@ -233,17 +251,35 @@ def test_files(filename, erasebad=True, nprocess=1, show_progress=True, notebook
                 bar.update( len(filename) )
                 
     if len(fileissue) >0:
-        warnings.warn("%d file failed (returned)"%len(fileissue))
+        warnings.warn("%d file failed"%len(fileissue))
+        if redownload:
+            from .buildurl import _localsource_to_source_
+            to_download_urls, locations = np.asarray([_localsource_to_source_(filename)
+                                                        for filename in fileissue]).T
+            source_to_dl = ["irsa"]
+            for source in source_to_dl:
+                source_dl = np.in1d(locations, [source])
+                print("Downloading %d files from %s"%(len(source_dl[source_dl]), source))
+                download_url(np.asarray(to_download_urls)[source_dl], np.asarray(fileissue)[source_dl],
+                                 show_progress=show_progress, notebook=notebook, verbose=True,
+                                 overwrite=True, nprocess=nprocess, cookies=get_cookie(*_load_id_(source)),
+                         **kwargs)
+            for source_ in np.unique(locations):
+                if source_ is not None and source_ not in source_to_dl:
+                    warnings.warn("files from %s have not downloaded (not implemented)."%source_)
+                
         return fileissue
         
 
 def _test_file_multiprocess_(args):
     """ """
     filename, erasebad = args
-    return _test_file_(filename, erasebad=erasebad, fromdl=False)
+    return _test_file_(filename, erasebad=erasebad, fromdl=False, redownload=False)
 
-def _test_file_(filename, erasebad=True, fromdl=False):
+def _test_file_(filename, erasebad=True, fromdl=False,
+                redownload=False, verbose=True):
     """ """
+    propissue = dict(erasebad=erasebad, fromdl=fromdl, redownload=redownload, verbose=verbose)
     # Fits file
     if ".fits" in filename:
         from astropy.io import fits
@@ -252,7 +288,7 @@ def _test_file_(filename, erasebad=True, fromdl=False):
         except FileNotFoundError:
             warnings.warn("[Errno 2] No such file or directory: %s"%filename)
         except:
-            _fileissue_(filename, erasebad=erasebad, fromdl=fromdl)
+            _fileissue_(filename, **propissue)
             return False
         
     # txt file        
@@ -262,26 +298,37 @@ def _test_file_(filename, erasebad=True, fromdl=False):
         except FileNotFoundError:
             warnings.warn("[Errno 2] No such file or directory: %s"%filename)
         except:
-            _fileissue_(filename, erasebad=erasebad, fromdl=fromdl)
+            _fileissue_(filename, **propissue)
             return False
         
     # other extensions        
     else:
         warnings.warn("no file testing made for .%s files"%filename.split(".")[-1])
-
+            
     return True
 
-def _fileissue_(filename, erasebad=True, fromdl=False):
+def _fileissue_(filename, erasebad=True, fromdl=False, redownload=False, verbose=True):
     """ """
     if fromdl:
         warnings.warn("Download failed %s seems corrupted (cannot open)"%filename)
     else:
         warnings.warn("cannot open file %s"%filename)
+        
     if erasebad:
         warnings.warn("removing %s")
         os.remove(filename)
     else:
         warnings.warn("%s NOT ERASED")
+
+    if redownload:
+        from .buildurl import _localsource_to_source_
+        url_to_dl, location = _localsource_to_source_(filename)
+        if url_to_dl is not None:
+            download_single_url(url_to_dl, fileout=filename, overwrite=True, verbose=verbose,
+                                cookies = get_cookie(*_load_id_(location))
+                                )
+        else:
+            warnings.warn("No url to donwload, redownload ignored")
     
 # ================= #
 #   Logging Tools   #

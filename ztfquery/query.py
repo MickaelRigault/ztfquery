@@ -250,7 +250,8 @@ class _ZTFDownloader_( object ):
                      download_dir=None,
                      show_progress = True, notebook=False, verbose=True,
                      nodl = False, overwrite=False, nprocess=None,
-                     auth=None, filecheck=True, erasebad=True,
+                     auth=None,
+                     filecheck=True, erasebad=True, redownload=True,
                      ignore_warnings=False,
                      **kwargs):
         """ 
@@ -305,6 +306,18 @@ class _ZTFDownloader_( object ):
         auth: [str, str] -optional-
             [username, password] of you IRSA account.
             If used, information stored in ~/.ztfquery will be ignored.
+        
+        //  File check
+
+        filecheck: [bool] -optional-
+            Shall this check if the downloaded data actually works ?
+
+        erasebad: [bool] -optional-
+            Do you want to remove from your local directory the corrupted files ?
+
+        redownload: [bool] -optional-
+            Shall corrupted file be automatically re downloaded ?
+            (Only works for IRSA files ('/sci/','/raw/', '/ref/', '/cal/')
 
         """
         # login
@@ -338,10 +351,10 @@ class _ZTFDownloader_( object ):
             io.download_url(self.to_download_urls, self.download_location,
                         show_progress = show_progress, notebook=notebook, verbose=verbose,
                         overwrite=overwrite, nprocess=nprocess, cookies=cookie,
-                        filecheck=filecheck, erasebad=erasebad)
+                        filecheck=False)
 
         if filecheck:
-            fileissue = io.test_files(self.download_location, erasebad=erasebad)
+            fileissue = io.test_files(self.download_location, erasebad=erasebad, redownload=True)
             if fileissue is not None and len(fileissue) > 0:
                 warnings.warn("%d file failed (returned)"%len(fileissue))
                 
@@ -349,7 +362,7 @@ class _ZTFDownloader_( object ):
     # --------- #
     #  GETTER   #
     # --------- #
-    def get_local_data(self, suffix=None, exists=True, filecheck=True, indexes=None, badfiles=False):
+    def get_local_data(self, suffix=None, exists=True, filecheck=True, indexes=None, badfiles=False, **kwargs):
         """ the lists of files stored in your local copy of the ztf database.
         [This methods uses the get_data_path() method assuming source='local']
 
@@ -403,8 +416,8 @@ class _ZTFDownloader_( object ):
             return files
 
         localfile = [f for f in files if os.path.isfile( f )]
-        if filecheck or badfiles:
-            badfiles_ = io.test_files(localfile, erasebad=False)
+        if filecheck or badfiles or redownload:
+            badfiles_ = io.test_files(localfile, erasebad=False, **kwargs)
             if badfiles:
                 return badfiles_
             elif badfiles_ is not None and len(badfiles_)>1:
@@ -477,7 +490,7 @@ class _ZTFDownloader_( object ):
         id_ = [i for i,f in enumerate(all_local) if f not in actual_local]
         return self.metatable.index[id_]
         
-    def purge_corrupted_local_data(self, suffix=None, erasebad=False, indexes=None,  verbose=True):
+    def purge_corrupted_local_data(self, suffix=None, erasebad=False, redownload=False, indexes=None,  verbose=True):
         """ 
         Parameters
         ----------
@@ -519,19 +532,27 @@ class _ZTFDownloader_( object ):
         erasebad: [bool] -optional-
             Do you want to remove from your local directory the corrupted files ?
         
+        redownload: [bool] -optional-
+            Shall corrupted file be automatically re downloaded ?
+            (Only works for IRSA files ('/sci/','/raw/', '/ref/', '/cal/')
+
         Returns
         -------
         list of files
         """
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            badfiles = self.get_local_data(suffix=suffix, exists=True, filecheck=True, indexes=indexes, badfiles=True )
+            badfiles = self.get_local_data(suffix=suffix, exists=True, filecheck=True, indexes=indexes, badfiles=True,
+                                            redownload=redownload)
             
-        if erasebad:
+        if erasebad and not redownload:
             if verbose:
                 print("Removing %d files"%len(badfiles))
             for file_ in badfiles:
                 os.remove(file_)
+        elif redownload:
+            if verbose:
+                print("%d files have been redownloaded"%len(badfiles))
         else:
             if verbose:
                 print("%d files to be removed (run this with erasebad=True)"%len(badfiles))
