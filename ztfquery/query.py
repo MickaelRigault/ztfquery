@@ -490,7 +490,9 @@ class _ZTFDownloader_( object ):
         id_ = [i for i,f in enumerate(all_local) if f not in actual_local]
         return self.metatable.index[id_]
         
-    def purge_corrupted_local_data(self, suffix=None, erasebad=False, redownload=False, indexes=None,  verbose=True):
+    def purge_corrupted_local_data(self, suffix=None, erasebad=False, redownload=False,
+                                       indexes=None, verbose=True,
+                                       nprocess=4, **kwargs):
         """ 
         Parameters
         ----------
@@ -543,7 +545,7 @@ class _ZTFDownloader_( object ):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             badfiles = self.get_local_data(suffix=suffix, exists=True, filecheck=True, indexes=indexes, badfiles=True,
-                                            redownload=redownload)
+                                            redownload=redownload, nprocess=nprocess, **kwargs)
             
         if erasebad and not redownload:
             if verbose:
