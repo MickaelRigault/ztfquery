@@ -546,7 +546,10 @@ class _ZTFDownloader_( object ):
             warnings.simplefilter("ignore")
             badfiles = self.get_local_data(suffix=suffix, exists=True, filecheck=True, indexes=indexes, badfiles=True,
                                             redownload=redownload, nprocess=nprocess, **kwargs)
-            
+
+        if badfiles is None or len(badfiles)==0:
+            return None
+        
         if erasebad and not redownload:
             if verbose:
                 print("Removing %d files"%len(badfiles))
