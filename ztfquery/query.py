@@ -362,7 +362,9 @@ class _ZTFDownloader_( object ):
     # --------- #
     #  GETTER   #
     # --------- #
-    def get_local_data(self, suffix=None, exists=True, filecheck=True, indexes=None, badfiles=False, **kwargs):
+    def get_local_data(self, suffix=None, exists=True, filecheck=True, indexes=None,
+                           badfiles=False,
+                           ignore_warnings=False, **kwargs):
         """ the lists of files stored in your local copy of the ztf database.
         [This methods uses the get_data_path() method assuming source='local']
 
@@ -417,7 +419,11 @@ class _ZTFDownloader_( object ):
 
         localfile = [f for f in files if os.path.isfile( f )]
         if filecheck or badfiles or redownload:
-            badfiles_ = io.test_files(localfile, erasebad=False, **kwargs)
+            with warnings.catch_warnings():
+                if ignore_warnings:
+                    warnings.simplefilter("ignore")
+                badfiles_ = io.test_files(localfile, erasebad=False, **kwargs)
+                
             if badfiles:
                 return badfiles_
             elif badfiles_ is not None and len(badfiles_)>1:
