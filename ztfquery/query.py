@@ -418,7 +418,7 @@ class _ZTFDownloader_( object ):
             return files
 
         localfile = [f for f in files if os.path.isfile( f )]
-        if filecheck or badfiles or redownload:
+        if filecheck or badfiles or kwargs.get("redownload",False):
             with warnings.catch_warnings():
                 if ignore_warnings:
                     warnings.simplefilter("ignore")
