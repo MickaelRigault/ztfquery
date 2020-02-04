@@ -283,7 +283,7 @@ def _test_file_(filename, erasebad=True, fromdl=False,
     # Fits file
     if ".fits" in filename:
         from astropy.io import fits
-        if hash_for_file_exists(filename) == False:
+        if not hash_for_file_exists(filename):
             try:
                 _ = fits.getdata(filename)
                 calculate_and_write_hash(filename)
@@ -295,7 +295,7 @@ def _test_file_(filename, erasebad=True, fromdl=False,
         
     # txt file        
     elif ".txt" in filename:
-        if hash_for_file_exists(filename) == False:
+        if not hash_for_file_exists(filename):
             try:
                 _ = open(filename).read().splitlines()
                 calculate_and_write_hash(filename)
@@ -469,6 +469,7 @@ def download_single_url(url, fileout=None,
         _test_file_(fileout, erasebad=erasebad, fromdl=True)
 
 def calculate_hash(fname):
+    """ """
     f = open(fname, 'rb')
     hash_md5 = hashlib.md5()
     for chunk in iter(lambda: f.read(4096), b""):
@@ -478,6 +479,7 @@ def calculate_hash(fname):
     return hexdigest
 
 def calculate_and_write_hash(fname):
+    """ """
     f = open(fname, 'rb')
     hash_md5 = hashlib.md5()
     for chunk in iter(lambda: f.read(4096), b""):
@@ -489,11 +491,13 @@ def calculate_and_write_hash(fname):
     f_hash.close()
 
 def read_hash(fname):
+    """ """
     f_hash = open(f"{fname}.md5", 'r')
     hash_md5 = f_hash.read()
     return hash_md5
 
 def compare_hash(fname):
+    """ """
     f_hash = open(hash_fname, 'r')
     hash_md5_read = f_hash.read()
     hash_md5_calculated = calculate_hash(fname)
@@ -503,4 +507,5 @@ def compare_hash(fname):
         return False
 
 def hash_for_file_exists(fname):
+    """ """
     return os.path.exists(f"{fname}.md5")
