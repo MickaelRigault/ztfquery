@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 
-import os
+import os, hashlib
 import sys
 import requests
 import warnings
@@ -283,23 +283,27 @@ def _test_file_(filename, erasebad=True, fromdl=False,
     # Fits file
     if ".fits" in filename:
         from astropy.io import fits
-        try:
-            _ = fits.getdata(filename)
-        except FileNotFoundError:
-            warnings.warn("[Errno 2] No such file or directory: %s"%filename)
-        except:
-            _fileissue_(filename, **propissue)
-            return False
+        if hash_for_file_exists(filename) == False:
+            try:
+                _ = fits.getdata(filename)
+                calculate_and_write_hash(filename)
+            except FileNotFoundError:
+                warnings.warn("[Errno 2] No such file or directory: %s"%filename)
+            except:
+                _fileissue_(filename, **propissue)
+                return False
         
     # txt file        
     elif ".txt" in filename:
-        try:
-            _ = open(filename).read().splitlines()
-        except FileNotFoundError:
-            warnings.warn("[Errno 2] No such file or directory: %s"%filename)
-        except:
-            _fileissue_(filename, **propissue)
-            return False
+        if hash_for_file_exists(filename) == False:
+            try:
+                _ = open(filename).read().splitlines()
+                calculate_and_write_hash(filename)
+            except FileNotFoundError:
+                warnings.warn("[Errno 2] No such file or directory: %s"%filename)
+            except:
+                _fileissue_(filename, **propissue)
+                return False
         
     # other extensions        
     else:
@@ -396,6 +400,7 @@ def download_url(to_download_urls, download_location,
                     
             if bar is not None:
                 bar.update( len(to_download_urls) )
+
             
 def download_single_url(url, fileout=None, 
                         overwrite=False, verbose=True, cookies=None,
@@ -458,7 +463,44 @@ def download_single_url(url, fileout=None,
                         bar.update()
                     f.write(data)
             f.close()
-            
+            calculate_and_write_hash(fileout)
+
     if filecheck:
         _test_file_(fileout, erasebad=erasebad, fromdl=True)
-        
+
+def calculate_hash(fname):
+    f = open(fname, 'rb')
+    hash_md5 = hashlib.md5()
+    for chunk in iter(lambda: f.read(4096), b""):
+        hash_md5.update(chunk)
+    hexdigest = hash_md5.hexdigest()
+    f.close()
+    return hexdigest
+
+def calculate_and_write_hash(fname):
+    f = open(fname, 'rb')
+    hash_md5 = hashlib.md5()
+    for chunk in iter(lambda: f.read(4096), b""):
+        hash_md5.update(chunk)
+    hexdigest = hash_md5.hexdigest()
+    f.close()
+    f_hash = open(f"{fname}.md5", 'w')
+    f_hash.write(hexdigest)
+    f_hash.close()
+
+def read_hash(fname):
+    f_hash = open(f"{fname}.md5", 'r')
+    hash_md5 = f_hash.read()
+    return hash_md5
+
+def compare_hash(fname):
+    f_hash = open(hash_fname, 'r')
+    hash_md5_read = f_hash.read()
+    hash_md5_calculated = calculate_hash(fname)
+    if hash_md5_read == hash_md5_calculated:
+        return True
+    else:
+        return False
+
+def hash_for_file_exists(fname):
+    return os.path.exists(f"{fname}.md5")
