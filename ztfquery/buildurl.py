@@ -57,7 +57,7 @@ def _source_to_location_(source):
     if source in ["none"]:
         return ""
     
-    if source in [DATA_BASEURL, LOCALSOURCE]:
+    if source in [DATA_BASEURL, LOCALSOURCE] or "/" in source:
         return source
     
     if source in ['irsa', 'ipac', "web", "online", "ztf"]:

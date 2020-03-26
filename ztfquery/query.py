@@ -363,7 +363,7 @@ class _ZTFDownloader_( object ):
     #  GETTER   #
     # --------- #
     def get_local_data(self, suffix=None, exists=True, filecheck=True, indexes=None,
-                           badfiles=False,
+                           badfiles=False, source="local",
                            ignore_warnings=False, **kwargs):
         """ the lists of files stored in your local copy of the ztf database.
         [This methods uses the get_data_path() method assuming source='local']
@@ -409,11 +409,16 @@ class _ZTFDownloader_( object ):
             If false, this will return the expected path of the requested data, 
             even though they might not exist.
 
+
+        source: [str] -optional-
+            Where are the data stored ? 
+            default is 'local' this will use you $ZTFDATA path. 
+            You can also directly provide here where the IRSA data structure starts.
         Returns
         -------
         list
         """
-        files = self.get_data_path(suffix=suffix, source="local", indexes=indexes)
+        files = self.get_data_path(suffix=suffix, source=source, indexes=indexes)
         if not exists:
             return files
 
