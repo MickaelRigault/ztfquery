@@ -798,7 +798,7 @@ def download_night_summary(night, ztfops_auth = None):
         
     
     summary = requests.get(_NIGHT_SUMMARY_URL+"%s/exp.%s.tbl"%(night,night),
-                               auth=ztfops_auth, verify=False).content.decode('utf-8').splitlines()
+                               auth=ztfops_auth).content.decode('utf-8').splitlines()
     dataf = convert_summary_to_dataframe(summary)
     return dataf
 
