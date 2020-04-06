@@ -12,7 +12,7 @@ affiliations:
  - name:  Universite Clermont Auvergne, CNRS/IN2P3, Laboratoire de Physique de Clermont, F-63000 Clermont-Ferrand, France.
    index: 1
 date: 1 March 2020
-bibliography: None
+bibliography: paper.bib
 
 
 # Optional fields if submitting to a AAS journal too, see this blog post:
@@ -21,7 +21,7 @@ bibliography: None
 # Summary
 
 
-
+ZTF: @bellm:2019
 # Mathematics
 
 
