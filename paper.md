@@ -9,8 +9,8 @@ authors:
     orcid: 0000-0002-8121-2560
     affiliation: 1 
 affiliations:
- - name:  Universit\'e Clermont Auvergne, CNRS/IN2P3, Laboratoire de Physique de Clermont, F-63000 Clermont-Ferrand, France.
-
+ - name:  Universite Clermont Auvergne, CNRS/IN2P3, Laboratoire de Physique de Clermont, F-63000 Clermont-Ferrand, France.
+   index: 1
 date: 1 March 2020
 bibliography: None
 
