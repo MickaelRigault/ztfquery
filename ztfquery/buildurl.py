@@ -237,6 +237,50 @@ def reference_path(paddedfield,
 # ============= #
 #   TOOLS       #
 # ============= #
+def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=True):
+    """ 
+    """
+    _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, suffix_ = filename.split("_")
+    year,month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
+    paddedccdid = ccd_.replace("c","")
+    qid = qid_.replace("q","")
+    
+    if suffix is None:
+        suffix = suffix_
+        
+    return science_path(year, month, day, fracday,
+                paddedfield, filtercode,
+                paddedccdid, qid, # added in input
+                imgtypecode=imgtypecode, suffix=suffix,
+                source=source, verbose=verbose)
+    
+
+def filename_to_refurl(filename, suffix, source="irsa", verbose=True):
+    """ 
+    suffix: [string]
+        Could be:
+        - log.txt
+        - refcov.fits
+        - refimg.fits
+        - refimlog.txt
+        - refpsfcat.fits
+        - refsexcat.fits
+        - refunc.fits
+    """
+    _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, suffix_ = filename.split("_")
+    year,month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
+    paddedccdid = ccd_.replace("c","")
+    qid = qid_.replace("q","")
+    
+    
+    return reference_path(paddedfield,
+                                   filtercode,
+                                   paddedccdid, qid,
+                                   fieldprefix=paddedfield[:3],
+                                   suffix=suffix,
+                                   source=source)
+
+
 def filefrac_to_year_monthday_fracday(filefracday):
     """ split the name as YYYY, MM,DD, FFFFFF
     FFFFFF (fraction in the day)"""
