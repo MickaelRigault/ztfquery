@@ -240,7 +240,7 @@ def reference_path(paddedfield,
 def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=True):
     """ 
     """
-    _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, suffix_ = filename.split("_")
+    _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, suffix_ = os.path.basename(filename).split("_")
     year,month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
     paddedccdid = ccd_.replace("c","")
     qid = qid_.replace("q","")
@@ -267,7 +267,7 @@ def filename_to_refurl(filename, suffix, source="irsa", verbose=True):
         - refsexcat.fits
         - refunc.fits
     """
-    _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, suffix_ = filename.split("_")
+    _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, suffix_ = os.path.basename(filename).split("_")
     year,month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
     paddedccdid = ccd_.replace("c","")
     qid = qid_.replace("q","")
