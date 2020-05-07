@@ -1,0 +1,12 @@
+{
+  "title": "ZTFQuery",
+  "creators": [{
+      "name": "Rigault, Mickael",
+      "affiliation": "Universit\'e Clermont Auvergne, CNRS/IN2P3, Laboratoire de Physique
+    de Clermont, F-63000 Clermont-Ferrand, France."
+  }
+  ],
+  "description": "Access Zwicky Transient Facility data from python",
+  "access_right": "open",
+  "license": "Apache License 2.0",
+}
