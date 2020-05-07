@@ -105,7 +105,8 @@ def science_path(year, month, day, fracday,
         Which quadran [1,2,3,4]
     
     """
-    if verbose: print(locals())
+    if verbose:
+        print(locals())
     source = _source_to_location_(source)
     if suffix is None:
         suffix="sciimg.fits"
@@ -202,7 +203,7 @@ def reference_path(paddedfield,
                   paddedccdid, qid,
                   fieldprefix="000",
                   suffix=None,
-                  source=""):
+                  source="", verbose=True):
     """   
 
     filtercode: [2 digit string]
@@ -225,6 +226,9 @@ def reference_path(paddedfield,
         - refunc.fits
 
     """
+    if verbose:
+        print(locals())
+
     if suffix is None:
         suffix = "refimg.fits"
     source = _source_to_location_(source)
@@ -237,7 +241,7 @@ def reference_path(paddedfield,
 # ============= #
 #   TOOLS       #
 # ============= #
-def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=True):
+def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=False):
     """ 
     """
     _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, suffix_ = os.path.basename(filename).split("_")
@@ -255,7 +259,7 @@ def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=True):
                 source=source, verbose=verbose)
     
 
-def filename_to_refurl(filename, suffix, source="irsa", verbose=True):
+def filename_to_refurl(filename, suffix, source="irsa", verbose=False):
     """ 
     suffix: [string]
         Could be:
