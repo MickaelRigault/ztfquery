@@ -4,7 +4,7 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1345222.svg)](https://doi.org/10.5281/zenodo.1345222)
 
-**ztfquery is a python tool to download ztf (and SEDM) data. It contains**:
+**ztfquery is a python tool to access ztf (and SEDM) data. It contains**:
 
 - **ZTF products:** a wrapper of the [IRSA web API](https://irsa.ipac.caltech.edu/docs/program_interface/ztf_api.html) that enable to get ztf data _(requires access for full data, but not public data)_:
 	- Images and pipeline products, e.g. catalog ;
