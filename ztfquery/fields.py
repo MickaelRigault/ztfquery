@@ -254,7 +254,7 @@ def get_field_vertices(fieldid, origin=180, indeg=True):
     return np.asarray([ get_camera_corner(ra,dec, inrad=True, origin=origin, east_left=True)
                         for ra,dec in field_to_coords( np.asarray(np.atleast_1d(fieldid), dtype="int")   )])*coef
 
-def get_fields_containing_target(ra,dec, origin=360):
+def get_fields_containing_target(ra,dec, origin=180):
     """ return the list of fields into which the position ra, dec is. 
     Remark that this is based on predefined field positions. Hence, small attrition could affect this.
 
