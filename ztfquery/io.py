@@ -358,9 +358,28 @@ def _download_(args):
     url, fileout,  overwrite, verbose = args
     download_single_url(url, fileout=fileout, overwrite=overwrite, verbose=verbose)
 
+
+def download_from_filename(filename, suffix=None, verbose=False, overwrite=False,
+                               auth=None, **kwargs):
+    """ Download the file associated to the given filename """
+    from .buildurl import filename_to_scienceurl
+    if auth is None:
+        auth = _load_id_("irsa")
+    cookies = get_cookie(*auth)
+        
+    irsa_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose, source="irsa")
+    local_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose, source="local")
+    
+    download_url(np.atleast_1d(irsa_filename),
+                 np.atleast_1d(local_filename),
+                 overwrite=overwrite,
+                 cookies = cookies, **kwargs)
+    
+    
+    
 def download_url(to_download_urls, download_location,
                 show_progress = True, notebook=False, verbose=True,
-                overwrite=False, nprocess=None,cookies=None,
+                overwrite=False, nprocess=None, cookies=None,
                 **kwargs):
     """ """
     if nprocess is None:

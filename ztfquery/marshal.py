@@ -180,7 +180,6 @@ def target_alerts_directory(name):
     """ where Marshal lightcurves are stored """
     return LOCALSOURCE+"marshal/alerts/%s/"%name
 
-
 def program_datasource_filepath(program):
     """ Where target sources are stored in your local files """
     basename = "" if program in [None,"all", "*"] else "%s_"%program
@@ -214,7 +213,6 @@ def get_local_spectra(name, only_sedm=False, pysedm=True):
 
     return {d:v for d,v in all_files.items() if np.any(["SOURCE" in l_ for l_ in v])}
 
-    
 def get_local_lightcurves(name, only_marshal=True, source=MARSHAL_LC_DEFAULT_SOUCE):
     """ returns list of fullpath of lightcurves on your computer for the given target name.
     Remark: These lightcurves have to be stored in the native `$ZTFDATA`/marshal/lightcurves/`name`
@@ -228,7 +226,6 @@ def get_local_lightcurves(name, only_marshal=True, source=MARSHAL_LC_DEFAULT_SOU
             warnings.warn("No marshal lc with source %s identify for %s \n all source returned as a dict"%(source,name))
             
     return dataout
-
 
 def get_local_alerts(name):
     """ """
@@ -296,7 +293,6 @@ def download_spectra(name, dirout="default", auth=None, verbose=False, **kwargs)
 
     tar.extractall(dirout)
 
-    
 def download_lightcurve(name, dirout="default",
                         auth=None, verbose=False,
                         source=MARSHAL_LC_DEFAULT_SOUCE,
@@ -449,6 +445,36 @@ def download_alerts(name, dirout="default",
     if return_it:
         return dataframe
 
+def download_program_target(program, getredshift=True, getclassification=True, auth=None):
+    """ download target source information returns them as pandas.DataFrame
+        
+        Parameters
+        ----------
+        program: [int]
+            Program Number
+            
+        getredshift, getclassification: [bool, bool] -optional-
+            If redshift and/or classification have been made in the marshal, 
+            do you want them ?
+                    
+        auth: [str,str] -optional-
+            Marshal's [username, password]
+            CAUTION: if you are requesting program(s), make sure the `auth`
+                      matches that of your loaded program if already loaded. 
+                      Remark: If you did not load the user_program yet 
+                      (`self.load_user_programs()`),  they are authomatically matched.
+        Returns
+        -------
+        None (or pandas.DataFrame if setit=False, see above)
+
+    """
+    r = requests.post(MARSHAL_BASEURL+'list_program_sources.cgi', 
+                       auth=io._load_id_("marshal", askit=True) if auth is None else auth, 
+                       data={'programidx': program, 
+                             'getredshift': int(getredshift),
+                             'getclassification': int(getclassification)})
+        
+    return pandas.DataFrame.from_dict(json.loads(r.text))
     
 #############################
 #                           #
@@ -665,21 +691,25 @@ class MarshalAccess( object ):
         -------
         None (or pandas.DataFrame if setit=False, see above)
         """
-     
+        # Cleaning Marshal's datainput
+        split_ = lambda x: [None, x] if not len(np.atleast_1d(x))==2 else x
+        
         requested_program = self._program_to_programidx_(program, auth=auth)
-        r = requests.post(MARSHAL_BASEURL+'list_program_sources.cgi', 
-                       auth=io._load_id_("marshal", askit=True) if auth is None else auth, 
-                       data={'programidx': requested_program, 
-                             'getredshift': int(getredshift),
-                             'getclassification': int(getclassification)})
-        
-        df = pandas.DataFrame.from_dict(json.loads(r.text))
-        
+        for i,program_ in enumerate(requested_program):
+            df_ = download_program_target(program_,
+                                          getredshift=getredshift,
+                                          getclassification=getclassification,
+                                          auth=auth)
+            
+            df_[["magband", "magval"]] = pandas.DataFrame(df_.mag.apply(split_).tolist(), index=df_.index)
+            _ = df_.pop("mag")
+
+            
+            df = df_ if i == 0 else df.merge(df_, how="outer")
+             
         
         if getclassification:
             df["classification"] = df["classification"].astype("str")
-
-
             
         if setit:
             self.set_target_sources( df, program=program )
