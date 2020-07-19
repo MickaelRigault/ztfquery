@@ -275,8 +275,10 @@ def download_spectra(name, dirout="default", auth=None, verbose=False, **kwargs)
                                    auth=io._load_id_("marshal") if auth is None else auth,
                                    cookies="no_cookies", show_progress=False, 
                                    **kwargs)
-    
-    tar = tarfile.open(fileobj=BytesIO( response.content ), mode='r')
+    try:
+        tar = tarfile.open(fileobj=BytesIO( response.content ), mode='r')
+    except:
+        raise IOError("Cannot find a spectrum for %s"%name)
     
     # No directory out? Then reformated data returned
     if dirout is None or dirout in ["None"]:
@@ -341,11 +343,12 @@ def download_lightcurve(name, dirout="default",
 
     if dirout in ["None"]: dirout = None
     if dirout in ["default"]: dirout = target_lightcurves_directory(name)
-        
+    
     if dirout is not None:
         fileout = "marshal_%s_lightcurve_%s.csv"%(source, name)
-        if os.path.isfile(dirout+fileout) and not overwrite:
-            warnings.warn("The lightcurve %s already exists. Set overwrite to True to update it."%(fileout))
+        fileout_full = os.path.join(dirout,fileout)
+        if os.path.isfile(fileout_full) and not overwrite:
+            warnings.warn("The lightcurve %s already exists. Set overwrite to True to update it."%(fileout_full))
             return
                               
     response = io.download_single_url(MARSHAL_BASEURL+source+'.cgi',  
@@ -367,11 +370,11 @@ def download_lightcurve(name, dirout="default",
     # returns it
     if dirout is not None:
         # Directory given, then dump data there:
-        if verbose: print("Data will be stored here: %s"%dirout)
+        if verbose: print("Data will be stored here: %s"%fileout_full)
         if not os.path.exists(dirout):
             os.makedirs(dirout)
 
-        dataframe.to_csv(dirout+fileout, index=False)
+        dataframe.to_csv(fileout_full, index=False)
     else:
         return_lc=True
     
@@ -416,7 +419,8 @@ def download_alerts(name, dirout="default",
     fileout = "marshal_alerts_%s.csv"%(name)
     if dirout in ["None"]: dirout = None
     if dirout in ["default"]: dirout = target_alerts_directory(name)
-    if os.path.isfile(dirout+fileout) and not overwrite:
+    fileout_full = os.path.join(dirout,fileout)
+    if os.path.isfile(fileout_full) and not overwrite:
         warnings.warn("The alert %s already exists. Set overwrite to True to update it."%(fileout))
         return
     
@@ -434,39 +438,37 @@ def download_alerts(name, dirout="default",
     # returns it
     if dirout is not None:
         # Directory given, then dump data there:
-        if verbose: print("Alerts will be stored here: %s"%dirout)
+        if verbose: print("Alerts will be stored here: %s"%fileout_full)
         if not os.path.exists(dirout):
             os.makedirs(dirout)
 
-        dataframe.to_csv(dirout+fileout, index=False)
+        dataframe.to_csv(fileout_full, index=False)
     else:
         return_it=True
     
     if return_it:
         return dataframe
 
-def download_program_target(program, getredshift=True, getclassification=True, auth=None):
+def query_program_target(program, getredshift=True, getclassification=True, auth=None):
     """ download target source information returns them as pandas.DataFrame
         
-        Parameters
-        ----------
-        program: [int]
-            Program Number
+    Parameters
+    ----------
+    program: [int]
+        Program Number
             
-        getredshift, getclassification: [bool, bool] -optional-
-            If redshift and/or classification have been made in the marshal, 
-            do you want them ?
+    getredshift, getclassification: [bool, bool] -optional-
+        If redshift and/or classification have been made in the marshal, 
+        do you want them ?
                     
-        auth: [str,str] -optional-
-            Marshal's [username, password]
-            CAUTION: if you are requesting program(s), make sure the `auth`
-                      matches that of your loaded program if already loaded. 
-                      Remark: If you did not load the user_program yet 
-                      (`self.load_user_programs()`),  they are authomatically matched.
-        Returns
-        -------
-        None (or pandas.DataFrame if setit=False, see above)
-
+    auth: [str,str] -optional-
+        Marshal's [username, password]
+        CAUTION: if you are requesting program(s), make sure the `auth`
+                 matches that of your loaded program if already loaded. 
+                 
+    Returns
+    -------
+    pandas.DataFrame
     """
     r = requests.post(MARSHAL_BASEURL+'list_program_sources.cgi', 
                        auth=io._load_id_("marshal", askit=True) if auth is None else auth, 
@@ -696,8 +698,8 @@ class MarshalAccess( object ):
         
         requested_program = self._program_to_programidx_(program, auth=auth)
         for i,program_ in enumerate(requested_program):
-            df_ = download_program_target(program_,
-                                          getredshift=getredshift,
+            df_ = query_program_target(program_,
+                                       getredshift=getredshift,
                                           getclassification=getclassification,
                                           auth=auth)
             
