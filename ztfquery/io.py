@@ -39,7 +39,7 @@ def _load_id_(which, askit=True):
         if not askit:
             raise AttributeError("No %s account setup. Add then in ~/.ztfquery or run ztfquery.io.set_account(%s)"%(which,which))
         else:
-            print("No %s account setup, please provide it"%which)
+            warnings.warn("No %s account setup, please provide it"%which)
             set_account(which)
             config = ConfigParser()
             config.read( _ENCRYPT_FILE )
@@ -389,7 +389,8 @@ def download_url(to_download_urls, download_location,
 
     if nprocess == 1:
         # Single processing
-        if verbose: print("No parallel downloading")
+        if verbose:
+            warnings.warn("No parallel downloading")
         for url, fileout in zip(to_download_urls, download_location):
             download_single_url(url,fileout=fileout, show_progress=show_progress,
                                     notebook=notebook, 
@@ -404,7 +405,7 @@ def download_url(to_download_urls, download_location,
             bar = None
                 
         if verbose:
-            print("parallel downloading ; asking for %d processes"%nprocess)
+            warnings.warn("parallel downloading ; asking for %d processes"%nprocess)
 
         # Passing arguments
         overwrite_ = [overwrite]*len(to_download_urls)
@@ -432,11 +433,11 @@ def download_single_url(url, fileout=None,
     """
     if fileout is not None and not overwrite and os.path.isfile( fileout ):
         if verbose:
-            print("%s already exists: skipped"%fileout)
+            warnings.warn("%s already exists: skipped"%fileout)
         return
     else:
         if verbose and fileout:
-            print("downloading %s to %s"%(url,fileout))
+            warnings.warn("downloading %s to %s"%(url,fileout))
 
     # = Password and Username
     if cookies is None:
