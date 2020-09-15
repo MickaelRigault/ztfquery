@@ -46,6 +46,7 @@ MARSHAL_BASEURL = "http://skipper.caltech.edu:8080/cgi-bin/growth/"
 MARSHAL_LC_DEFAULT_SOUCE = "plot_lc"
 from .io import LOCALSOURCE
 
+MARSHALSOURCE = os.path.join(LOCALSOURCE,"marshal")
 
 def _account_id_declined_(username, password):
     """ This returns True if the login information has been rejected"""
@@ -68,8 +69,42 @@ def get_target_data(name):
     m = MarshalAccess()
     m.load_target_sources()
     return m.get_target_data(name)
-    
 
+
+def get_target_lightcurve(name, download=True, update=False, **kwargs):
+    """ Get the target lightcurve from the marshal. 
+    
+    Parameters
+    ----------
+    name: [string]
+        Target name
+
+    download: [bool] -optional-
+        Should the lightcurve be downloaded if necessary ?
+
+    update: [bool] -optional-
+        Force the re-download of the lightcurves.
+
+    Returns
+    -------
+    DataFrame
+    """
+    if update:
+        download_lightcurve(name, overwrite=True, **kwargs)
+    
+    lc = get_local_lightcurves(name)
+    if lc is None:
+        if update:
+            warnings.warn("Download did not seem successful. Cannot retreive the lightcurve")
+            return None
+        elif not download:
+            warnings.warn(f"No local lightcurve for {name}. download it or set download to true")
+            return None
+        
+        return get_lightcurve(name, update=True, **kwargs)
+    else:
+        return lc
+    
 # -------------- #
 #  PLOT LC       #
 # -------------- #
@@ -170,20 +205,34 @@ def plot_lightcurve(lc_dataframe, savefile=None, ax=None, title=None, show_legen
 # - What at ?
 def target_spectra_directory(name):
     """ where Marshal spectra are stored """
-    return LOCALSOURCE+"marshal/spectra/%s/"%name
+    return os.path.join(MARSHALSOURCE,"spectra",name)
 
 def target_lightcurves_directory(name):
     """ where Marshal lightcurves are stored """
-    return LOCALSOURCE+"marshal/lightcurves/%s/"%name
+    return os.path.join(MARSHALSOURCE,"lightcurves",name)
 
 def target_alerts_directory(name):
     """ where Marshal lightcurves are stored """
-    return LOCALSOURCE+"marshal/alerts/%s/"%name
+    return os.path.join(MARSHALSOURCE,"alerts",name)
 
 def program_datasource_filepath(program):
-    """ Where target sources are stored in your local files """
-    basename = "" if program in [None,"all", "*"] else "%s_"%program
-    return LOCALSOURCE+"marshal/"+basename+"target_sources.csv"
+    """ Where target sources are stored in your local files 
+    Parameters
+    ----------
+    program: [string/None list of]
+        Program you want to load.
+        Formats are:
+        - */None/All: all are loaded
+        - keyword: programs with the given keyword in the name are loaded, e.g. 'Cosmo'
+        - list of keywords: program with any of the keyword are loaded, e.g. ['Cosmo','Infant']
+
+    Returns
+    -------
+    list of filenames
+    """
+    return {l.split("_")[0]:os.path.join(MARSHALSOURCE,l) for l in os.listdir(MARSHALSOURCE) if l.endswith("target_sources.csv") and 
+            (program in ["*", None,"all", "All"] or np.any([program_ in l for program_ in np.atleast_1d(program)]))}
+
 
 # - Get the FullPathes
 def get_local_spectra(name, only_sedm=False, pysedm=True):
@@ -206,7 +255,7 @@ def get_local_spectra(name, only_sedm=False, pysedm=True):
     dict  # format: {filename:{data list}, ...}
     """
     dir_ = target_spectra_directory(name)
-    all_files = {d:open(dir_+"%s"%d).read().splitlines() for d in os.listdir( dir_ )
+    all_files = {d: open( os.path.join(dir_,d) ).read().splitlines() for d in os.listdir( dir_ )
                     if (only_sedm and "P60" in d) or not only_sedm}
     if not only_sedm or not pysedm:
         return all_files
@@ -218,7 +267,11 @@ def get_local_lightcurves(name, only_marshal=True, source=MARSHAL_LC_DEFAULT_SOU
     Remark: These lightcurves have to be stored in the native `$ZTFDATA`/marshal/lightcurves/`name`
     """
     dir_ = target_lightcurves_directory(name)
-    dataout = {d: pandas.read_csv(dir_+d) for d in os.listdir( dir_ )}
+    dataout = {d: pandas.read_csv(os.path.join(dir_,d)) for d in os.listdir(dir_)
+                   if os.path.isfile( os.path.join(dir_,d) )}
+    if len(dataout) == 0:
+        return None
+    
     if only_marshal:
         try:
             return dataout["marshal_%s_lightcurve_%s.csv"%(source,name)]
@@ -510,28 +563,46 @@ class MarshalAccess( object ):
         -------
         None
         """
-        fileout = program_datasource_filepath(self._loaded_program)
-        if not os.path.isfile( fileout ):
-            dirout  = "/".join(fileout.split("/")[:-1])
-            if not os.path.exists(dirout):
-                os.mkdir(dirout)
+        for program in self.get_loaded_programs():
+            fileout = program_datasource_filepath(program)[program]
+            if not os.path.isfile( fileout ):
+                dirout  = "/".join(fileout.split("/")[:-1])
+                if not os.path.exists(dirout):
+                    os.mkdir(dirout)
                 
-        self.target_sources.to_csv(fileout, index=False)
+            self.get_program_sources(program).to_csv(fileout, index=False)
 
     @classmethod
     def load_local(cls, program):
         """ """
         filepath = program_datasource_filepath(program)
-        return cls.load_datafile( filepath, program=program)
+        return cls.load_datafile( filepath )
 
     @classmethod
-    def load_datafile(cls, dataframefile, program="unknown"):
+    def load_datafile(cls, dataframefile, program=None):
         """ """
-        if not os.path.isfile(dataframefile):
-            raise IOError("%s does not exists (program requested %s)"%(dataframefile,program))
-
+        # - Dict formating
+        if not type(dataframefile) is dict:
+            dataframefile = np.atleast_1d(dataframefile)
+            if program is None:
+                programs = [l.split("/")[-1].split("_target_sources")[0] for l in dataframefile]
+            else:
+                programs = np.atleast_1d(program)
+            if len(programs) != len(dataframefile):
+                raise ValueError("the program and dataframefile don't have the same size.")
+            dataframefile = {k:v for k,v in zip(programs, dataframefile)}
+            
+        # - Let's go
+        programs = list(dataframefile.keys())
+        list_of_df = []
+        for p in programs:
+            file_ = dataframefile[p]
+            if not os.path.isfile(file_):
+                raise IOError(f"{file_} does not exists")
+            list_of_df.append(pandas.read_csv(file_))
+            
         this = cls()
-        this.set_target_sources( pandas.read_csv(dataframefile), program=program )
+        this.set_target_sources(list_of_df, program=programs)
         return this
         
     #
@@ -697,6 +768,7 @@ class MarshalAccess( object ):
         split_ = lambda x: [None, x] if not len(np.atleast_1d(x))==2 else x
         
         requested_program = self._program_to_programidx_(program, auth=auth)
+        df = {}
         for i,program_ in enumerate(requested_program):
             df_ = query_program_target(program_,
                                        getredshift=getredshift,
@@ -705,22 +777,19 @@ class MarshalAccess( object ):
             
             df_[["magband", "magval"]] = pandas.DataFrame(df_.mag.apply(split_).tolist(), index=df_.index)
             _ = df_.pop("mag")
+            if getclassification:
+                df_["classification"] = df_["classification"].astype("str")
 
             
-            df = df_ if i == 0 else df.merge(df_, how="outer")
+            df[program_] = df_
              
-        
-        if getclassification:
-            df["classification"] = df["classification"].astype("str")
-            
         if setit:
-            self.set_target_sources( df, program=program )
+            self.set_target_sources( df )
         if store:
             self.store()
             
         if not setit:
             return df
-    
     # 
     # SETTER
     #
@@ -728,8 +797,10 @@ class MarshalAccess( object ):
         """ Provide a Pandas.DataFrame containing the target source information 
             as obtained by `load_target_sources`
         """
-        
-        self.target_sources =  target_source_dataframe
+        if type(target_source_dataframe) is pandas.DataFrame:
+            target_source_dataframe = [target_source_dataframe]
+        program = np.atleast_1d(program)
+        self.target_sources = pandas.concat(target_source_dataframe, keys=program)
         self._loaded_program = program
         
     # 
@@ -749,7 +820,17 @@ class MarshalAccess( object ):
     def get_target_alerts(name):
         """ """
         return get_local_alerts(name)
+
+    def get_loaded_programs(self):
+        """ get the values of currently loaded programs in the self.target_sources """
+        return np.unique(self.target_sources.index.get_level_values(0))
     
+    def get_program_sources(self, program):
+        """ """
+        flagprogram = np.in1d(self.target_sources.index.get_level_values(0), program)
+        d_ = self.target_sources[flagprogram]
+        return d_.set_index(d_.index.droplevel(0))
+        
     def get_target_data(self, name, verbose=True):
         """ target_sources entry corresponding to the given name(s)
         
@@ -757,7 +838,7 @@ class MarshalAccess( object ):
         ----------
         name: [str or list of]
             one or several target name(s) from `target_sources`
-    
+        
         Returns
         -------
         DataFrame Row(s)
@@ -769,7 +850,7 @@ class MarshalAccess( object ):
             self.load_target_sources()
         return self.target_sources[self.target_sources["name"].isin(np.atleast_1d(name))]
     
-    def get_target_coordinates(self, name):
+    def get_target_coordinates(self, name, which="latest"):
         """ Target(s) coordinates ["ra", "dec"] in degree
         
         [simply  `self.get_target_data(name)[["ra","dec"]]` ]
@@ -783,9 +864,9 @@ class MarshalAccess( object ):
         -------
         Ra, Dec
         """
-        return self.get_target_data(name)[["ra","dec"]]
+        return self._get_target_key_(name, ["ra","dec"], which=which)
     
-    def get_target_redshift(self, name):
+    def get_target_redshift(self, name, which="latest"):
         """ Target(s) redshift as saved in the Marshal.
         # Caution, Redshift in the marshal might not be accurate. #
         
@@ -800,9 +881,9 @@ class MarshalAccess( object ):
         -------
         Redshift
         """
-        return self.get_target_data(name)["redshift"]
+        return self._get_target_key_(name, "redshift", which=which)
 
-    def get_target_classification(self, name):
+    def get_target_classification(self, name, which="latest"):
         """ 
         
         [simply  `self.get_target_data(name)[["classification"]]` ]
@@ -817,7 +898,25 @@ class MarshalAccess( object ):
         classification 
         // SN Ia, SN Ia 91bg-like, SN Ib, AGN, None, etc.
         """
-        return self.get_target_data(name)["classification"]
+        return self._get_target_key_(name,"classification", which=which)
+
+    def _get_target_key_(self, name, key, which="latest"):
+        """ """
+        d = self.get_target_data(name)
+        if len(d)==1:
+            return d[key]
+        
+        if which in ["*","all",None, "All"]:
+            return d[key]
+        
+        if which in ["latest"]:
+            return d.sort_values("lastmodified", ascending=False).iloc[[0]][key]
+        
+        if which in self.get_loaded_programs():
+            return d.iloc[np.argwhere(d.index.get_level_values(0)==which)[0]][key]
+        
+        raise ValueError("Cannot parse the given which ({which}). all, `a program` or 'latest' available")
+        
 
     def get_target_metadataquery(self, name, priorcreation=100, postlast=100, size=0.01):
         """ get a dict you can use as kwargs for ztfquery's load_metadata()
@@ -848,7 +947,7 @@ class MarshalAccess( object ):
         return self.get_metadataquery(ra,dec, tcreation-priorcreation,tlast+postlast,
                                           size=size)
 
-    def get_target_jdrange(self, name, format="jd"):
+    def get_target_jdrange(self, name, format="jd", which="latest"):
         """ get the target time range defined as [creation data, lastmodified]
         
         Parameters
@@ -867,7 +966,7 @@ class MarshalAccess( object ):
         Creation data, Last modified
         """
         from astropy.time import Time
-        creation, lastmod = self.get_target_data(name)[["creationdate","lastmodified"]].values[0]
+        creation, lastmod = self._get_target_key_(name,["creationdate","lastmodified"], which=which).values[0]
         tcreation  = Time(creation, format="iso")
         tlast      = Time(lastmod,  format="iso")
         if format in ["Time", "time"]:

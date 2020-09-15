@@ -235,9 +235,6 @@ def reference_path(paddedfield,
     
     return source+'ref/'+fieldprefix+'/field'+paddedfield+'/'+filtercode+'/ccd'+paddedccdid+'/q'+qid+'/ztf_'+paddedfield+'_'+filtercode+'_c'+paddedccdid+'_q'+qid+'_%s'%suffix
 
-
-
-
 # ============= #
 #   TOOLS       #
 # ============= #
