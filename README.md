@@ -365,9 +365,11 @@ _Since version='1.10.0'_
 
 You can download and manage logs using the skyvision module of ztfquery.
 
-<p align="left">
-  <video src="examples/logsurvey.mov" width="800" title="video/mp4">
-</p>
+![](examples/logsurvey.gif)
+
+![](examples/logsurvey.mov)
+
+![](examples/logsurvey.mp4)
 
 ***
 
