@@ -249,7 +249,72 @@ class CompletedLog( object ):
 
     # -------- #
     #  GETTER  #
-    # -------- # 
+    # -------- #
+    def get_when_field_observed(self, field, pid=None, fid=None, startdate=None, enddate=None):
+        """ Returns the data raws corresponding to the given filters
+    
+        Parameters
+        ----------
+        fields: [int or list of]
+        Field(s) id you want. If multiple field returns an 'or' selection applies.
+        
+        pid: [int or list of] -optional-
+        Selection only cases observed as part as the given program id.s
+        (0: engineering ; 1: MSIP ; 2:Parners ; 3:CalTech )
+        None means no selection.
+        
+        fid: [int or list of] -optional-
+        Selection only cases observed with the given filters
+        (1: ztf:g ; 2: ztf:r ; 3: ztf:i)
+        None means no selection.
+        
+        startdate, enddate: [string] -optional-
+        Select the time range to be considered. None means no limit.
+        
+        Returns
+        -------
+        DataFrame
+        """
+        return self.data[self.get_filter(field, pid=pid, fid=fid, startdate=startdate, enddate=enddate)]
+
+    def get_filter(self, field=None, pid=None, fid=None, startdate=None, enddate=None):
+        """  Parameters
+        ----------
+        fields: [int or list of]
+            Field(s) id you want. If multiple field returns an 'or' selection applies.
+        
+        pid: [int or list of] -optional-
+            Selection only cases observed as part as the given program id.s
+            (0: engineering ; 1: MSIP ; 2:Parners ; 3:CalTech )
+            None means no selection.
+        
+        fid: [int or list of] -optional-
+            Selection only cases observed with the given filters
+            (1: ztf:g ; 2: ztf:r ; 3: ztf:i)
+            None means no selection.
+        
+        startdate, enddate: [string] -optional-
+            Select the time range to be considered. None means no limit.
+        
+        Returns
+        -------
+        pandas.Serie of bool
+        """
+        fidflag = True if fid is None else self.data["fid"].isin(np.atleast_1d(fid))
+        pidflag = True if pid is None else self.data["pid"].isin(np.atleast_1d(pid))
+        fieldflag = True if field is None else self.data["field"].isin(np.atleast_1d(field))
+        # DateRange Selection
+        if startdate is None and enddate is None:
+            dateflag = True
+        elif startdate is None:
+            dateflag = self.data["date"]<=enddate
+        elif enddate is None:
+            dateflag = self.data["date"]>=startdate
+        else:
+            dateflag = self.data["date"].between(startdate,enddate)
+
+        return fidflag & pidflag & fieldflag & dateflag
+            
     def get_date(self, date, which="data"):
         """ """
         if which == "data":
