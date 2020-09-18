@@ -361,15 +361,52 @@ may1018.download_data("sciimg.fits", show_progress=False, mask=mask)
 
 # Getting ZTF Survey logs
 
-_Since version='1.10.0'_
+_Since version='1.10.0': You can download and manage logs using the skyvision module of ztfquery._
 
-You can download and manage logs using the skyvision module of ztfquery.
+
+
+First download the logs on your laptop by doing (in this example since the 1st of May 2018):
+```python
+from ztfquery import skyvision
+skyvision.download_timerange_completed_log("2018-05-01", nprocess=4)
+```
+A progress bar be prompted. it roughly takes ten to twenty seconds per year. You will only need to do that once.
+
+Then load the logs within the time range you are interested (in this second example between the 1st of fev. and the 15th of May 2020):
+```python
+logs = skyvision.CompletedLog.from_daterange("2020-02-01","2020-05-15")
+```
+The original logs are stored as `logs.logs`, but a cleaned version of that is accessible as `logs.data`. 
+
+You can now for instance get the logs.data corresponding to a given (set of) field(s), for instance the field #456:
+```python
+logs.get_when_field_observed(456)
+```
+
+|     | datetime                | date       |   exptime |   fid |   field |   pid | ra           | dec       |   totaltime |       obsjd |
+|----:|:------------------------|:-----------|----------:|------:|--------:|------:|:-------------|:----------|------------:|------------:|
+| 176 | 2020-02-01T04:18:41.870 | 2020-02-01 |        30 |     2 |     456 |     1 | +04:33:20.89 | +04:33:00 |      38.87  | 2.45888e+06 |
+| 106 | 2020-02-05T03:32:29.182 | 2020-02-05 |        30 |     2 |     456 |     1 | +04:33:20.89 | +04:33:00 |      38.793 | 2.45888e+06 |
+| 162 | 2020-02-07T04:12:57.286 | 2020-02-07 |        30 |     1 |     456 |     1 | +04:33:20.89 | +04:33:00 |      38.855 | 2.45889e+06 |
+...
+|  59 | 2020-03-05T03:22:17.415 | 2020-03-05 |        30 |     1 |     456 |     1 | +04:33:20.89 | +04:33:00 |      41.628 | 2.45891e+06 |
+| 137 | 2020-03-05T04:15:26.386 | 2020-03-05 |        30 |     2 |     456 |     1 | +04:33:20.89 | +04:33:00 |      39.146 | 2.45891e+06 |
+| 122 | 2020-03-09T04:25:58.799 | 2020-03-09 |        30 |     1 |     456 |     1 | +04:33:20.89 | +04:33:00 |      38.855 | 2.45892e+06 |
+
+
+You can also, for instance measure the fraction of time spent per program ID (0: engineering ; 1: MSIP ; 2:Parners ; 3:CalTech ), here in days in the loaded time range:
+```python
+from astropy import units
+logs.data.groupby("pid").sum()["exptime"]*units.s.to("day")
+0    0.029248
+1    6.260764
+2    6.796611
+3    3.000000
+```
+
+As a final example of things you can do, watch what ZTF did:
 
 ![](examples/logsurvey.gif)
-
-![](examples/logsurvey.mov)
-
-![](examples/logsurvey.mp4)
 
 ***
 
