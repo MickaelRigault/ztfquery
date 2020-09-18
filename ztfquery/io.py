@@ -37,9 +37,9 @@ def _load_id_(which, askit=True):
     config.read( _ENCRYPT_FILE )
     if which not in config.sections():
         if not askit:
-            raise AttributeError("No %s account setup. Add then in ~/.ztfquery or run ztfquery.io.set_account(%s)"%(which,which))
+            raise AttributeError(f"No {which} account setup. Add then in .ztfquery or run ztfquery.io.set_account({which})"%(which,which))
         else:
-            warnings.warn("No %s account setup, please provide it"%which)
+            warnings.warn(f"No {which} account setup, please provide it")
             set_account(which)
             config = ConfigParser()
             config.read( _ENCRYPT_FILE )

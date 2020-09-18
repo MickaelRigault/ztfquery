@@ -44,8 +44,8 @@ except ImportError:
 
 MARSHAL_BASEURL = "http://skipper.caltech.edu:8080/cgi-bin/growth/"
 MARSHAL_LC_DEFAULT_SOUCE = "plot_lc"
-from .io import LOCALSOURCE
 
+from .io import LOCALSOURCE
 MARSHALSOURCE = os.path.join(LOCALSOURCE,"marshal")
 
 def _account_id_declined_(username, password):
@@ -83,7 +83,7 @@ def get_target_lightcurve(name, download=True, update=False, **kwargs):
         Should the lightcurve be downloaded if necessary ?
 
     update: [bool] -optional-
-        Force the re-download of the lightcurves.
+        Force the re-download of the lightcurve.
 
     Returns
     -------
@@ -101,9 +101,44 @@ def get_target_lightcurve(name, download=True, update=False, **kwargs):
             warnings.warn(f"No local lightcurve for {name}. download it or set download to true")
             return None
         
-        return get_lightcurve(name, update=True, **kwargs)
+        return get_target_lightcurve(name, update=True, **kwargs)
     else:
         return lc
+
+
+def get_target_spectra(name, download=True, update=False, only_sedm=False, **kwargs):
+    """ Get target spectra from the marshal. 
+    
+    Parameters
+    ----------
+    name: [string]
+        Target name
+
+    download: [bool] -optional-
+        Should the spectra be downloaded if necessary ?
+
+    update: [bool] -optional-
+        Force the re-download of the spectra.
+
+    Returns
+    -------
+    DataFrame
+    """
+    if update:
+        download_spectra(name, overwrite=True, **kwargs)
+    
+    spec = get_local_spectra(name, only_sedm=only_sedm)
+    if spec is None:
+        if update:
+            warnings.warn("Download did not seem successful. Cannot retreive the spectra")
+            return None
+        elif not download:
+            warnings.warn(f"No local spectra for {name}. download it or set download to true")
+            return None
+        
+        return get_target_spectra(name, update=True, only_sedm=only_sedm, **kwargs)
+    else:
+        return spec
     
 # -------------- #
 #  PLOT LC       #
@@ -255,6 +290,10 @@ def get_local_spectra(name, only_sedm=False, pysedm=True):
     dict  # format: {filename:{data list}, ...}
     """
     dir_ = target_spectra_directory(name)
+    if not os.path.isdir(dir_):
+        warnings.warn(f"No spectra for {name}")
+        return 
+        
     all_files = {d: open( os.path.join(dir_,d) ).read().splitlines() for d in os.listdir( dir_ )
                     if (only_sedm and "P60" in d) or not only_sedm}
     if not only_sedm or not pysedm:
@@ -267,6 +306,10 @@ def get_local_lightcurves(name, only_marshal=True, source=MARSHAL_LC_DEFAULT_SOU
     Remark: These lightcurves have to be stored in the native `$ZTFDATA`/marshal/lightcurves/`name`
     """
     dir_ = target_lightcurves_directory(name)
+    if not os.path.isdir(dir_):
+        warnings.warn(f"No lightcurve for {name}")
+        return 
+
     dataout = {d: pandas.read_csv(os.path.join(dir_,d)) for d in os.listdir(dir_)
                    if os.path.isfile( os.path.join(dir_,d) )}
     if len(dataout) == 0:
@@ -573,7 +616,7 @@ class MarshalAccess( object ):
             self.get_program_sources(program).to_csv(fileout, index=False)
 
     @classmethod
-    def load_local(cls, program):
+    def load_local(cls, program=None):
         """ """
         filepath = program_datasource_filepath(program)
         return cls.load_datafile( filepath )
@@ -978,13 +1021,14 @@ class MarshalAccess( object ):
         """ """
         return dict(radec=[ra,dec], size=size,
                     sql_query="obsjd BETWEEN %d and %d"%(jdmin, jdmax))
+    
     # -------------- #
     #  Internal      #
     # -------------- #
     def _program_to_programidx_(self, program, **kwargs):
         """ Returns the programidx corresponding to your program """
         
-        if program is None or program in ['*','all']:
+        if program is None or ( type(program) is str and program in ['*','all'] ) :
             programidx = "*"
         else:
             if not hasattr(self, "program_data"):

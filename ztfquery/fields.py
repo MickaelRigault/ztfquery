@@ -6,6 +6,7 @@ import os
 import numpy as np
 from pandas import read_csv
 from astropy import units
+import matplotlib.pyplot as mpl
 from matplotlib.patches import Polygon
 
 _FIELD_SOURCE = os.path.dirname(os.path.realpath(__file__))+"/data/ztf_fields.txt"
@@ -18,8 +19,8 @@ CCD_EDGES_DEG = np.asarray([[ _ccd_xmin, _ccd_ymin], [ _ccd_xmin, _ccd_ymax],
                             [_ccd_xmax, _ccd_ymax], [_ccd_xmax, _ccd_ymin]])
 
 
-FIELDS_COLOR = {1: "Greens", 2: "Reds", 3:"Oranges"}
-FIELDS_SINGLE_COLOR = {"zg": "C2", "zr":"C3", "zi":"C1"}
+FIELD_COLOR = {1: "C2", 2: "C3", 3:"C1"}
+FIELDNAME_COLOR = {"zg": "C2", "zr":"C3", "zi":"C1"}
 
 
 ##############################
@@ -61,7 +62,7 @@ def show_reference_map(band, **kwargs):
     """ Display the 'field plot' in which field with image reference in the given band are colored. """
     title   = "Fields with reference in the %s-band"%band[1]
     field_i = get_fields_with_band_reference(band)
-    return show_fields(field_i, facecolor=FIELDS_SINGLE_COLOR[band], alpha=0.3, title=title, **kwargs)
+    return show_fields(field_i, facecolor=FIELDNAME_COLOR[band], alpha=0.3, title=title, **kwargs)
     
 ##############################
 #                            #
@@ -71,7 +72,6 @@ def show_reference_map(band, **kwargs):
 def fields_in_main(field):
     """ """
     return np.asarray(np.atleast_1d(field), dtype="int")<880
-
 
 def field_to_coords(fieldid, system="radec"):
     """ Returns the central coordinate [RA,Dec] or  of the given field 
@@ -223,11 +223,8 @@ def show_fields(field_val,ax=None, savefile=None,
     if savefile is not None:
         fig.savefig(savefile, dpi=150)
         
-        
-
     return {"ax":ax,"fig":fig}
                 
-
     
 def show_ZTF_fields(ax, maingrid=True, lower_dec=-30, alpha=0.1, facecolor="0.8", edgecolor="0.8", **kwargs):
     """ """
@@ -236,18 +233,23 @@ def show_ZTF_fields(ax, maingrid=True, lower_dec=-30, alpha=0.1, facecolor="0.8"
     else:
         allfields = FIELD_DATAFRAME[FIELD_DATAFRAME["ID"]>999]['ID'].values
         
-    display_field(ax, allfields, lower_dec=lower_dec, alpha=alpha,
+    return display_field(ax, allfields, lower_dec=lower_dec, alpha=alpha,
                       facecolor=facecolor, edgecolor=edgecolor, **kwargs)
     
 def display_field(ax, fieldid, origin=180, facecolor="0.8", lower_dec=None, edgecolor=None, **kwargs):
     """ """
-    
-    for ra,dec in field_to_coords( np.asarray(np.atleast_1d(fieldid), dtype="int")   ):
+    p = {}
+#    for ra,dec in field_to_coords( np.asarray(np.atleast_1d(fieldid), dtype="int")   ):
+    for i,f_ in enumerate(fieldid):
+        ra, dec = np.asarray(field_to_coords(f_), dtype="int")[0]
         if lower_dec is not None and dec<lower_dec:
             continue
-        ax.add_patch(Polygon( get_camera_corner(ra,dec, inrad=True, origin=origin, east_left=True),
+        p_ = ax.add_patch(Polygon( get_camera_corner(ra,dec, inrad=True, origin=origin, east_left=True),
                                 facecolor=facecolor,edgecolor=edgecolor, **kwargs))
+        p[f_] = p_
         
+    return p
+
 def get_field_vertices(fieldid, origin=180, indeg=True):
     """ """
     coef = 1 if not indeg else 180/np.pi
@@ -364,3 +366,123 @@ class ZTFFields():
 
 
 
+class FieldAnimation():
+    
+    def __init__(self, fields, dates=None, facecolors=None, alphas=None, edgecolors=None):
+        """ """
+        self.set_fields(fields)
+        self.set_dates(dates)
+        self.set_properties(facecolors=facecolors, alphas=alphas, edgecolors=edgecolors)
+        self.load_ax()
+    # ================= #
+    #   Methods         #
+    # ================= #
+    
+    # ---------- #
+    #  SETUP     #
+    # ---------- #
+    def load_ax(self, dpi=100, iref=0):
+        """ """
+        self.fig = mpl.figure(figsize=(8,5))
+        self.ax = self.fig.add_axes([0.1,0.1,0.9,0.9], projection="hammer")
+        self.fig.set_dpi(dpi)
+
+        # Build the first
+        self.poly_ = Polygon(self.field_vertices[self.fields[0]],
+                        facecolor=self.display_prop["facecolor"][0],
+                        edgecolor=self.display_prop["edgecolor"][0],
+                        alpha=self.display_prop["alpha"][0])
+        if self._dates is not None:
+            self.text_ = self.fig.text(0.01,0.99, self._dates[0],
+                                           va="top", ha="left", weight="bold")
+            
+        p_ = self.ax.add_patch(self.poly_)
+        
+    def set_dates(self, dates):
+        """ """
+        self._dates = np.atleast_1d(dates) if dates is not None else None
+
+    def set_fields(self, fields):
+        """ """
+        self._fields = fields
+        self._unique_fields = np.unique(self._fields)
+        self._field_vertices = fv = {k:v for k,v in zip(np.unique(self._unique_fields),
+                                                        get_field_vertices(self._unique_fields, indeg=False))}
+        
+    def set_properties(self, facecolors=None, edgecolors=None, alphas=None):
+        """ """
+        self._display_prop = {}
+        self._set_prop_("facecolor", facecolors, "0.7")
+        self._set_prop_("edgecolor", edgecolors, "None")
+        self._set_prop_("alpha", alphas, 1)
+
+    def _set_prop_(self, key, value, default=None):
+        """ """
+        if not hasattr(self,"_display_prop"):
+            self._display_prop = {}
+            
+        if value is None:
+            value = default
+            
+        if len(np.atleast_1d(value)) == 1:
+            self.display_prop[key] = np.atleast_1d(value)
+            self.display_prop[f"unique_{key}"] = True
+        else:
+            self.display_prop[key] = value
+            self.display_prop[f"unique_{key}"] = False
+        
+
+    # ---------- #
+    #  Animate   #
+    # ---------- #
+    def init(self):
+        """ """
+        return self.poly_
+    
+    def update_field_to(self, i):
+        """ """
+        try:
+            self.poly_.set_xy(self.field_vertices[ self.fields[i] ])
+            if self.dates is not None and len(self.dates)>1:
+                self.text_.set_text(self.dates[i])
+        except:
+            print(f"FAILES for i={i}")
+            
+        for key in ["facecolor","edgecolor","alpha"]:
+            if not self.display_prop[f"unique_{key}"]:
+                getattr(self.poly_,f"set_{key}")(self.display_prop[key][i])
+        return self.poly_
+
+    def launch(self, interval=5, repeat=False, blit=True, savefile=None):
+        """ """
+        from matplotlib import animation
+        self.anim = animation.FuncAnimation(self.fig, self.update_field_to,
+                                                init_func=self.init,
+                               frames=self.nfields, interval=interval, repeat=repeat, blit=blit)
+        
+    # ================= #
+    #   Properties      #
+    # ================= #
+    @property
+    def fields(self):
+        """ Fields that should be shown """
+        return self._fields
+
+    @property
+    def dates(self):
+        """ Observation dates if any """
+        return self._dates
+    @property
+    def nfields(self):
+        """ size of self.fields """
+        return len(self.fields)
+
+    @property
+    def field_vertices(self):
+        """ vertices of the fields """
+        return self._field_vertices
+
+    @property
+    def display_prop(self):
+        """ """
+        return self._display_prop
