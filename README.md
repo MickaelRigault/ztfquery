@@ -59,6 +59,7 @@ You can also directly provide account settings when running `load_metadata` and 
 You should also create the global variable `$ZTFDATA` (usually in your `~/.bash_profile` or `~/.cshrc`). Data you will download from IRSA will be saved in the directory indicated by `$ZTFDATA` following the IRSA data structure.
 
 
+***
 
 # Getting ZTF Data from IRSA | Examples
 
@@ -208,8 +209,6 @@ By default `overwrite` is `False`, which means that the code checks if you alrea
 ```python
 zquery.download_data("psfcat.fits", indexes=[4,6,12,40])
 ```
-
-
 
 _What is happening inside `download_data()`?_
 
@@ -484,6 +483,39 @@ marshal.plot_lightcurve(lc_dict["marshal_lightcurve_ZTF18abcdef.csv"])
 ```
 
 ![](examples/figures/lc_examples.png)
+
+*** 
+
+# Getting SEDM data
+
+_available starting version 1.4_
+
+`ztfquery` is able to download SEDM data from pharos. For this you need to have pharos account (http://pharos.caltech.edu/). If you do not have an account yet, send an email to Richard Walters (rsw@astro.caltech.edu) to create one.
+
+For example, if you want to download the cube(s) assocated to "ZTF18abqlpgq", simply do:
+```python
+from ztfquery import sedm
+squery = sedm.SEDMQuery()
+squery.download_target_data("ZTF18abqlpgq")
+```
+The data will be stored under `$ZTFDATA+/SEDM/` and each file is under their corresponding observation date (`$ZTFDATA+/SEDM/YYYYMMDD`).
+
+You can then get the full path of the data on your computer.
+```python
+squery.get_local_data("ZTF18abqlpgq")
+```
+
+When `downloading_target_data` or `get_local_data` you can specify which data you want using the `which` argument. (`which='cube'` by default)?
+
+For instance if you want the sedm spectra in 'txt' format (as in the marshal):
+```python
+from ztfquery import sedm
+squery = sedm.SEDMQuery()
+squery.download_target_data("ZTF18abqlpgq", which='spec', extension='txt')
+spec_fullpath = squery.get_local_data("ZTF18abqlpgq", which='spec', extension='txt')
+```
+
+
 *** 
 
 # Getting IRSA LightCurves
@@ -519,36 +551,6 @@ from ztfquery import lightcurve
 lcq = lightcurve.LCQuery.download_data(circle=[298.0025,29.87147,0.0014], bandname="g")
 ```
 
-*** 
-
-# Getting SEDM data
-
-_available starting version 1.4_
-
-`ztfquery` is able to download SEDM data from pharos. For this you need to have pharos account (http://pharos.caltech.edu/). If you do not have an account yet, send an email to Richard Walters (rsw@astro.caltech.edu) to create one.
-
-For example, if you want to download the cube(s) assocated to "ZTF18abqlpgq", simply do:
-```python
-from ztfquery import sedm
-squery = sedm.SEDMQuery()
-squery.download_target_data("ZTF18abqlpgq")
-```
-The data will be stored under `$ZTFDATA+/SEDM/` and each file is under their corresponding observation date (`$ZTFDATA+/SEDM/YYYYMMDD`).
-
-You can then get the full path of the data on your computer.
-```python
-squery.get_local_data("ZTF18abqlpgq")
-```
-
-When `downloading_target_data` or `get_local_data` you can specify which data you want using the `which` argument. (`which='cube'` by default)?
-
-For instance if you want the sedm spectra in 'txt' format (as in the marshal):
-```python
-from ztfquery import sedm
-squery = sedm.SEDMQuery()
-squery.download_target_data("ZTF18abqlpgq", which='spec', extension='txt')
-spec_fullpath = squery.get_local_data("ZTF18abqlpgq", which='spec', extension='txt')
-```
 
 ### Reading cube and spectra
 
