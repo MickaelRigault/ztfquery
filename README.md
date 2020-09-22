@@ -153,7 +153,11 @@ zquery.load_metadata(kind="ref",radec=[276.107960, +44.130398], size=0.0001,  sq
 or, instead of `sql_query="fid=1"`, you could use `sql_query="filtercode='zg'"` but be careful with the quotes around _zg_
 
 You can then simply download the refence image by doing `zquery.download_data()` as detailed below.
+
 ## Single Day summary
+
+**deprecated starting version 1.10.0. Use CompletedLogs instead**
+
 You want to see what ZTF has observed during a given night (say 10th of May 2018, i.e. 20180510):
 ```python
 from ztfquery import query
@@ -178,12 +182,16 @@ Remark that particular night, no I band filter observation were made.
 
 #### Password protection of NightSummary. 
 
+**deprecated starting version 1.10.0. Use CompletedLogs instead**
+
 The first time you will use NightSummary, it will ask for the username and password of ztfops webpage. **These are not your irsa account settings**. 
 
 username and password to ztfops webpage can be found in ZTF's twiki page (ZTFOps)
 
 
 #### Downloading Data from NightSummary object
+
+**deprecated starting version 1.10.0. Use CompletedLogs instead**
 
 As of v0.6, you can directly download ztf data. For details, see *Downloading the Data* section below.
 
