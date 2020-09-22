@@ -184,25 +184,25 @@ def download_completed_log(date, auth=None, store=True, returns=True, set_column
     if returns:
         return df
 
-
 def completed_log_filepath(date):
     """ local filepath of the completed_log for the given date """
     return os.path.join(SKYVISIONSOURCE, f"{date}_completed_log.csv")
-    
-    
-
 
 class CompletedLog( object ):
     """ """
-    def __init__(self, dates):
+    def __init__(self, dates, download=True, update=False, **kwargs):
         """ """
         if dates is not None:
-            self.set_logs( get_completed_log(np.atleast_1d(dates)) )
+            self.set_logs( get_completed_log(np.atleast_1d(dates), download=True, update=False, **kwargs) )
                     
     @classmethod
-    def from_daterange(cls, start="2017-03-01", end=None, load_data=True, load_obsjd=True):
+    def from_daterange(cls, start="2018-03-01", end=None, load_data=True, load_obsjd=True,
+                           download=True, update=False, **kwargs):
         """ """
-        this = cls( get_daterange(start=start, end=end) )
+        if start is None:
+            start = "2018-03-01"
+            
+        this = cls( get_daterange(start=start, end=end), download=download, update=update, **kwargs)
         if load_data:
             this.load_data(load_obsjd=load_obsjd)
         return this

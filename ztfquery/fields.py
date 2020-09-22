@@ -2,8 +2,9 @@
 #
 
 """ Library containing field information """
-import os
+import os, sys
 import numpy as np
+import warnings
 from pandas import read_csv
 from astropy import units
 import matplotlib.pyplot as mpl
@@ -11,6 +12,7 @@ from matplotlib.patches import Polygon
 
 _FIELD_SOURCE = os.path.dirname(os.path.realpath(__file__))+"/data/ztf_fields.txt"
 FIELD_DATAFRAME = read_csv(_FIELD_SOURCE)
+FIELDSNAMES = FIELD_DATAFRAME["ID"].values
 
 _CCD_COORDS  = read_csv(os.path.dirname(os.path.realpath(__file__))+"/data/ztf_ccd_layout.tbl") # corner of each CCDS
 _ccd_xmin, _ccd_xmax = np.percentile(_CCD_COORDS["EW"], [0,100])
@@ -20,7 +22,166 @@ CCD_EDGES_DEG = np.asarray([[ _ccd_xmin, _ccd_ymin], [ _ccd_xmin, _ccd_ymax],
 
 
 FIELD_COLOR = {1: "C2", 2: "C3", 3:"C1"}
+FIELD_CMAP = {1: mpl.cm.Greens, 2:mpl.cm.Reds, 3:mpl.cm.Oranges}
 FIELDNAME_COLOR = {"zg": "C2", "zr":"C3", "zi":"C1"}
+
+_PLOTORIGIN = 180
+
+def _load_fields_geoserie_():
+    """ Loads the FIELDS_GEOSERIE global variable """
+    global FIELDS_GEOSERIE
+    try:
+        from geopandas import geoseries
+    except ImportError:
+        warnings.warn("You do not have geopandas, Please run pip install geopandas.")
+        FIELDS_GEOSERIE = None
+        return
+    
+    field_verts = get_field_vertices(fieldid=FIELDSNAMES, asdict=True, aspolygon=True)
+    FIELDS_GEOSERIE = geoseries.GeoSeries(field_verts)
+
+def get_fields_geoserie():
+    """ returns the global variable FIELDS_GEOSERIE, creates it if necessary """
+    if not hasattr(sys.modules[__name__], 'FIELDS_GEOSERIE'):
+        _load_fields_geoserie_()
+        
+    return FIELDS_GEOSERIE
+
+# ------------------ #
+#                    #
+# Generic Tools      #
+#                    #
+# ------------------ #
+def get_fields_containing_target(ra, dec):
+    """ return the list of fields into which the position ra, dec is. 
+    Remark that this is based on predefined field positions. Hence, small attrition could affect this.
+
+    Parameters
+    ----------
+    ra,dec: [float,float]
+       coordinates in degree. 
+       
+    Returns
+    -------
+    list (all the field ID that contain the given ra,dec coordinates)
+    """
+    try:
+        from shapely import geometry
+    except ImportError:
+        raise ImportError("You need shapely to use this function. pip install shapely")
+
+    coordpoint = geometry.Point(ra, dec)
+    
+    fields_geoserie = get_fields_geoserie()
+    if fields_geoserie is None:
+        warnings.warn("get_fields_containing_target would be much faster if you install geopandas (pip install geopandas)")
+        return [f for f in FIELDSNAMES if geometry.Polygon( get_field_vertices(f)[0]).contains(coordpoint)]
+    
+    return FIELDS_GEOSERIE.index[ FIELDS_GEOSERIE.contains(coordpoint) ]
+
+def get_field_vertices(fieldid=None, asdict=False, aspolygon=False):
+    """ Get the fields countours 
+    
+    Parameters
+    ----------
+    fieldid: [string or list of] -optional-
+        Field (or list of) names as int. 
+        If None, all the fields will be used.
+
+    // output format
+
+    asdict: [bool] -optional-
+        Do you want to result as a list (asdict=False) following the input's fieldid sorting
+        or do you want a dict ({fieldid_: verts_ ... })
+
+    aspolygon: [bool] -optional-
+        Do you want the vertices as 2d-array (aspolygon=False) or as shapely Geometries (True)
+
+    Returns
+    -------
+    list of dict (see asdict)
+    """
+    if fieldid is None:
+        fieldid = FIELDSNAMES
+
+    # - Actual calculation
+    field_center     = get_field_centroid( np.asarray(np.atleast_1d(fieldid), dtype="int") ) 
+    fields_countours = np.swapaxes(get_camera_corners(field_center.T[0][:,None],field_center.T[1][:,None], inrad=False), 0, 1)
+
+    # - Output format
+    if aspolygon:
+        try:
+            from shapely import geometry
+            fields_countours = [geometry.Polygon(f_) for f_ in fields_countours]
+        except ImportError:
+            warnings.warn("You do not have shapely, Please run pip install shapely. 'aspolygon' set to False")
+            
+    if not asdict:
+        return fields_countours
+    
+    return {i:k for i,k in zip(fieldid,fields_countours)}
+
+def get_field_centroid(fieldid, system="radec"):
+    """ Returns the central coordinate [RA,Dec] or  of the given field 
+
+    Parameters
+    ----------
+    fieldid: [int]
+        single field ID
+
+    system: [string] -optional-
+        which coordinate system ?
+        radec / galactic / ecliptic (default radec)
+
+    Returns
+    -------
+    [[x_i, y_i],[]]... (depending on your coordinate system)
+    Remark if only 1 fieldid given, you have [[x,y]] (not [x,y])
+    """
+    if system in ["radec", "RADec","RA,Dec", "ra,dec"]:
+        syst = ["RA", "Dec"]
+    elif system.lower() in ["gal","galactic"]:
+        syst = ["Gal Long","Gal Lat"]
+    elif system.lower() in ["ecl","ecliptic"]:
+        syst = ["Ecl Long","Ecl Lat"]
+    else:
+        raise ValueError("unknown coordinate system %s select among: [radec / galactic / ecliptic]"%system)
+    fieldid = np.atleast_1d(fieldid)
+    radec = np.asarray(FIELD_DATAFRAME[np.in1d(FIELD_DATAFRAME['ID'], fieldid)][syst].values)
+    
+    return radec
+
+def get_camera_corners(ra_field, dec_field, steps=5, inrad=False):
+    """ """
+    from .utils.tools import rot_xz_sph, _DEG2RA
+    # Top (left to right)
+    dec1 = np.ones(steps) * _ccd_ymax
+    ra1 = np.linspace(_ccd_xmin, _ccd_xmax, steps) / np.cos(_ccd_ymax*_DEG2RA)
+        
+    # Right (top to bottom)
+    dec2 = np.linspace(_ccd_ymax, _ccd_ymin, steps)
+    ra2 = _ccd_ymax/np.cos(dec2*_DEG2RA)
+
+    # Bottom (right to left)
+    dec3 = np.ones(steps) * (_ccd_ymin)
+    ra3 = np.linspace(_ccd_xmax,_ccd_xmin, steps) / np.cos(_ccd_ymax*_DEG2RA)
+        
+    # Left (bottom to top)
+    dec4 = np.linspace(_ccd_ymin,_ccd_ymax, steps)
+    ra4 = _ccd_ymin/np.cos(dec4*_DEG2RA)
+    #
+    # 
+    ra_bd = np.concatenate((ra1, ra2, ra3, ra4  ))  
+    dec_bd = np.concatenate((dec1, dec2, dec3,dec4 )) 
+
+    ra, dec = rot_xz_sph(ra_bd, dec_bd, dec_field)
+    ra += ra_field
+        
+    if inrad:
+        ra *= _DEG2RA
+        dec *= _DEG2RA
+                    
+    return np.asarray([ra,dec]).T
 
 
 ##############################
@@ -28,7 +189,6 @@ FIELDNAME_COLOR = {"zg": "C2", "zr":"C3", "zi":"C1"}
 #  Fields and References     #
 #                            #
 ##############################
-
 def has_field_reference(fieldid, ccdid=1, qid=1, **kwargs):
     """ get the following dictionary {zg:bool, zr:bool, zi:bool}
     where bool is True if the field has a reference image and false otherwise
@@ -69,225 +229,168 @@ def show_reference_map(band, **kwargs):
 #  Generic Tools             #
 #                            #
 ##############################
-def fields_in_main(field):
-    """ """
-    return np.asarray(np.atleast_1d(field), dtype="int")<880
-
-def field_to_coords(fieldid, system="radec"):
-    """ Returns the central coordinate [RA,Dec] or  of the given field 
-
-    Parameters
-    ----------
-    fieldid: [int]
-        single field ID
-
-    system: [string] -optional-
-        which coordinate system ?
-        radec / galactic / ecliptic (default radec)
-
-    Returns
-    -------
-    [[x_i, y_i],[]]... (depending on your coordinate system)
-    Remark if only 1 fieldid given, you have [[x,y]] (not [x,y])
-    """
-    if system in ["radec", "RADec","RA,Dec", "ra,dec"]:
-        syst = ["RA", "Dec"]
-    elif system.lower() in ["gal","galactic"]:
-        syst = ["Gal Long","Gal Lat"]
-    elif system.lower() in ["ecl","ecliptic"]:
-        syst = ["Ecl Long","Ecl Lat"]
-    else:
-        raise ValueError("unknown coordinate system %s select among: [radec / galactic / ecliptic]"%system)
-    fieldid = np.atleast_1d(fieldid)
-    radec = np.asarray(FIELD_DATAFRAME[np.in1d(FIELD_DATAFRAME['ID'], fieldid)][syst].values)
-    
-    return radec
-
-
-def get_camera_corner(ra_field, dec_field, steps=5,
-                inrad=True, origin=0, east_left=False):
-        """ """
-        from .utils.tools import rot_xz_sph, _DEG2RA
-        # Top (left to right)
-        dec1 = np.ones(steps) * _ccd_ymax
-        ra1 = np.linspace(_ccd_xmin, _ccd_xmax, steps) / np.cos(_ccd_ymax*_DEG2RA)
-        
-        # Right (top to bottom)
-        dec2 = np.linspace(_ccd_ymax, _ccd_ymin, steps)
-        ra2 = _ccd_ymax/np.cos(dec2*_DEG2RA)
-
-        # Bottom (right to left)
-        dec3 = np.ones(steps) * (_ccd_ymin)
-        ra3 = np.linspace(_ccd_xmax,_ccd_xmin, steps) / np.cos(_ccd_ymax*_DEG2RA)
-        
-        # Left (bottom to top)
-        dec4 = np.linspace(_ccd_ymin,_ccd_ymax, steps)
-        ra4 = _ccd_ymin/np.cos(dec4*_DEG2RA)
-        #
-        # 
-        ra_bd = np.concatenate((ra1, ra2, ra3, ra4  ))  
-        dec_bd = np.concatenate((dec1, dec2, dec3,dec4 )) 
-
-        ra, dec = rot_xz_sph(ra_bd, dec_bd, dec_field)
-        ra += ra_field
-
-        
-        ra -= origin # assumes center = 180
-
-        if inrad:
-            ra *= _DEG2RA
-            dec *= _DEG2RA
-        
-        if east_left:
-            ra = -ra
-            
-        return np.asarray([ra,dec]).T
 
 # ===================== #
 #                       #
 #    SHOW FIELD         #
 #                       #
 # ===================== #
-def show_fields(field_val,ax=None, savefile=None,
+def show_fields(fields, vmin=None, vmax=None,
+                ax=None, cmap="viridis", 
+                colorbar=True, cax=None, clabel=" ",
                 show_ztf_fields=True, title=None,
-                colorbar=True, cax=None, clabel=" ", 
-                cmap="viridis",origin=180,
-                facecolor=None, 
-                vmin=None, vmax=None,  **kwargs):
+                savefile=None,
+                **kwargs):
     """ 
     Parameters
     ----------
     colored_by: 
     """
-    import warnings
-    import matplotlib.pyplot as mpl
-    
-    if origin != 180:
-        warnings.warn("Only the origin 180 has been implemented. boundaries issue arises otherwise. origin set to 180")
-        origin = 180
-            
-    tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
-    tick_labels = np.remainder(tick_labels+360+origin,360)
-
-    # - Axes definition
-    if ax is None:
-        fig = mpl.figure(figsize=(8,5))
-        ax = fig.add_subplot(111, projection="hammer")
-    else:
-        fig = ax.figure
-
-    ax.set_xticklabels(tick_labels)     # we add the scale on the x axis
+    fplot = FieldPlotter(ax=ax)
     # - Plotting
     if show_ztf_fields:
-        show_ZTF_fields(ax)
+        fplot.show_ztf_grid()
 
     # Removing the NaNs
-    if type(field_val)==dict:
-        
-        field_val = {f:v for f,v in field_val.items() if not np.isnan(v)}
-        values = list(field_val.values())
-        if len(values)==0 or not np.any(values):
-            if cax is not None:
-                cax.set_visible(False)
-            return
-        
-        if vmin is None: vmin = "0"
-        if type(vmin) == str: vmin=np.percentile(values, float(vmin))
-        if vmax is None: vmax = "100"
-        if type(vmax) == str: vmax=np.percentile(values, float(vmax))
-        if type(cmap) == str: cmap = mpl.get_cmap(cmap)
-        for f,v in field_val.items():
-            display_field(ax, f,
-                    facecolor=cmap((v-vmin)/(vmax-vmin)) if vmax-vmin !=0 else cmap(0),origin=origin, 
-                    **kwargs)
-
-        if colorbar:
-            if vmax-vmin !=0:
-                from .utils.tools import insert_ax, colorbar
-                if cax is None: cax = insert_ax(ax, "bottom",
-                                            shrunk=0.93, space=-0.0, axspace=0.02)
-                colorbar(cax, cmap, vmin=vmin, vmax=vmax, label=clabel)
-            elif cax is not None:
-                cax.set_visible(False)
-    else:
-        field_val = np.atleast_1d(field_val)
-        for f in field_val:
-            display_field(ax, f,
-                        facecolor=facecolor,origin=origin, 
-                    **kwargs)
-
+    fplot.show_fields(fields,
+                        colorbar=colorbar,
+                        cax=cax, clabel=clabel,cmap=cmap,
+                        vmin=vmin, vmax=vmax,**kwargs)
+    
     if title is not None:
-        fig.text(0.5,0.9, title,
+        fplot.fig.text(0.5,0.9, title,
                      va="top", ha="center", fontsize="large")
     # Output
     if savefile is not None:
-        fig.savefig(savefile, dpi=150)
+        fplot.fig.savefig(savefile, dpi=150)
         
-    return {"ax":ax,"fig":fig}
+    return fplot.fig
                 
     
 def show_ZTF_fields(ax, maingrid=True, lower_dec=-30, alpha=0.1, facecolor="0.8", edgecolor="0.8", **kwargs):
     """ """
-    if maingrid:
-        allfields = FIELD_DATAFRAME[FIELD_DATAFRAME["ID"]<880]['ID'].values
-    else:
-        allfields = FIELD_DATAFRAME[FIELD_DATAFRAME["ID"]>999]['ID'].values
-        
-    return display_field(ax, allfields, lower_dec=lower_dec, alpha=alpha,
-                      facecolor=facecolor, edgecolor=edgecolor, **kwargs)
+    print("show_ZTF_fields is DEPRECATED")
     
-def display_field(ax, fieldid, origin=180, facecolor="0.8", lower_dec=None, edgecolor=None, **kwargs):
+def display_field(ax, fieldid, origin=None, facecolor="0.8", lower_dec=None, edgecolor=None, **kwargs):
     """ """
-    p = {}
-#    for ra,dec in field_to_coords( np.asarray(np.atleast_1d(fieldid), dtype="int")   ):
-    for i,f_ in enumerate(fieldid):
-        ra, dec = np.asarray(field_to_coords(f_), dtype="int")[0]
-        if lower_dec is not None and dec<lower_dec:
-            continue
-        p_ = ax.add_patch(Polygon( get_camera_corner(ra,dec, inrad=True, origin=origin, east_left=True),
-                                facecolor=facecolor,edgecolor=edgecolor, **kwargs))
-        p[f_] = p_
-        
-    return p
+    print("display_field is DEPRECATED")
 
-def get_field_vertices(fieldid, origin=180, indeg=True):
+def _radec_to_plot_(self, ra, dec):
     """ """
-    coef = 1 if not indeg else 180/np.pi
-    return np.asarray([ get_camera_corner(ra,dec, inrad=True, origin=origin, east_left=True)
-                        for ra,dec in field_to_coords( np.asarray(np.atleast_1d(fieldid), dtype="int")   )])*coef
+    return np.asarray([-(np.asarray(ra)-self.origin)*np.pi/180, np.asarray(dec)*np.pi/180])
 
-def get_fields_containing_target(ra,dec, origin=180):
-    """ return the list of fields into which the position ra, dec is. 
-    Remark that this is based on predefined field positions. Hence, small attrition could affect this.
-
-    Parameters
-    ----------
-    ra,dec: [float,float]
-       coordinates in degree. 
-
-    origin: [float] -optional-
-       If ra is defined between 0 and 360, use origin=360. [default]
-       If ra is defined between -180 and 180 use origin=180
-       
-    Returns
-    -------
-    list (all the field ID that contain the given ra,dec coordinates)
-    """
-    try:
-        from shapely import geometry
-    except ImportError:
-        raise ImportError("You need shapely to use this function. pip install shapely")
-
-    coordpoint = geometry.Point(ra,dec)
-    return [f for f in FIELD_DATAFRAME["ID"].values
-            if geometry.Polygon( get_field_vertices(f, origin=origin)[0]).contains(coordpoint)]
         
 ##############################
 #                            #
 #  Individual Field Class    #
 #                            #
 ##############################
+class FieldPlotter( ):
+    """ """
+    def __init__(self, ax=None, origin=180):
+        """ """
+        self.origin = origin        
+        self.load_ax(ax)
 
+        
+    def load_ax(self, ax=None, update_ticks=True):
+        """ """
+        if ax is None:
+            self.fig = mpl.figure(figsize=(8,5))
+            self.ax = self.fig.add_subplot(111, projection="hammer")
+        else:
+            self.ax = ax
+            self.fig = self.ax
+            
+        if update_ticks:
+            tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
+            tick_labels = np.remainder(tick_labels+360+self.origin,360)
+            self.ax.set_xticklabels(tick_labels)     # we add the scale on the x axis
+
+    # ---------- #
+    #  PLOTTER   #
+    # ---------- #
+    def show_ztf_grid(self, which="main", 
+                  facecolor="None", edgecolor="0.7", alpha=0.1, zorder=1, **kwargs):
+        """ """
+        if which in ["main","Main","primary"]:
+            fields_ = FIELDSNAMES[FIELDSNAMES<880]
+        elif which in ["aux","secondary", "auxiliary"]:
+            fields_ = FIELDSNAMES[FIELDSNAMES>999]
+        elif which in ["all","*","both"]:
+            fields_ = FIELDSNAMES
+        else:
+            raise ValueError(f"Cannot parse which field grid you want {which}")
+    
+        self._ztfgrid = self.show_fields(fields_, 
+                                             facecolor=facecolor, edgecolor=edgecolor, 
+                                             alpha=alpha, zorder=zorder, **kwargs)
+    
+    def add_fields(self, fields, facecolor="0.7", edgecolor="k", lw=0.5, **kwargs):
+        """ """
+        fields_verts = self.get_field_vertices(fields)
+        self.poly_ = [self.ax.add_patch(Polygon(p_, facecolor=facecolor, 
+                                        edgecolor=edgecolor, lw=lw, **kwargs))
+                     for p_ in fields_verts]
+
+    def show_fields(self, fields, cax=None, cmap="viridis",
+                        colorbar=True,clabel=None,
+                        vmin=None, vmax=None, **kwargs):
+        """ fields could be a list of field or a dictionary with single values """
+        
+        if type(fields)==dict:
+            # popint out nans
+            fields = {f:v for f,v in fields.items() if not np.isnan(v)} 
+            values = list(fields.values())
+            if len(values)==0 or not np.any(values):
+                if cax is not None:
+                    cax.set_visible(False)
+                return
+        
+            if vmin is None: vmin = "0"
+            if type(vmin) == str: vmin=np.percentile(values, float(vmin))
+            if vmax is None: vmax = "100"
+            if type(vmax) == str: vmax=np.percentile(values, float(vmax))
+            if type(cmap) == str: cmap = mpl.get_cmap(cmap)
+            _ = kwargs.pop("facecolor",None) #remove facecolor is any
+            for f,v in fields.items():
+                self.add_fields(f, facecolor=cmap((v-vmin)/(vmax-vmin)) if vmax-vmin !=0 else cmap(0), **kwargs)
+
+            # - Cbar
+            if colorbar:
+                self.insert_colorbar(cmap, vmin, vmax, cax=cax, clabel=clabel)
+                    
+        else:
+            self.add_fields(fields, **kwargs)
+        
+    def show_point(self, radec, **kwargs):
+        """ """
+        xy = self.radec_to_plot(*radec)
+        self.scatter(*xy, **kwargs)
+
+    def insert_colorbar(self, cmap, vmin, vmax, cax=None, clabel=None):
+        """ """
+        if vmax-vmin !=0:
+            from .utils.tools import insert_ax, colorbar
+            self.cax = cax if cax is not None else \
+                              insert_ax(self.ax, "bottom",
+                                            shrunk=0.93, space=-0.0,
+                                            axspace=0.02)
+                
+            colorbar(self.cax, cmap, vmin=vmin, vmax=vmax, label=clabel)
+                    
+        elif cax is not None:
+            self.cax = cax
+            self.cax.set_visible(False)
+        
+    def get_field_vertices(self, fields_):
+        """ Get the field vertices in plotting coordinates. """
+        fields_ = get_field_vertices(fields_)
+        return [self.radec_to_plot(*f_.T).T for f_ in fields_] 
+    
+    def radec_to_plot(self, ra, dec):
+        """ """
+        return np.asarray([-(np.asarray(ra)-self.origin)*np.pi/180, np.asarray(dec)*np.pi/180])
 
 ##############################
 #                            #

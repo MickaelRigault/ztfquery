@@ -136,18 +136,20 @@ class MetaQuery():
         if cookies is None:
             from .io import _load_id_, get_cookie
             cookies = get_cookie(*_load_id_("irsa") )
+            
         self.build_query(kind=kind, radec=radec, size=size, mcen=mcen,
                           sql_query=sql_query, colnames=colnames, ct="csv", **kwargs)
 
-        self.metatable = read_csv( StringIO(
+        datain = StringIO(
             requests.get( self.query_url, cookies=cookies).content.decode('utf-8')
-            ))
+            )
+        self.metatable = read_csv(datain)
 
         if len(self.metatable.columns) == 1 and "<?xml version" in self.metatable.columns[0]:
             warnings.warn("The query you made failed:" +"\n"+self.query_url+"\n"+"see queriable entries here: %s"%IRSA_DOC)
         elif self.nentries ==0:
             warnings.warn("The query ran successfully, but no data returned. (bad query [check self.query_url]? wrong password [ztfquery.io._load_id_('irsa')] ?)")
-        
+            return datain.read()
                               
         
     def build_query(self, kind="sci", radec=None, size=None, mcen=None,

@@ -137,11 +137,10 @@ class _ZTFTableHandler_( object ):
         if grid is None or grid in ["both"]:
             return all_fields
         
-        from .fields import fields_in_main
         if grid in ["main", "first", "primary"]:
-            return all_fields[fields_in_main(all_fields)]
+            return all_fields[all_fields<880]
         elif grid in ["other", "secondary"]:
-            return all_fields[~fields_in_main(all_fields)]
+            return all_fields[~(all_fields<880)]
         else:
             raise ValueError("Cannot parse the given grid %s"%grid)
         
@@ -163,7 +162,7 @@ class _ZTFTableHandler_( object ):
                     ax=None,
                     show_ztf_fields=True,
                     colorbar=True, cax=None, clabel=" ", 
-                    cmap="viridis",origin=180,
+                    cmap="viridis",
                     vmin=None, vmax=None,  **kwargs):
         """ 
         Parameters
@@ -175,7 +174,7 @@ class _ZTFTableHandler_( object ):
         return show_fields(field_val, ax=ax,
                     show_ztf_fields=show_ztf_fields,
                     colorbar=colorbar, cax=cax, clabel=clabel, 
-                    cmap=cmap,origin=origin,
+                    cmap=cmap,
                     vmin=vmin, vmax=vmax,  **kwargs)
 
     
@@ -186,7 +185,7 @@ class _ZTFTableHandler_( object ):
                         **kwargs):
         """  """
         import matplotlib.pyplot as mpl
-        from .fields import FIELDS_COLOR
+        from .fields import FIELD_CMAP
         fig = mpl.figure(figsize=[9,6])
         fig.suptitle(title, fontsize="large")
         # G
@@ -202,14 +201,7 @@ class _ZTFTableHandler_( object ):
         caxi  = fig.add_axes([0.27,0.05,0.43,0.015])
         axi.tick_params(labelsize="x-small", labelcolor="0.3", )
         
-        
-        # python 3
-        # prop = {**dict(colorbar=colorbar, edgecolor="0.5", linewidth=0.5),**kwargs}
-        #  python 2 still supported
-        prop = dict(colorbar=colorbar, edgecolor="0.5", linewidth=0.5)
-        for k,v in kwargs.items():
-            prop[k] = v
-                
+        prop = {**dict(colorbar=colorbar, edgecolor="0.5", linewidth=0.5),**kwargs}
         for i,ax_,cax_ in zip([1,2,3], [axg,axr,axi], [caxg,caxr,caxi]):
             if colored_by in ["visits", "density"]:
                 field_val = {f:v for f,v in
@@ -217,7 +209,7 @@ class _ZTFTableHandler_( object ):
             else:
                 field_val = colored_by[i]
                 
-            self.show_fields(field_val, ax=ax_, cax=cax_, cmap=FIELDS_COLOR[i], **prop)
+            self.show_fields(field_val, ax=ax_, cax=cax_, cmap=FIELD_CMAP[i], **prop)
             
         return fig
     

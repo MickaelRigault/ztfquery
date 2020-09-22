@@ -870,7 +870,7 @@ class MarshalAccess( object ):
     
     def get_program_sources(self, program):
         """ """
-        flagprogram = np.in1d(self.target_sources.index.get_level_values(0), program)
+        flagprogram =self.target_sources.index.get_level_values(0).isin(np.atleast_1d(program))
         d_ = self.target_sources[flagprogram]
         return d_.set_index(d_.index.droplevel(0))
         
