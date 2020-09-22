@@ -351,10 +351,13 @@ Data are stored as `logs.data`
 | 838 | 2020-02-01T13:47:44.876 | 2020-02-01 |        90 |         98.796 |     3 |     759 |     2 | +14:57:5.74  | +47:45:00 |      98.796 | 2.45888e+06 |
 | 839 | 2020-02-01T13:49:26.419 | 2020-02-01 |        90 |        101.633 |     3 |     823 |     2 | +15:33:20    | +62:09:00 |     101.633 | 2.45888e+06 |
 
-run `logs.show_gri_fields(title="2020-02-01")` to visualize the field observed:
+To visualize the field observed run:
+```python
+logs.show_gri_fields(title="2020-02-01")`:
+```
 
 <p align="left">
-  <img src="examples/figures/completedlogs_20200201.png" width="350" title="hover text">
+  <img src="examples/figures/completedlogs_20200201.png" width="700" title="hover text">
 </p>
 
 ### Methods
