@@ -211,7 +211,7 @@ class _ZTFTableHandler_( object ):
                 
             self.show_fields(field_val, ax=ax_, cax=cax_, cmap=FIELD_CMAP[i], **prop)
             
-        return fig
+        return figs
     
     # =================== #
     #                     #
@@ -794,7 +794,7 @@ def download_night_summary(night, ztfops_auth = None):
         ztfops_auth = _load_id_("ztfops", askit=True)
         
     
-    summary = requests.get(_NIGHT_SUMMARY_URL+"%s/exp.%s.tbl"%(night,night),
+    summary = requests.get(os.path.join(_NIGHT_SUMMARY_URL+f"{night}/exp.{night}.tbl"),
                                auth=ztfops_auth).content.decode('utf-8').splitlines()
     dataf = convert_summary_to_dataframe(summary)
     return dataf

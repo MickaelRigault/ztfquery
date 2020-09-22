@@ -129,9 +129,6 @@ class MetaQuery():
         ----------
         kind: [sting]
              [sci / raw / cal / ref]
-
-
-
         """
         if cookies is None:
             from .io import _load_id_, get_cookie

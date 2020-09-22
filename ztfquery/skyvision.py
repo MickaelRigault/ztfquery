@@ -11,7 +11,8 @@ import pandas
 
 from astropy import time
     
-from . import io
+from . import io, fields
+
 SKYVISIONSOURCE = os.path.join(io.LOCALSOURCE,"skyvision")
 if not os.path.exists( SKYVISIONSOURCE ):
     os.mkdir(SKYVISIONSOURCE)
@@ -188,13 +189,29 @@ def completed_log_filepath(date):
     """ local filepath of the completed_log for the given date """
     return os.path.join(SKYVISIONSOURCE, f"{date}_completed_log.csv")
 
+
+# ================ #
+#                  #
+#   Class          #
+#                  #
+# ================ #
 class CompletedLog( object ):
     """ """
     def __init__(self, dates, download=True, update=False, **kwargs):
         """ """
         if dates is not None:
             self.set_logs( get_completed_log(np.atleast_1d(dates), download=True, update=False, **kwargs) )
-                    
+
+    @classmethod
+    def from_date(cls, date, load_data=True, load_obsjd=True,
+                      download=True, update=False, **kwargs):
+        """ """
+        this = cls( date, download=download, update=update, **kwargs)
+        if load_data:
+            this.load_data(load_obsjd=load_obsjd)
+        return this
+
+        
     @classmethod
     def from_daterange(cls, start="2018-03-01", end=None, load_data=True, load_obsjd=True,
                            download=True, update=False, **kwargs):
@@ -219,6 +236,7 @@ class CompletedLog( object ):
         dict_= {"datetime": np.asarray(lm["UT Date"] +"T"+ lm["UT Time"], dtype=str),
                 "date":lm["UT Date"],
                 "exptime":lm["Exptime"].astype(float),
+                "totalexptime":lm["Setup Time"].astype(float),
                 "fid":lm["Filter"].apply(lambda x: 1 if x=="FILTER_ZTF_G" else 2 if x=="FILTER_ZTF_R" else 3),
                 "field":lm["Field ID"].astype(int),
                 "pid":lm["Program ID"], # 0: inge ; 1: MSIP ; 2: Parners ; 3: Caltech
@@ -250,34 +268,74 @@ class CompletedLog( object ):
     # -------- #
     #  GETTER  #
     # -------- #
-    def get_when_field_observed(self, field, pid=None, fid=None, startdate=None, enddate=None):
-        """ Returns the data raws corresponding to the given filters
+    def get_count(self, entry, pid=[1,2,3], fid=None, grid=None, startdate=None, enddate=None, **kwargs):
+        """ count the number of time the entry exists 
+        For instance, count the number of time a field has been observed:
+        self.get_count("field")
+
+        **kwargs goes to get_filter()
+        """
+        data = self.data[ self.get_filter(pid=pid, fid=fid, startdate=startdate, enddate=enddate, grid=grid, **kwargs) ]
+        return data.groupby(entry).size()
+
+    def get_when_target_observed(self, radec, pid=[1,2,3], fid=None, startdate=None, enddate=None, **kwargs):
+        """ Returns the data raws corresponding to the given coordinates
     
         Parameters
         ----------
-        fields: [int or list of]
-        Field(s) id you want. If multiple field returns an 'or' selection applies.
+        radec: [float,float]
+            target coordinates in degree
         
         pid: [int or list of] -optional-
-        Selection only cases observed as part as the given program id.s
-        (0: engineering ; 1: MSIP ; 2:Parners ; 3:CalTech )
-        None means no selection.
+            Selection only cases observed as part as the given program id.s
+            (0: engineering ; 1: MSIP ; 2:Parners ; 3:CalTech )
+            None means no selection.
         
         fid: [int or list of] -optional-
-        Selection only cases observed with the given filters
-        (1: ztf:g ; 2: ztf:r ; 3: ztf:i)
-        None means no selection.
+            Selection only cases observed with the given filters
+            (1: ztf:g ; 2: ztf:r ; 3: ztf:i)
+            None means no selection.
         
         startdate, enddate: [string] -optional-
-        Select the time range to be considered. None means no limit.
+            Select the time range to be considered. None means no limit.
         
         Returns
         -------
         DataFrame
         """
-        return self.data[self.get_filter(field, pid=pid, fid=fid, startdate=startdate, enddate=enddate)]
+        target_fields = fields.get_fields_containing_target(*radec)
+        return self.get_when_field_observed( target_fields, pid=pid, fid=fid,
+                                             startdate=startdate, enddate=enddate, **kwargs)
+    
+        
+    def get_when_field_observed(self, field, pid=[1,2,3], fid=None, startdate=None, enddate=None, **kwargs):
+        """ Returns the data raws corresponding to the given filters
+    
+        Parameters
+        ----------
+        fields: [int or list of]
+            Field(s) id you want. If multiple field returns an 'or' selection applies.
+        
+        pid: [int or list of] -optional-
+            Selection only cases observed as part as the given program id.s
+            (0: engineering ; 1: MSIP ; 2:Parners ; 3:CalTech )
+            None means no selection.
+        
+        fid: [int or list of] -optional-
+            Selection only cases observed with the given filters
+            (1: ztf:g ; 2: ztf:r ; 3: ztf:i)
+            None means no selection.
+        
+        startdate, enddate: [string] -optional-
+            Select the time range to be considered. None means no limit.
+        
+        Returns
+        -------
+        DataFrame
+        """
+        return self.data[self.get_filter(field, pid=pid, fid=fid, startdate=startdate, enddate=enddate, **kwargs)]
 
-    def get_filter(self, field=None, pid=None, fid=None, startdate=None, enddate=None):
+    def get_filter(self, field=None, pid=None, fid=None, startdate=None, enddate=None, grid=None):
         """  Parameters
         ----------
         fields: [int or list of]
@@ -303,6 +361,8 @@ class CompletedLog( object ):
         fidflag = True if fid is None else self.data["fid"].isin(np.atleast_1d(fid))
         pidflag = True if pid is None else self.data["pid"].isin(np.atleast_1d(pid))
         fieldflag = True if field is None else self.data["field"].isin(np.atleast_1d(field))
+        gridflag = True if grid is None else self.data["field"].isin(fields.get_grid_field(grid))
+        
         # DateRange Selection
         if startdate is None and enddate is None:
             dateflag = True
@@ -313,7 +373,7 @@ class CompletedLog( object ):
         else:
             dateflag = self.data["date"].between(startdate,enddate)
 
-        return fidflag & pidflag & fieldflag & dateflag
+        return fidflag & pidflag & fieldflag & gridflag & dateflag
             
     def get_date(self, date, which="data"):
         """ """
@@ -348,7 +408,15 @@ class CompletedLog( object ):
         fanim = fields.FieldAnimation(field_id, dates=dates, facecolors=fid_color)
         fanim.launch(interval=1)
         return fanim
-    
+
+    def show_gri_fields(self, sizeentry="field", grid="main", filterprop={}, **kwargs):
+        """ """
+        # Data
+        fieldsg = self.get_count(sizeentry, fid=1, grid=grid, **filterprop)
+        fieldsr = self.get_count(sizeentry, fid=2, grid=grid, **filterprop)
+        fieldsi = self.get_count(sizeentry, fid=3, grid=grid, **filterprop)
+        # Plot        
+        return fields.show_gri_fields(fieldsg.to_dict(), fieldsr.to_dict(), fieldsi.to_dict(), grid=grid, **kwargs)
     # =============== #
     #  Properties     #
     # =============== #

@@ -183,6 +183,17 @@ def get_camera_corners(ra_field, dec_field, steps=5, inrad=False):
                     
     return np.asarray([ra,dec]).T
 
+def get_grid_field(which):
+    """ """
+    if which in ["main","Main","primary"]:
+        return FIELDSNAMES[FIELDSNAMES<880]
+    if which in ["aux","secondary", "auxiliary"]:
+       return FIELDSNAMES[FIELDSNAMES>999]
+    if which in ["all","*","both"]:
+        return FIELDSNAMES
+        
+    raise ValueError(f"Cannot parse which field grid you want {which}")
+
 
 ##############################
 #                            #
@@ -224,21 +235,16 @@ def show_reference_map(band, **kwargs):
     field_i = get_fields_with_band_reference(band)
     return show_fields(field_i, facecolor=FIELDNAME_COLOR[band], alpha=0.3, title=title, **kwargs)
     
-##############################
-#                            #
-#  Generic Tools             #
-#                            #
-##############################
-
 # ===================== #
 #                       #
 #    SHOW FIELD         #
 #                       #
 # ===================== #
 def show_fields(fields, vmin=None, vmax=None,
-                ax=None, cmap="viridis", 
+                ax=None, cmap="viridis", title=None,
                 colorbar=True, cax=None, clabel=" ",
-                show_ztf_fields=True, title=None,
+                show_ztf_fields=True, grid="main", grid_prop={},
+                show_mw=True, mw_b=None, mw_prop={},
                 savefile=None,
                 **kwargs):
     """ 
@@ -249,7 +255,10 @@ def show_fields(fields, vmin=None, vmax=None,
     fplot = FieldPlotter(ax=ax)
     # - Plotting
     if show_ztf_fields:
-        fplot.show_ztf_grid()
+        fplot.show_ztf_grid(which=grid, **grid_prop)
+
+    if show_mw:
+        fplot.show_milkyway(b=mw_b, **mw_prop)
 
     # Removing the NaNs
     fplot.show_fields(fields,
@@ -265,7 +274,38 @@ def show_fields(fields, vmin=None, vmax=None,
         fplot.fig.savefig(savefile, dpi=150)
         
     return fplot.fig
-                
+
+
+def show_gri_fields(fieldsg=None, fieldsr=None, fieldsi=None,
+                    title=" ",
+                    show_ztf_fields=True, colorbar=True,
+                    show_mw=True, mw_b=None, mw_prop={},
+                    **kwargs):
+    """  """
+    fig = mpl.figure(figsize=[9,6])
+    fig.suptitle(title, fontsize="large")
+    # G
+    axg   = fig.add_axes([0.03,0.52,0.43,0.48], projection="hammer")
+    caxg  = fig.add_axes([0.03,0.54,0.43,0.015])
+    axg.tick_params(labelsize="x-small", labelcolor="0.3" )
+    # R
+    axr   = fig.add_axes([0.54,0.52,0.43,0.48], projection="hammer")
+    caxr  = fig.add_axes([0.54,0.54,0.43,0.015])
+    axr.tick_params(labelsize="x-small", labelcolor="0.3")
+    # I
+    axi   = fig.add_axes([0.27,0.04,0.43,0.48], projection="hammer")
+    caxi  = fig.add_axes([0.27,0.05,0.43,0.015])
+    axi.tick_params(labelsize="x-small", labelcolor="0.3", )
+        
+    prop = {**dict(colorbar=colorbar, edgecolor="0.5", linewidth=0.5),**kwargs}
+    for i,ax_,cax_,fields_ in zip([1,2,3], [axg,axr,axi], [caxg,caxr,caxi], [fieldsg, fieldsr, fieldsi]):
+        if fields_ is not None:
+            show_fields(fields_, ax=ax_, cax=cax_, cmap=FIELD_CMAP[i],
+                            show_ztf_fields=show_ztf_fields,
+                            show_mw=show_mw, mw_b=mw_b, mw_prop=mw_prop,
+                            **prop)
+            
+    return fig
     
 def show_ZTF_fields(ax, maingrid=True, lower_dec=-30, alpha=0.1, facecolor="0.8", edgecolor="0.8", **kwargs):
     """ """
@@ -285,7 +325,7 @@ def _radec_to_plot_(self, ra, dec):
 #  Individual Field Class    #
 #                            #
 ##############################
-class FieldPlotter( ):
+class FieldPlotter( object ):
     """ """
     def __init__(self, ax=None, origin=180):
         """ """
@@ -313,19 +353,31 @@ class FieldPlotter( ):
     def show_ztf_grid(self, which="main", 
                   facecolor="None", edgecolor="0.7", alpha=0.1, zorder=1, **kwargs):
         """ """
-        if which in ["main","Main","primary"]:
-            fields_ = FIELDSNAMES[FIELDSNAMES<880]
-        elif which in ["aux","secondary", "auxiliary"]:
-            fields_ = FIELDSNAMES[FIELDSNAMES>999]
-        elif which in ["all","*","both"]:
-            fields_ = FIELDSNAMES
-        else:
-            raise ValueError(f"Cannot parse which field grid you want {which}")
-    
+        fields_ = get_grid_field(which)
         self._ztfgrid = self.show_fields(fields_, 
                                              facecolor=facecolor, edgecolor=edgecolor, 
                                              alpha=alpha, zorder=zorder, **kwargs)
-    
+
+    def show_milkyway(self, b=None, nbins=100, l_start=-241, l_stop=116,**kwargs):
+        """ """
+        from astropy import coordinates, units
+        
+        nbins=100
+        if b is None:
+            gal = coordinates.Galactic(np.linspace(l_start,l_stop,nbins)*units.deg, np.zeros(nbins)*units.deg).transform_to(coordinates.ICRS)
+            prop = dict(ls="-", color="0.7", alpha=0.5)
+            self.ax.plot(*self.radec_to_plot(gal.ra, gal.dec), **{**prop, **kwargs})
+        else:
+            gal_dw = coordinates.Galactic(np.linspace(l_start,l_stop,100)*units.deg, +b*np.ones(nbins)*units.deg).transform_to(coordinates.ICRS)
+            gal_up = coordinates.Galactic(np.linspace(l_start,l_stop,100)*units.deg, -b*np.ones(nbins)*units.deg).transform_to(coordinates.ICRS)
+            ra_dw,dec_dw = self.radec_to_plot(gal_dw.ra, gal_dw.dec)
+            ra_up,dec_up = self.radec_to_plot(gal_up.ra, gal_up.dec)
+
+            prop = dict(facecolor="0.7", alpha=0.2)
+            self.ax.fill_between(ra_dw, dec_dw, dec_up, **{**prop, **kwargs})
+        
+
+
     def add_fields(self, fields, facecolor="0.7", edgecolor="k", lw=0.5, **kwargs):
         """ """
         fields_verts = self.get_field_vertices(fields)
@@ -366,7 +418,7 @@ class FieldPlotter( ):
     def show_point(self, radec, **kwargs):
         """ """
         xy = self.radec_to_plot(*radec)
-        self.scatter(*xy, **kwargs)
+        self.ax.scatter(*xy, **kwargs)
 
     def insert_colorbar(self, cmap, vmin, vmax, cax=None, clabel=None):
         """ """
@@ -391,6 +443,9 @@ class FieldPlotter( ):
     def radec_to_plot(self, ra, dec):
         """ """
         return np.asarray([-(np.asarray(ra)-self.origin)*np.pi/180, np.asarray(dec)*np.pi/180])
+
+
+
 
 ##############################
 #                            #
