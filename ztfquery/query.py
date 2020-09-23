@@ -145,74 +145,107 @@ class _ZTFTableHandler_( object ):
         else:
             raise ValueError("Cannot parse the given grid %s"%grid)
         
-    def get_field_average_value(self, value, grid="both", fid=[1,2,3]):
-        """ """
-        flagfield = True if fid is None or "fid" not in self._data.columns else np.in1d(np.asarray(self._data["fid"], dtype="int"), fid)
-        return {f_: np.nanmean(self._data[np.in1d(self._data["field"], f_) * flagfield][value])
-                    for f_ in self.get_observed_fields(grid=grid)}
+    def get_field_average_value(self, value, grid="both", fid=[1,2,3], method="mean"):
+        """ get the serie of the average value (but see method) per fields 
+        
+        See also: See get_field_obsdensity()
+
+        Parameters
+        ----------
+        value: [string]
+            Any of the metatable columns
+
+        grid: [string] -optional-
+            Which fields do you want ? main or secondary ?
+
+        fid: [int or list of] -optional-
+            which field should be considered ? 
+            1: ztf:g : 2: ztf:r ; ztf:i
+
+        method: [string] -optional-
+            any of the pandas.DataFrame.groupby method (but size).
+            See get_field_obsdensity() for size
+        
+        Returns
+        -------
+        return pandas.Serie
+        """
+        return getattr(self._get_filtered_(grid=grid, fid=fid).groupby("field"),method)()[value]
         
     def get_field_obsdensity(self, grid="both", fid=[1,2,3]):
-        """ """
-        flagfield = True if fid is None or "fid" not in self._data.columns \
-          else np.in1d(np.asarray(self._data["fid"], dtype="int"), fid)
-          
-        return {f_: len(self._data[np.in1d(self._data["field"], f_) * flagfield])
-                    for f_ in self.get_observed_fields(grid=grid)}
+        """ get the serie of the number of time the field has been visited
+        
+        See also: See get_field_average_value()
 
+        Parameters
+        ----------
+        grid: [string] -optional-
+            Which fields do you want ? main or secondary ?
+
+        fid: [int or list of] -optional-
+            which field should be considered ? 
+            1: ztf:g : 2: ztf:r ; ztf:i
+        
+        Returns
+        -------
+        return pandas.Serie
+        """
+        return self._get_filtered_(grid=grid, fid=fid).groupby("field").size()
+
+    def _get_filtered_(self, grid="both", fid=[1,2,3]):
+        """ """
+        list_of_fields_ = self.get_observed_fields(grid=grid)
+        fid_ = np.atleast_1d(fid)
+        return self.metatable.query("field in @list_of_fields_ and fid in @fid_")
+    
     def show_fields(self, field_val,
                     ax=None,
-                    show_ztf_fields=True,
+                    show_ztf_fields=True, grid="main",
                     colorbar=True, cax=None, clabel=" ", 
                     cmap="viridis",
                     vmin=None, vmax=None,  **kwargs):
         """ 
         Parameters
         ----------
-        colored_by: 
+        field_val: [dict or pandas.Series]
+            Values assocatied to the fields.
+
+        
         """
         from .fields import show_fields
+
+        if type(field_val) is str:
+            field_val = self.get_field_average_value(field_val, grid=grid)
         
         return show_fields(field_val, ax=ax,
-                    show_ztf_fields=show_ztf_fields,
+                    show_ztf_fields=show_ztf_fields, grid=grid,
                     colorbar=colorbar, cax=cax, clabel=clabel, 
                     cmap=cmap,
                     vmin=vmin, vmax=vmax,  **kwargs)
 
     
-    def show_gri_fields(self, title=" ",
-                        show_ztf_fields=True,
-                        colorbar=True, 
-                        colored_by="visits", grid="main",
-                        **kwargs):
+    def show_gri_fields(self, colored_by="visits",
+                            title=" ", colorbar=True, 
+                        show_ztf_fields=True,grid="main",
+                        show_mw=True, **kwargs):
         """  """
         import matplotlib.pyplot as mpl
-        from .fields import FIELD_CMAP
-        fig = mpl.figure(figsize=[9,6])
-        fig.suptitle(title, fontsize="large")
-        # G
-        axg   = fig.add_axes([0.03,0.52,0.43,0.48], projection="hammer")
-        caxg  = fig.add_axes([0.03,0.54,0.43,0.015])
-        axg.tick_params(labelsize="x-small", labelcolor="0.3" )
-        # R
-        axr   = fig.add_axes([0.54,0.52,0.43,0.48], projection="hammer")
-        caxr  = fig.add_axes([0.54,0.54,0.43,0.015])
-        axr.tick_params(labelsize="x-small", labelcolor="0.3")
-        # I
-        axi   = fig.add_axes([0.27,0.04,0.43,0.48], projection="hammer")
-        caxi  = fig.add_axes([0.27,0.05,0.43,0.015])
-        axi.tick_params(labelsize="x-small", labelcolor="0.3", )
-        
-        prop = {**dict(colorbar=colorbar, edgecolor="0.5", linewidth=0.5),**kwargs}
-        for i,ax_,cax_ in zip([1,2,3], [axg,axr,axi], [caxg,caxr,caxi]):
-            if colored_by in ["visits", "density"]:
-                field_val = {f:v for f,v in
-                            self.get_field_obsdensity(grid=grid, fid=[i]).items() if v>0}
-            else:
-                field_val = colored_by[i]
-                
-            self.show_fields(field_val, ax=ax_, cax=cax_, cmap=FIELD_CMAP[i], **prop)
+        from .fields import show_gri_fields
+
+        if colored_by in ["visits", "density"]:
+            field_vals = [self.get_field_obsdensity(grid=grid, fid=i) for i in [1,2,3]]
+        elif type(colored_by) is str:
+            field_vals = [self.get_field_average_value(colored_by, grid=grid, fid=i) for i in [1,2,3]]
+        else:
+            field_vals = colored_by
             
-        return figs
+        return show_gri_fields(*field_vals,
+                    title=title,
+                    show_ztf_fields=show_ztf_fields,grid=grid,
+                    colorbar=colorbar, show_mw=True, mw_b=None, mw_prop={},
+                    **kwargs)
+        
+        
     
     # =================== #
     #                     #
@@ -433,6 +466,76 @@ class _ZTFDownloader_( object ):
                 return [f for f in localfile if f not in badfiles_]
         return localfile
 
+    def get_local_metatable(self, suffix=None, which="any", invert=False):
+        """ 
+        Parameters
+        ----------
+        suffix: [string] -optional-
+            What kind of data do you want? 
+            Here is the list of available options depending on you image kind:
+        
+            # Science image (kind="sci"):
+            - sciimg.fits (primary science image) # (default)
+            - mskimg.fits (bit-mask image)
+            - psfcat.fits (PSF-fit photometry catalog)
+            - sexcat.fits (nested-aperture photometry catalog)
+            - sciimgdao.psf (spatially varying PSF estimate in DAOPhot's lookup table format)
+            - sciimgdaopsfcent.fits (PSF estimate at science image center as a FITS image)
+            - sciimlog.txt (log output from instrumental calibration pipeline)
+            - scimrefdiffimg.fits.fz (difference image: science minus reference; fpack-compressed)
+            - diffimgpsf.fits (PSF estimate for difference image as a FITS image)
+            - diffimlog.txt (log output from image subtraction and extraction pipeline)
+            - log.txt (overall system summary log from realtime pipeline)
+            
+            # Reference image (kind="ref"):
+            -log.txt
+            -refcov.fits
+            -refimg.fits # (default)
+            -refimlog.txt
+            -refpsfcat.fits
+            -refsexcat.fits
+            -refunc.fits
+
+            # Raw images (kind="raw")
+            No Choice so suffix is ignored for raw data
+            
+            # Calibration (kind="cal")
+            - None (#default) returns `caltype`.fits
+            - log:            returns `caltype`log.txt
+            - unc:            returns `caltype`unc.fits
+
+
+        which: [string] -optional-
+            Which missing data are you looking for:
+            - any/all: missing because bad local files or because not downloaded yet.
+            - bad/corrupted: missing because the local files are corrupted
+            - notdl/dl/nodl: missing because not downloaded. 
+
+        invert: [bool] -optional-
+            Set True to invert the method, i.e. get the metable of the files *you do not have*
+
+        Returns
+        -------
+        self.metadata (filtered to match your local data)
+        """
+        
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            if which in ["all", "any"]:
+                all_local = self.get_data_path(suffix ,source="local")
+                actual_local = self.get_local_data(suffix, exists=True, filecheck=True)            
+            elif which in ["bad", "corrupted"]:
+                all_local = self.get_local_data(suffix, exists=True, filecheck=False)
+                actual_local = self.get_local_data(suffix, exists=True, filecheck=True)
+            elif which in ["notdl", "dl","nodl"]:
+                all_local = self.get_data_path(suffix ,source="local")
+                actual_local = self.get_local_data(suffix, exists=False, filecheck=False)
+            else:
+                raise ValueError("cannot parse which %s: any, bad, notdl available"%which)
+
+        flagin = np.in1d(all_local, actual_local)
+        return self.metatable[flagin if not invert else ~flagin]
+
     def get_missing_data_index(self, suffix=None, which="any"):
         """ 
         Parameters
@@ -482,22 +585,7 @@ class _ZTFDownloader_( object ):
         -------
         list of self.metadata indexes
         """
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            if which in ["all", "any"]:
-                all_local = self.get_data_path(suffix ,source="local")
-                actual_local = self.get_local_data(suffix, exists=True, filecheck=True)            
-            elif which in ["bad", "corrupted"]:
-                all_local = self.get_local_data(suffix, exists=True, filecheck=False)
-                actual_local = self.get_local_data(suffix, exists=True, filecheck=True)
-            elif which in ["notdl", "dl","nodl"]:
-                all_local = self.get_data_path(suffix ,source="local")
-                actual_local = self.get_local_data(suffix, exists=False, filecheck=False)
-            else:
-                raise ValueError("cannot parse which %s: any, bad, notdl available"%which)
-
-        id_ = [i for i,f in enumerate(all_local) if f not in actual_local]
-        return self.metatable.index[id_]
+        return self.get_local_metatable(suffix=suffix, which=which, invert=True).index
         
     def purge_corrupted_local_data(self, suffix=None, erasebad=False, redownload=False,
                                        indexes=None, verbose=True,

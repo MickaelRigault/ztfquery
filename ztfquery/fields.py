@@ -3,6 +3,7 @@
 
 """ Library containing field information """
 import os, sys
+import pandas
 import numpy as np
 import warnings
 from pandas import read_csv
@@ -390,6 +391,9 @@ class FieldPlotter( object ):
                         vmin=None, vmax=None, **kwargs):
         """ fields could be a list of field or a dictionary with single values """
         
+        # For now, then will move to pandas.Series as native
+        if type(fields) is pandas.Series:
+            fields = fields.to_dict()
         if type(fields)==dict:
             # popint out nans
             fields = {f:v for f,v in fields.items() if not np.isnan(v)} 
