@@ -414,7 +414,7 @@ m.load_target_sources(program="Cosmology")
 ```
 
 ### Fast loading using load_local()
-If you already have loaded the target sources once, the latest version of it is stored locally in you computer (see `$ZTFDATA/marshal`). To retreive it without having to download the sources from the marshal (which is slow), simply do.
+If you already have loaded the target sources once, the latest version of it is stored locally in your computer (see `$ZTFDATA/marshal`). To retreive it without having to download the sources from the marshal (which is slow), simply do:
 ```python
 from ztfquery import marshal
 m = marshal.MarshalAccess.load_local() # you can get specified program.
