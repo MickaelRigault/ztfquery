@@ -413,6 +413,16 @@ m = marshal.MarshalAccess()
 m.load_target_sources(program="Cosmology")
 ```
 
+### Fast loading using load_local()
+If you already have loaded the target sources once, the latest version of it is stored locally in you computer (see `$ZTFDATA/marshal`). To retreive it without having to download the sources from the marshal (which is slow), simply do.
+```python
+from ztfquery import marshal
+m = marshal.MarshalAccess.load_local() # you can get specified program.
+```
+Remark that this is not the latest marshal source list, but the latest you downloaded.
+
+
+### Get target data
 If you only want a subgroup of targets, you can use the `get_target_data()` method:
 ```python
 m.get_target_data(["SN2018zd","ZTF18aahflrr","at2018akx"])
