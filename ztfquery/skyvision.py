@@ -76,9 +76,9 @@ def get_local_completed_log(date, safeout=False):
 def get_daterange(start, end=None):
     """ """
     if end is None:
-        from datetime import date
-        today = date.today()
-        end = f"{today.year}-{today.month:02d}-{today.day:02d}"
+        import datetime
+        yesterday = datetime.date.today() - datetime.timedelta(days=1)
+        end = yesterday.isoformat()
 
     # Dates to be downloaded.
     return [f"{i.year}-{i.month:02d}-{i.day:02d}" for i in pandas.Series(pandas.date_range(start,end, freq='D'))]
@@ -200,7 +200,7 @@ class CompletedLog( object ):
     def __init__(self, dates, download=True, update=False, **kwargs):
         """ """
         if dates is not None:
-            self.set_logs( get_completed_log(np.atleast_1d(dates), download=True, update=False, **kwargs) )
+            self.set_logs( get_completed_log(np.atleast_1d(dates), download=download, update=update, **kwargs) )
 
     @classmethod
     def from_date(cls, date, load_data=True, load_obsjd=True,
