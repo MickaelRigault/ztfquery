@@ -787,7 +787,7 @@ def download_night_summary(night, ztfops_auth = None):
     ztfops_auth: [string, string] -optional-
         Provide directly the [username, password] of the ztfops page.
     """
-    print("NIGHT SUMMARY IS NOW DEPRECATED, USE skyvision.CompletedLogs.from_date('YYY-MM-DD') instead")
+    print("NIGHT SUMMARY IS NOW DEPRECATED, USE skyvision.CompletedLog.from_date('YYY-MM-DD') instead")
     return
 
     import requests
@@ -809,7 +809,7 @@ def download_allnight_summary(ztfops_auth = None):
     ztfops_auth: [string, string] -optional-
         Provide directly the [username, password] of the ztfops page.
     """
-    print("NIGHT SUMMARY IS NOW DEPRECATED, USE skyvision.CompletedLogs.from_date('YYY-MM-DD') instead")
+    print("NIGHT SUMMARY IS NOW DEPRECATED, USE skyvision.CompletedLog.from_date('YYY-MM-DD') instead")
     return
 
     import requests
@@ -827,7 +827,7 @@ def download_allnight_summary(ztfops_auth = None):
 class NightSummary( _ZTFTableHandler_, _ZTFDownloader_ ):
     def __init__(self, night, ztfops_auth=None):
         """ """
-        print("NIGHT SUMMARY IS NOW DEPRECATED, USE skyvision.CompletedLogs.from_date('YYY-MM-DD') instead")
+        print("NIGHT SUMMARY IS NOW DEPRECATED, USE skyvision.CompletedLog.from_date('YYY-MM-DD') instead")
         self.night = night
         
         self.data_all  = download_night_summary(night, ztfops_auth=ztfops_auth)
