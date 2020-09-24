@@ -278,7 +278,7 @@ def show_fields(fields, vmin=None, vmax=None,
 
 
 def show_gri_fields(fieldsg=None, fieldsr=None, fieldsi=None,
-                    title=" ", alignment="classic",
+                    title=" ", alignment="horizontal",
                     show_ztf_fields=True, colorbar=True,
                     show_mw=True, mw_b=None, mw_prop={},
                     projection="hammer",
@@ -295,15 +295,12 @@ def show_gri_fields(fieldsg=None, fieldsr=None, fieldsi=None,
                             **prop)
     return _
 
-
 def _get_gri_axes_(alignment="classic", title=None, titlefontsize="large", projection="hammer", labelsize="x-small", labelcolor="0.7"):
     """ """
     if alignment is None:
         alignment = "classic"
     if alignment in ["classic"]:
         fig = mpl.figure(figsize=[9,6])
-        if title is not None:
-            fig.suptitle(title, fontsize=titlefontsize)
         # G
         axg   = fig.add_axes([0.03,0.52,0.43,0.48], projection=projection)
         caxg  = fig.add_axes([0.03,0.54,0.43,0.015])
@@ -316,26 +313,23 @@ def _get_gri_axes_(alignment="classic", title=None, titlefontsize="large", proje
         ax = [axg,axr,axi]
         cax = [caxg,caxr,caxi]
     elif alignment in ["flat","aligned", "horizontal"]:
-        fig = mpl.figure(figsize=[10,2])
-        #fig.suptitle("""", fontsize="large")
+        fig = mpl.figure(figsize=[10,2.5])
         # G
         spanx, spanm = 0.05,0.05
         width = (1-(2*spanx+2*spanm))/3
-        ax = [fig.add_axes([spanm+i*(width+spanx),0.2,width,0.75], projection=projection) for i in range(3)]
+        ax = [fig.add_axes([spanm+i*(width+spanx),0.2,width,0.7], projection=projection) for i in range(3)]
         cax = [fig.add_axes([spanm+i*(width+spanx),0.12,width,0.025]) for i in range(3)]
     else:
         raise ValueError(f"cannot parse the given show_gri alignment {alignment}, classic or horizontal")
-    
+
+    if title is not None:
+        fig.suptitle(title, fontsize=titlefontsize)
     # labels
     for ax_ in ax:
         ax_.tick_params(labelsize=labelsize, labelcolor=labelcolor)
         
     return ax,cax
-        
-
-         
-
-    
+            
 
 def show_ZTF_fields(ax, maingrid=True, lower_dec=-30, alpha=0.1, facecolor="0.8", edgecolor="0.8", **kwargs):
     """ """

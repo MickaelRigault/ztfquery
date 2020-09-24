@@ -454,6 +454,7 @@ class _ZTFDownloader_( object ):
             return files
 
         localfile = [f for f in files if os.path.isfile( f )]
+        
         if filecheck or badfiles or kwargs.get("redownload",False):
             with warnings.catch_warnings():
                 if ignore_warnings:
@@ -464,6 +465,7 @@ class _ZTFDownloader_( object ):
                 return badfiles_
             elif badfiles_ is not None and len(badfiles_)>1:
                 return [f for f in localfile if f not in badfiles_]
+            
         return localfile
 
     def get_local_metatable(self, suffix=None, which="any", invert=False):

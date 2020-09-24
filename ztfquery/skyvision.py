@@ -23,7 +23,7 @@ if not os.path.exists( SKYVISIONSOURCE ):
 # Stand Alone Functions     # 
 #                           #
 #############################
-def get_completed_log(date, download=True, update=False, **kwargs):
+def get_log(date, which="completed", download=True, update=False, **kwargs):
     """ Get target spectra from the marshal. 
     
     Parameters
@@ -42,35 +42,39 @@ def get_completed_log(date, download=True, update=False, **kwargs):
     DataFrame
     """
     if len(np.atleast_1d(date))>1:
-        return pandas.concat([get_completed_log(date_, download=download, update=update, **kwargs)  for date_ in date])
+        return pandas.concat([get_log(date_, which=which, download=download, update=update, **kwargs)  for date_ in date])
     
     date = np.atleast_1d(date)[0]
     if update:
-        download_completed_log(date, store=True, **kwargs)
+        download_log(date, which=which, store=True, **kwargs)
     
-    logdf = get_local_completed_log(date, safeout=True)
+    logdf = get_local_log(date, which=which, safeout=True)
     if logdf is None:
         if update:
-            warnings.warn(f"Download did not seem successful. Cannot retreive the completed_log for {date}")
+            warnings.warn(f"Download did not seem successful. Cannot retreive the {which}_log for {date}")
             return None
         elif not download:
-            warnings.warn(f"No local completed_log for {date}. download it or set download to true")
+            warnings.warn(f"No local {which}_log for {date}. download it or set download to true")
             return None
         
-        return get_completed_log(date, update=True, **kwargs)
+        return get_log(date, which=which, update=True, **kwargs)
     else:
         return logdf
 
 # -------------- #
 #  Detailed      #
 # -------------- #
-def get_local_completed_log(date, safeout=False):
+def get_log_filepath(date, which="completed"):
+    """ local filepath of the completed_log for the given date """
+    return os.path.join(SKYVISIONSOURCE, f"{date}_{which}_log.csv")
+
+def get_local_log(date, which="completed", safeout=False):
     """ """
-    filein = completed_log_filepath(date)
+    filein = get_log_filepath(date, which=which)
     if not os.path.isfile(filein):
         if safeout:
             return None
-        raise IOError(f"No completed_log locally stored for {date}. see download_completed_log()")
+        raise IOError(f"No {which}_log locally stored for {date}. see download_log()")
     
     return pandas.read_csv(filein)
 
@@ -83,7 +87,13 @@ def get_daterange(start, end=None):
 
     # Dates to be downloaded.
     return [f"{i.year}-{i.month:02d}-{i.day:02d}" for i in pandas.Series(pandas.date_range(start,end, freq='D'))]
- 
+
+def download_log(date, which="completed", auth=None, store=True, **kwargs):
+    """ Generic downloading function for the logs. 
+    Calls the individual download_{wich}_log
+    """
+    return eval(f"download_{wich}_log")(date, auth=auth, store=store, **kwargs)
+
 def download_timerange_log(which="completed",
                             start="2018-03-01", end=None, nprocess=1, auth=None,
                             show_progress=True, notebook=True, verbose=True):
@@ -96,6 +106,10 @@ def download_timerange_log(which="completed",
     if auth is not None:
         print("updating skyvision authentification")
         io.set_account("skyvision", username=auth[0], password=auth[0], test=False)
+    if which not in ["completed", "qa"]:
+        raise ValueError(f"which can only be completed of qa, {which} given")
+    
+    dl_function = eval(f"download_{which}_log")
     
     # Dates to be downloaded.
     dates = get_daterange(start, end=None)
@@ -105,10 +119,10 @@ def download_timerange_log(which="completed",
         if verbose:
             warnings.warn("No parallel downloading")
         
-        _ = [download_completed_log(date, auth=auth, store=True, returns=False) for date in dates]
+        _ = [dl_function(date, auth=auth, store=True, returns=False) for date in dates]
     else:
         # First download manually otherwise it could fail, unclear why
-        _ = download_completed_log(dates[0], auth=auth, store=True, returns=False)
+        _ = dl_function(dates[0], auth=auth, store=True, returns=False)
         # Multi processing
         import multiprocessing
         if show_progress:
@@ -123,13 +137,16 @@ def download_timerange_log(which="completed",
         # Passing arguments
         with multiprocessing.Pool(nprocess) as p:
             # Da Loop
-            for j, result in enumerate( p.imap(download_completed_log, dates[1:])):
+            for j, result in enumerate( p.imap(dl_function, dates[1:])):
                 if bar is not None:
                     bar.update(j)
                     
             if bar is not None:
                 bar.update( len(dates[1:]) )
-    
+
+# ================= #
+#  LOG Downloading  #
+# ================= #
 def download_completed_log(date, auth=None, store=True,
                             returns=True, set_columns=True, verbose=False):
     """ 
@@ -183,18 +200,20 @@ def download_completed_log(date, auth=None, store=True,
         return None
         
     if store:
-        df.to_csv( completed_log_filepath(date), index=False)
+        df.to_csv( get_log_filepath(date, which="completed"), index=False)
     if returns:
         return df
 
-    
-def completed_log_filepath(date):
-    """ local filepath of the completed_log for the given date """
-    return os.path.join(SKYVISIONSOURCE, f"{date}_completed_log.csv")
+def download_qa_log(date, auth=None, summary_values=None, store=True,
+                        where_statement="", groupby_values=False):
+    """ 
+    Parameters
+    ----------
+    where_statement: [string]
+        additional SQL query, e.g.:
+        ' AND programid in (1,2)' for limiting yourself to MSIP+Parners
 
-
-def download_qa_log(date, auth=None, summary_values=None, store=True):
-    """ """
+    """
     if summary_values is None:
         summary_values = ['obsdatetime', 'nightdate','obsjd',
                           'exptime', 'ccdid','qid', "rcid",
@@ -206,8 +225,8 @@ def download_qa_log(date, auth=None, summary_values=None, store=True):
     url = "http://skyvision.caltech.edu/ztf/status/summary_table"
     payload = {'summary_values': summary_values,
                'obsdate': date,
-#               'where_statement': where_statement,
-#               'groupby_values': groupby_values,
+               'where_statement': where_statement,
+               'groupby_values': groupby_values,
                'return_type': "csv",
                'time_between': False,
                'add_summary_map': False,
@@ -229,36 +248,33 @@ def download_qa_log(date, auth=None, summary_values=None, store=True):
     df['obsdatetime'] = pandas.to_datetime(df['obsdatetime'])
     
     if store:
-        df.to_csv( qa_log_filepath(date), index=False)
+        df.to_csv( get_log_filepath(date, which="qa"), index=False)
 
     return df
 
-def qa_log_filepath(date):
-    """ local filepath of the qa_log for the given date """
-    return os.path.join(SKYVISIONSOURCE, f"{date}_qa_log.csv")
-
 
 
 # ================ #
 #                  #
-#   Class          #
+#   LOG Classes    #
 #                  #
 # ================ #
-class CompletedLog( object ):
+
+class ZTFLog( object ):
     """ """
-    def __init__(self, dates, download=True, update=False, **kwargs):
-        """ """
-        if dates is not None:
-            self.set_logs( get_completed_log(np.atleast_1d(dates), download=download, update=update, **kwargs) )
+    _NAME_ = "ztflog"
+    
+    def __init__(self, dataframe ):
+        """ Date or list of date """
+        if dataframe is not None:
+            self.set_logs( dataframe)
 
     @classmethod
     def from_date(cls, date, load_data=True, load_obsjd=True,
                       download=True, update=False, **kwargs):
-        """ """
-        this = cls( date, download=download, update=update, **kwargs)
-        if load_data:
-            this.load_data(load_obsjd=load_obsjd)
-        return this
+        """ Logs a date or a list of dates"""
+        logdf = get_log(np.atleast_1d(date), which=cls._NAME_, download=download, update=update, **kwargs)
+        return cls(  logdf )
 
         
     @classmethod
@@ -267,12 +283,91 @@ class CompletedLog( object ):
         """ """
         if start is None:
             start = "2018-03-01"
-            
-        this = cls( get_daterange(start=start, end=end), download=download, update=update, **kwargs)
-        if load_data:
-            this.load_data(load_obsjd=load_obsjd)
-        return this
 
+        dates = get_daterange(start=start, end=end)
+        logdf = get_log(np.atleast_1d(dates), which=cls._NAME_, download=download, update=update, **kwargs)
+        return cls( logdf )
+
+     # =============== #
+    #   Methods       #
+    # =============== #
+    # -------- #
+    #  LOADER  #
+    # -------- #
+    def load_data(self):
+        """ """
+        self._data = self.logs
+        
+    # -------- #
+    #  SETTER  #
+    # -------- #    
+    def set_logs(self, logs):
+        """ """
+        self._logs = logs
+
+    # -------- #
+    #  GETTER  #
+    # -------- #
+    def get_filtered(self, field=None, fid=None, grid="both", query=None):
+        """ """
+        
+        fidflag = True if fid is None else self.data["fid"].isin( np.atleast_1d(fid) )
+        fieldflag = True if field is None else self.data["field"].isin( np.atleast_1d(field) )
+        gridflag = True if grid is None else self.data["field"].isin( fields.get_grid_field(grid) )
+        
+        if query is None:
+            return self.data[fidflag & fieldflag & gridflag]
+
+        return self.data[fidflag & fieldflag & gridflag].query(query)
+    
+    def get_count(self, entry, normalize=False, query=None, **kwargs):
+        """ count the number of time the entry exists 
+        For instance, count the number of time a field has been observed:
+        self.get_count("field")
+
+        **kwargs goes to get_filter()
+        """
+        return self.get_filtered(query=query, **kwargs)[entry].value_counts(normalize=normalize)
+    
+    # -------- #
+    # PLOTTER  #
+    # -------- #
+    def show_gri_fields(self, sizeentry="field", grid="main", filterprop={}, **kwargs):
+        """ """
+        # Data
+        fieldsg = self.get_count(sizeentry, fid=1, grid=grid, **filterprop)
+        fieldsr = self.get_count(sizeentry, fid=2, grid=grid, **filterprop)
+        fieldsi = self.get_count(sizeentry, fid=3, grid=grid, **filterprop)
+        # Plot        
+        return fields.show_gri_fields(fieldsg.to_dict(), fieldsr.to_dict(), fieldsi.to_dict(), grid=grid, **kwargs)
+
+    # =============== #
+    #  Properties     #
+    # =============== #
+    @property
+    def logs(self):
+        """ original logs as given by skyvision """
+        return self._logs
+    
+    @property
+    def data(self):
+        """ clean (renamed and reshaped) logs """
+        if not hasattr(self,"_data"):
+            self.load_data()
+        return self._data
+    
+    def has_multiple_logs(self):
+        """ """
+        return type(self.logs.index) is pandas.MultiIndex
+    
+# ============== #
+#                #
+#  COMPLETED     #
+#                #
+# ============== #
+class CompletedLog( ZTFLog ):
+    """ """
+    _NAME_ = "completed"
     # =============== #
     #   Methods       #
     # =============== #
@@ -308,26 +403,10 @@ class CompletedLog( object ):
         return self.data.obsjd
     
     # -------- #
-    #  SETTER  #
-    # -------- #    
-    def set_logs(self, logs):
-        """ """
-        self._logs = logs
-
-    # -------- #
     #  GETTER  #
     # -------- #
-    def get_count(self, entry, pid=[1,2,3], fid=None, grid=None, startdate=None, enddate=None, normalize=False, **kwargs):
-        """ count the number of time the entry exists 
-        For instance, count the number of time a field has been observed:
-        self.get_count("field")
-
-        **kwargs goes to get_filter()
-        """
-        data = self.data[ self.get_filter(pid=pid, fid=fid, startdate=startdate, enddate=enddate, grid=grid, **kwargs) ]
-        return data[entry].value_counts(normalize=normalize)
-
-    def get_when_target_observed(self, radec, pid=[1,2,3], fid=None, startdate=None, enddate=None, **kwargs):
+    def get_when_target_observed(self, radec, pid=[1,2,3], fid=None, startdate=None, enddate=None,
+                                    query=None, **kwargs):
         """ Returns the data raws corresponding to the given coordinates
     
         Parameters
@@ -354,10 +433,10 @@ class CompletedLog( object ):
         """
         target_fields = fields.get_fields_containing_target(*radec)
         return self.get_when_field_observed( target_fields, pid=pid, fid=fid,
-                                             startdate=startdate, enddate=enddate, **kwargs)
+                                             startdate=startdate, enddate=enddate, query=query, **kwargs)
     
-        
-    def get_when_field_observed(self, field, pid=[1,2,3], fid=None, startdate=None, enddate=None, **kwargs):
+    def get_when_field_observed(self, field, pid=[1,2,3],
+                                    fid=None, startdate=None, enddate=None, query=None, **kwargs):
         """ Returns the data raws corresponding to the given filters
     
         Parameters
@@ -382,11 +461,16 @@ class CompletedLog( object ):
         -------
         DataFrame
         """
-        return self.data[self.get_filter(field, pid=pid, fid=fid, startdate=startdate, enddate=enddate, **kwargs)]
+        
+        return self.get_filtered(field=field, pid=pid, fid=fid, startdate=startdate, enddate=enddate, query=query, **kwargs)
 
-    def get_filter(self, field=None, pid=None, fid=None, startdate=None, enddate=None, grid=None):
-        """  Parameters
+    def get_filtered(self, field=None, fid=None, pid=None, startdate=None, enddate=None, grid=None, query=None):
+        """  
+        Parameters
         ----------
+        query: [string] -optional-
+            Generic pandas.DataFrame query regex call, i.e. self.data.query(query)
+
         fields: [int or list of]
             Field(s) id you want. If multiple field returns an 'or' selection applies.
         
@@ -407,39 +491,31 @@ class CompletedLog( object ):
         -------
         pandas.Serie of bool
         """
-        fidflag = True if fid is None else self.data["fid"].isin(np.atleast_1d(fid))
-        pidflag = True if pid is None else self.data["pid"].isin(np.atleast_1d(pid))
-        fieldflag = True if field is None else self.data["field"].isin(np.atleast_1d(field))
-        gridflag = True if grid is None else self.data["field"].isin(fields.get_grid_field(grid))
+        queried = super().get_filtered(field=field, fid=fid, grid=grid, query=query)
+        if pid is None and (startdate is None and enddate is None):
+            return queried
         
+        pidflag = True if pid is None else queried["pid"].isin(np.atleast_1d(pid))
         # DateRange Selection
         if startdate is None and enddate is None:
             dateflag = True
         elif startdate is None:
-            dateflag = self.data["date"]<=enddate
+            dateflag = queried["date"]<=enddate
         elif enddate is None:
-            dateflag = self.data["date"]>=startdate
+            dateflag = queried["date"]>=startdate
         else:
-            dateflag = self.data["date"].between(startdate,enddate)
+            dateflag = queried["date"].between(startdate,enddate)
 
-        return fidflag & pidflag & fieldflag & gridflag & dateflag
+        return queried[pidflag & dateflag]
             
-    def get_date(self, date, which="data"):
+    def get_date(self, date):
         """ """
-        if which == "data":
-            return self.data[self.data["date"].isin(np.atleast_1d(date))]
-        if which == "logs":
-            return self.logs[self.logs["UT Date"].isin(np.atleast_1d(date))]
-        raise ValueError(f"Only which = 'logs' or 'data' implemented you gave {which} ")
+        return self.data[self.data["date"].isin(np.atleast_1d(date))]
 
     def get_loaded_dates(self, which="data"):
         """ """
-        if which == "data":
-            return np.unique(self.data["date"])
-        if which == "logs":
-            return np.unique(self.data["UT Date"])
-        raise ValueError(f"Only which = 'logs' or 'data' implemented you gave {which} ")
-
+        return np.unique(self.data["date"])
+        
     def get_completed_logs(self):
         """ """
         return self.logs[self.logs["Observation Status"]=="COMPLETE"]
@@ -457,31 +533,4 @@ class CompletedLog( object ):
         fanim = fields.FieldAnimation(field_id, dates=dates, facecolors=fid_color)
         fanim.launch(interval=1)
         return fanim
-
-    def show_gri_fields(self, sizeentry="field", grid="main", filterprop={}, **kwargs):
-        """ """
-        # Data
-        fieldsg = self.get_count(sizeentry, fid=1, grid=grid, **filterprop)
-        fieldsr = self.get_count(sizeentry, fid=2, grid=grid, **filterprop)
-        fieldsi = self.get_count(sizeentry, fid=3, grid=grid, **filterprop)
-        # Plot        
-        return fields.show_gri_fields(fieldsg.to_dict(), fieldsr.to_dict(), fieldsi.to_dict(), grid=grid, **kwargs)
-    # =============== #
-    #  Properties     #
-    # =============== #
-    @property
-    def logs(self):
-        """ original logs as given by skyvision """
-        return self._logs
-    
-    @property
-    def data(self):
-        """ clean (renamed and reshaped) logs """
-        if not hasattr(self,"_data"):
-            self.load_data()
-        return self._data
-    
-    def has_multiple_logs(self):
-        """ """
-        return  type(self.logs.index) is pandas.MultiIndex
     
