@@ -6,7 +6,7 @@
 import os
 import numpy as np
 from .metasearch import download_metadata, _test_kind_
-from . import buildurl
+from . import buildurl, ztftable
 import warnings
 
 
@@ -125,136 +125,6 @@ def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
 #   Main Query Tools        #
 #                           #
 #############################
-class _ZTFTableHandler_( object ):
-    """ """
-    # -------------- #
-    #  FIELDS        #
-    # -------------- #
-    def get_observed_fields(self, grid="both"):
-        """ get the (unique) list of field observed  type. """
-        if "field" not in self._data.columns:
-            return None
-        all_fields = np.unique(self._data["field"])
-        if grid is None or grid in ["both"]:
-            return all_fields
-        
-        if grid in ["main", "first", "primary"]:
-            return all_fields[all_fields<880]
-        elif grid in ["other", "secondary"]:
-            return all_fields[~(all_fields<880)]
-        else:
-            raise ValueError("Cannot parse the given grid %s"%grid)
-        
-    def get_field_average_value(self, value, grid="both", fid=[1,2,3], method="mean"):
-        """ get the serie of the average value (but see method) per fields 
-        
-        See also: See get_field_obsdensity()
-
-        Parameters
-        ----------
-        value: [string]
-            Any of the metatable columns
-
-        grid: [string] -optional-
-            Which fields do you want ? main or secondary ?
-
-        fid: [int or list of] -optional-
-            which field should be considered ? 
-            1: ztf:g : 2: ztf:r ; ztf:i
-
-        method: [string] -optional-
-            any of the pandas.DataFrame.groupby method (but size).
-            See get_field_obsdensity() for size
-        
-        Returns
-        -------
-        return pandas.Serie
-        """
-        return getattr(self._get_filtered_(grid=grid, fid=fid).groupby("field"),method)()[value]
-        
-    def get_field_obsdensity(self, grid="both", fid=[1,2,3], normalize=False):
-        """ get the serie of the number of time the field has been visited
-        
-        See also: See get_field_average_value()
-
-        Parameters
-        ----------
-        grid: [string] -optional-
-            Which fields do you want ? main or secondary ?
-
-        fid: [int or list of] -optional-
-            which field should be considered ? 
-            1: ztf:g : 2: ztf:r ; ztf:i
-        
-        Returns
-        -------
-        return pandas.Serie
-        """
-        return self._get_filtered_(grid=grid, fid=fid)["field"].value_counts(normalize=normalize)
-
-    def _get_filtered_(self, grid="both", fid=[1,2,3]):
-        """ """
-        list_of_fields_ = self.get_observed_fields(grid=grid)
-        fid_ = np.atleast_1d(fid)
-        return self.metatable.query("field in @list_of_fields_ and fid in @fid_")
-    
-    def show_fields(self, field_val,
-                    ax=None,
-                    show_ztf_fields=True, grid="main",
-                    colorbar=True, cax=None, clabel=" ", 
-                    cmap="viridis",
-                    vmin=None, vmax=None,  **kwargs):
-        """ 
-        Parameters
-        ----------
-        field_val: [dict or pandas.Series]
-            Values assocatied to the fields.
-
-        
-        """
-        from .fields import show_fields
-
-        if type(field_val) is str:
-            field_val = self.get_field_average_value(field_val, grid=grid)
-        
-        return show_fields(field_val, ax=ax,
-                    show_ztf_fields=show_ztf_fields, grid=grid,
-                    colorbar=colorbar, cax=cax, clabel=clabel, 
-                    cmap=cmap,
-                    vmin=vmin, vmax=vmax,  **kwargs)
-
-    
-    def show_gri_fields(self, colored_by="visits",
-                            title=" ", colorbar=True, 
-                        show_ztf_fields=True,grid="main",
-                        show_mw=True, **kwargs):
-        """  """
-        import matplotlib.pyplot as mpl
-        from .fields import show_gri_fields
-
-        if colored_by in ["visits", "density"]:
-            field_vals = [self.get_field_obsdensity(grid=grid, fid=i) for i in [1,2,3]]
-        elif type(colored_by) is str:
-            field_vals = [self.get_field_average_value(colored_by, grid=grid, fid=i) for i in [1,2,3]]
-        else:
-            field_vals = colored_by
-            
-        return show_gri_fields(*field_vals,
-                    title=title,
-                    show_ztf_fields=show_ztf_fields,grid=grid,
-                    colorbar=colorbar, show_mw=True, mw_b=None, mw_prop={},
-                    **kwargs)
-        
-        
-    
-    # =================== #
-    #                     #
-    # =================== #
-    @property
-    def _data(self):
-        """ """
-        return self.metatable if hasattr(self, "metatable") else self.data
-
     
 class _ZTFDownloader_( object ):
     """ Virtual class that enable to download consistently ZTF data. 
@@ -468,76 +338,6 @@ class _ZTFDownloader_( object ):
             
         return localfile
 
-    def get_local_metatable(self, suffix=None, which="any", invert=False):
-        """ 
-        Parameters
-        ----------
-        suffix: [string] -optional-
-            What kind of data do you want? 
-            Here is the list of available options depending on you image kind:
-        
-            # Science image (kind="sci"):
-            - sciimg.fits (primary science image) # (default)
-            - mskimg.fits (bit-mask image)
-            - psfcat.fits (PSF-fit photometry catalog)
-            - sexcat.fits (nested-aperture photometry catalog)
-            - sciimgdao.psf (spatially varying PSF estimate in DAOPhot's lookup table format)
-            - sciimgdaopsfcent.fits (PSF estimate at science image center as a FITS image)
-            - sciimlog.txt (log output from instrumental calibration pipeline)
-            - scimrefdiffimg.fits.fz (difference image: science minus reference; fpack-compressed)
-            - diffimgpsf.fits (PSF estimate for difference image as a FITS image)
-            - diffimlog.txt (log output from image subtraction and extraction pipeline)
-            - log.txt (overall system summary log from realtime pipeline)
-            
-            # Reference image (kind="ref"):
-            -log.txt
-            -refcov.fits
-            -refimg.fits # (default)
-            -refimlog.txt
-            -refpsfcat.fits
-            -refsexcat.fits
-            -refunc.fits
-
-            # Raw images (kind="raw")
-            No Choice so suffix is ignored for raw data
-            
-            # Calibration (kind="cal")
-            - None (#default) returns `caltype`.fits
-            - log:            returns `caltype`log.txt
-            - unc:            returns `caltype`unc.fits
-
-
-        which: [string] -optional-
-            Which missing data are you looking for:
-            - any/all: missing because bad local files or because not downloaded yet.
-            - bad/corrupted: missing because the local files are corrupted
-            - notdl/dl/nodl: missing because not downloaded. 
-
-        invert: [bool] -optional-
-            Set True to invert the method, i.e. get the metable of the files *you do not have*
-
-        Returns
-        -------
-        self.metadata (filtered to match your local data)
-        """
-        
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            if which in ["all", "any"]:
-                all_local = self.get_data_path(suffix ,source="local")
-                actual_local = self.get_local_data(suffix, exists=True, filecheck=True)            
-            elif which in ["bad", "corrupted"]:
-                all_local = self.get_local_data(suffix, exists=True, filecheck=False)
-                actual_local = self.get_local_data(suffix, exists=True, filecheck=True)
-            elif which in ["dl"]:
-                all_local = self.get_data_path(suffix ,source="local")
-                actual_local = self.get_local_data(suffix, exists=True, filecheck=False)
-            else:
-                raise ValueError("cannot parse which %s: any, bad, notdl available"%which)
-
-        flagin = np.in1d(all_local, actual_local)
-        return self.metatable[flagin if not invert else ~flagin]
-
     def get_missing_data_index(self, suffix=None, which="any"):
         """ 
         Parameters
@@ -664,8 +464,21 @@ class _ZTFDownloader_( object ):
         return badfiles
 
     
-class ZTFQuery( _ZTFTableHandler_, _ZTFDownloader_ ):
+class ZTFQuery( ztftable._ZTFTable_, _ZTFDownloader_ ):
     """ """
+    def __init__(self, metatable=None, kind=None):
+        """ """
+        if metatable is not None:
+            self.set_metable(metatable, kind)
+
+    def set_metatable(self, metatable, kind):
+        """ directly provide the metatable of interest"""
+        self._metatable = metatable
+        if kind not in ["sci","raw","calib","ref"]:
+            raise ValueError(f"The given metatable should be of kind sci/raw/calib/ref, {kind} given")
+        
+        self._datakind = kind
+        
     # ------------ #
     #  DOWNLOADER  #
     # ------------ #
@@ -818,193 +631,10 @@ class ZTFQuery( _ZTFTableHandler_, _ZTFDownloader_ ):
         return metatable_to_url(self.metatable if indexes is None else self.metatable.loc[np.atleast_1d(indexes)],
                                     datakind=self.datakind, suffix=suffix, source=source)
 
-    # =============== #
-    #  Properties     #
-    # =============== #
-    @property
-    def datakind(self):
-        """ """
-        if not hasattr(self, "metaquery"):
-            raise AttributeError("metaquery has not been loaded. Run load_metadata(). ")
-        return self.metaquery.datakind
-    
-    @property
-    def metatable(self):
-        """ """
-        if not hasattr(self, "metaquery"):
-            raise AttributeError("metaquery has not been loaded. Run load_metadata(). ")
-        return self.metaquery.metatable
-        
-#############################
-#                           #
-#  Addition Queries         #
-#                           #
-#############################
-_NIGHT_SUMMARY_URL = "http://www.astro.caltech.edu/~tb/ztfops/sky/"
-def convert_summary_to_dataframe(summary):
-    """ 
-    Parameters
-    ----------
-    summary: [list]
-        Format: Result from running requests.get(URL).text.splitlines()
-    """
-    from pandas import DataFrame
-    
-    if len(summary) == 0: return None
-    seperator_idxs = [idx for idx,char in enumerate(summary[0]) if char=='|'][:-1]
-    if len(seperator_idxs) == 0: return None
-    
-    columns = [summary[0][i:j] for i,j in zip(seperator_idxs, seperator_idxs[1:]+[None])]
-    columns = [c.replace('|','').replace(' ','') for c in columns]
-    
-    data = []
-    for line in summary[1:]:
-        if line.startswith('|'): continue
-        _data = [line[i:j] for i,j in zip(seperator_idxs, seperator_idxs[1:]+[None])]
-        _data = [d.replace('|','').replace(' ','') for d in _data]
-        data.append(_data)
-        
-    dataf   = DataFrame(data=data, columns=[l if l!= "fil" else "fid" for l in columns])
-    dataf["fid"][dataf["fid"]=="4"] = "3"
-    return dataf
-
-def download_night_summary(night, ztfops_auth = None):
-    """ 
-    Parameters
-    ----------
-    night: [string]
-        Format: YYYYMMDD like for instance 20180429
-
-    ztfops_auth: [string, string] -optional-
-        Provide directly the [username, password] of the ztfops page.
-    """
-    print("NIGHT SUMMARY IS NOW DEPRECATED, USE skyvision.CompletedLog.from_date('YYY-MM-DD') instead")
-    return
-
-    import requests
-    # = Password and username
-    if ztfops_auth is None:
-        from .io import _load_id_
-        ztfops_auth = _load_id_("ztfops", askit=True)
-        
-    
-    summary = requests.get(os.path.join(_NIGHT_SUMMARY_URL+f"{night}/exp.{night}.tbl"),
-                               auth=ztfops_auth).content.decode('utf-8').splitlines()
-    dataf = convert_summary_to_dataframe(summary)
-    return dataf
-
-def download_allnight_summary(ztfops_auth = None):
-    """ 
-    Parameters
-    ----------
-    ztfops_auth: [string, string] -optional-
-        Provide directly the [username, password] of the ztfops page.
-    """
-    print("NIGHT SUMMARY IS NOW DEPRECATED, USE skyvision.CompletedLog.from_date('YYY-MM-DD') instead")
-    return
-
-    import requests
-    # = Password and username
-    if ztfops_auth is None:
-        from .io import _load_id_
-        ztfops_auth = _load_id_("ztfops", askit=True)
-        
-    
-    summary = requests.get(_NIGHT_SUMMARY_URL+"allexp.tbl",
-                               auth=ztfops_auth).content.decode('utf-8').splitlines()
-    dataf = convert_summary_to_dataframe(summary)
-    return dataf
-
-class NightSummary( _ZTFTableHandler_, _ZTFDownloader_ ):
-    def __init__(self, night, ztfops_auth=None):
-        """ """
-        print("NIGHT SUMMARY IS NOW DEPRECATED, USE skyvision.CompletedLog.from_date('YYY-MM-DD') instead")
-        self.night = night
-        
-        self.data_all  = download_night_summary(night, ztfops_auth=ztfops_auth)
-        
-        if self.data_all is None:
-            self.data = None
-        else:
-            self.data  = self.data_all[self.data_all["type"]=="targ"]
-        
-    # ================ #
-    #  Methods         #
-    # ================ #
-    # --------- #
-    #  GETTER   #
-    # --------- #
-    def get_observed_information(self, obstype="targ", columns=["field","ra","dec"]):
-        """ get a DataFrame (pandas) of the requested columns for the given obstype. 
-
+    def get_local_metatable(self, suffix=None, which="any", invert=False):
+        """ 
         Parameters
         ----------
-        obstype: [string]
-            Type of observation. 
-            Could be: 'bias', 'dark', 'flat', or 'targ'
-            
-        columns: [string or list of]
-            Any field available in data (check the list by doing THIS.data.columns)
-
-        Returns
-        -------
-        DataFrame
-        """
-        return self.data[self.data['type']==obstype][columns]
-
-    # Download Data
-    def set_metadata(self, kind, **kwargs):
-        """ Set the mate information get_data_path need
-        
-        Important: Some kwargs are mandatory dependending of you given kind:
-
-        - for kind "sci":  ["paddedccdid", "qid"]
-        - for kind "raw":  ["paddedccdid"]
-        (other kind not implemented yet)
-        """
-        self._metadata = {}
-
-        MANDATORY = {"sci":["paddedccdid", "qid"],
-                     "raw":["paddedccdid"],
-                     "ref":{},
-                     "cal":{}
-                     }
-            
-        DEFAULT = {"sci":{"imgtypecode":"o"},
-                   "raw":{"imgtypecode":"o"},
-                    "ref":{},
-                   "cal":{}}
-            
-        if kind not in ["raw","sci"]:
-            raise NotImplementedError("Only Science ('sci') or Raw ('raw') kinds ready (%s given)."%kind)
-        # Requested input
-        for k in MANDATORY[kind]:
-            if k not in kwargs.keys():
-                raise ValueError("%s should be provided for kind: %s"%(k,kind))
-            
-        # -> python3    self._metadata = **{DEFAULT[kind], **kwargs}
-        
-        self._metadata = DEFAULT[kind]
-        self._metadata["kind"] = kind
-        for k,v in kwargs.items():
-            self._metadata[k] = v
-        # -> python3    self._metadata = **{DEFAULT[kind], **kwargs}; self._metadata["kind"] = kind
-            
-    # WRONG SO FAR
-    def get_data_path(self, mask=None, suffix=None, source=None, verbose=False, indexes=None):
-        """ generic method to build the url/fullpath or the requested data.
-        This method is based on the `builurl.py` module of ztfquery.
-        
-        Parameters
-        ----------
-        mask: [None / list of int / boolean array] -optional-
-           only use the data entry for the given mask:
-           ```
-           fileroots = np.asarray(self.data["fileroot"])
-           if mask is not None:
-               fileroots = fileroots[mask]
-            ```
-
         suffix: [string] -optional-
             What kind of data do you want? 
             Here is the list of available options depending on you image kind:
@@ -1033,44 +663,99 @@ class NightSummary( _ZTFTableHandler_, _ZTFDownloader_ ):
 
             # Raw images (kind="raw")
             No Choice so suffix is ignored for raw data
-
+            
             # Calibration (kind="cal")
             - None (#default) returns `caltype`.fits
             - log:            returns `caltype`log.txt
             - unc:            returns `caltype`unc.fits
-            
 
 
-        // if queried metadata is for kind calibration
-            
+        which: [string] -optional-
+            Which missing data are you looking for:
+            - any/all: missing because bad local files or because not downloaded yet.
+            - bad/corrupted: missing because the local files are corrupted
+            - notdl/dl/nodl: missing because not downloaded. 
+
+        invert: [bool] -optional-
+            Set True to invert the method, i.e. get the metable of the files *you do not have*
+
+        Returns
+        -------
+        self.metadata (filtered to match your local data)
         """
-        if not hasattr(self,"_metadata"):
-            raise AttributeError("you did not set the metadata, you must (see self.set_metadata()) ")
-
-        fileroots = np.asarray(self.data["fileroot"])
-        if mask is not None:
-            fileroots = fileroots[mask]
         
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            if which in ["all", "any"]:
+                all_local = self.get_data_path(suffix ,source="local")
+                actual_local = self.get_local_data(suffix, exists=True, filecheck=True)            
+            elif which in ["bad", "corrupted"]:
+                all_local = self.get_local_data(suffix, exists=True, filecheck=False)
+                actual_local = self.get_local_data(suffix, exists=True, filecheck=True)
+            elif which in ["dl"]:
+                all_local = self.get_data_path(suffix ,source="local")
+                actual_local = self.get_local_data(suffix, exists=True, filecheck=False)
+            else:
+                raise ValueError("cannot parse which %s: any, bad, notdl available"%which)
+
+        flagin = np.in1d(all_local, actual_local)
+        return self.metatable[flagin if not invert else ~flagin]
+    # =============== #
+    #  Properties     #
+    # =============== #
+    @property
+    def datakind(self):
+        """ """
+        if not hasattr(self,"_datakind"):
+            if not hasattr(self, "metaquery"):
+                raise AttributeError("metaquery has not been loaded. Run load_metadata(). ")
+            return self.metaquery.datakind
         
-        # Science Products
-        if self._metadata["kind"] in ['sci']:
-            from .buildurl import fileroot_to_science_url
-            if suffix is None:
-                suffix = "sciimg.fits"
-
-            return [fileroot_to_science_url(fileroot, self._metadata["paddedccdid"], self._metadata["qid"],
-                            imgtypecode=self._metadata["imgtypecode"],
-                            suffix=suffix, source=source,
-                            verbose=verbose)
-                        for fileroot in fileroots]
-        # Raw Data
-        elif self._metadata["kind"] in ["raw"]:
-            from .buildurl import fileroot_to_raw_url
-            return [fileroot_to_raw_url(fileroot, self._metadata["paddedccdid"],
-                        imgtypecode=self._metadata["imgtypecode"],
-                                            source=source, verbose=verbose)
-                        for fileroot in fileroots]
-        else:
-            raise NotImplementedError("Only Science ('sci') or Raw ('raw') kinds ready (%s given)."%kind)
-
+        return self._datakind
     
+    @property
+    def metatable(self):
+        """ """
+        if not hasattr(self,"_metatable"):
+            if not hasattr(self, "metaquery"):
+                raise AttributeError("metaquery has not been loaded. Run load_metadata(). ")
+        
+            return self.metaquery.metatable
+        
+        return self._metatable
+
+    @property
+    def data(self):
+        """ short cut towards metatable """
+        # enables to _ZTFTable_ tricks
+        return self.metatable
+    
+#############################
+#                           #
+#  Addition Queries         #
+#                           #
+#############################
+_NIGHT_SUMMARY_URL = "http://www.astro.caltech.edu/~tb/ztfops/sky/"
+def download_night_summary(night, ztfops_auth = None):
+    """ 
+    Parameters
+    ----------
+    night: [string]
+        Format: YYYYMMDD like for instance 20180429
+
+    ztfops_auth: [string, string] -optional-
+        Provide directly the [username, password] of the ztfops page.
+    """
+    print("NIGHT SUMMARY IS NOW DEPRECATED, USE skyvision.CompletedLog.from_date('YYY-MM-DD') instead")
+    return
+
+def download_allnight_summary(ztfops_auth = None):
+    """ 
+    Parameters
+    ----------
+    ztfops_auth: [string, string] -optional-
+        Provide directly the [username, password] of the ztfops page.
+    """
+    print("NIGHT SUMMARY IS NOW DEPRECATED, USE skyvision.CompletedLog.from_date('YYY-MM-DD') instead")
+    return
+
