@@ -278,36 +278,65 @@ def show_fields(fields, vmin=None, vmax=None,
 
 
 def show_gri_fields(fieldsg=None, fieldsr=None, fieldsi=None,
-                    title=" ",
+                    title=" ", alignment="classic",
                     show_ztf_fields=True, colorbar=True,
                     show_mw=True, mw_b=None, mw_prop={},
+                    projection="hammer",
                     **kwargs):
     """  """
-    fig = mpl.figure(figsize=[9,6])
-    fig.suptitle(title, fontsize="large")
-    # G
-    axg   = fig.add_axes([0.03,0.52,0.43,0.48], projection="hammer")
-    caxg  = fig.add_axes([0.03,0.54,0.43,0.015])
-    axg.tick_params(labelsize="x-small", labelcolor="0.3" )
-    # R
-    axr   = fig.add_axes([0.54,0.52,0.43,0.48], projection="hammer")
-    caxr  = fig.add_axes([0.54,0.54,0.43,0.015])
-    axr.tick_params(labelsize="x-small", labelcolor="0.3")
-    # I
-    axi   = fig.add_axes([0.27,0.04,0.43,0.48], projection="hammer")
-    caxi  = fig.add_axes([0.27,0.05,0.43,0.015])
-    axi.tick_params(labelsize="x-small", labelcolor="0.3", )
-        
+    ax, cax = _get_gri_axes_(alignment=alignment, title=title, projection=projection)
+    
     prop = {**dict(colorbar=colorbar, edgecolor="0.5", linewidth=0.5),**kwargs}
-    for i,ax_,cax_,fields_ in zip([1,2,3], [axg,axr,axi], [caxg,caxr,caxi], [fieldsg, fieldsr, fieldsi]):
+    for i,ax_,cax_,fields_ in zip([1,2,3], ax, cax, [fieldsg, fieldsr, fieldsi]):
         if fields_ is not None:
-            show_fields(fields_, ax=ax_, cax=cax_, cmap=FIELD_CMAP[i],
+            _ = show_fields(fields_, ax=ax_, cax=cax_, cmap=FIELD_CMAP[i],
                             show_ztf_fields=show_ztf_fields,
                             show_mw=show_mw, mw_b=mw_b, mw_prop=mw_prop,
                             **prop)
-            
-    return fig
+    return _
+
+
+def _get_gri_axes_(alignment="classic", title=None, titlefontsize="large", projection="hammer", labelsize="x-small", labelcolor="0.7"):
+    """ """
+    if alignment is None:
+        alignment = "classic"
+    if alignment in ["classic"]:
+        fig = mpl.figure(figsize=[9,6])
+        if title is not None:
+            fig.suptitle(title, fontsize=titlefontsize)
+        # G
+        axg   = fig.add_axes([0.03,0.52,0.43,0.48], projection=projection)
+        caxg  = fig.add_axes([0.03,0.54,0.43,0.015])
+        # R
+        axr   = fig.add_axes([0.54,0.52,0.43,0.48], projection=projection)
+        caxr  = fig.add_axes([0.54,0.54,0.43,0.015])
+        # I
+        axi   = fig.add_axes([0.27,0.04,0.43,0.48], projection=projection)
+        caxi  = fig.add_axes([0.27,0.05,0.43,0.015])
+        ax = [axg,axr,axi]
+        cax = [caxg,caxr,caxi]
+    elif alignment in ["flat","aligned", "horizontal"]:
+        fig = mpl.figure(figsize=[10,2])
+        #fig.suptitle("""", fontsize="large")
+        # G
+        spanx, spanm = 0.05,0.05
+        width = (1-(2*spanx+2*spanm))/3
+        ax = [fig.add_axes([spanm+i*(width+spanx),0.2,width,0.75], projection=projection) for i in range(3)]
+        cax = [fig.add_axes([spanm+i*(width+spanx),0.12,width,0.025]) for i in range(3)]
+    else:
+        raise ValueError(f"cannot parse the given show_gri alignment {alignment}, classic or horizontal")
     
+    # labels
+    for ax_ in ax:
+        ax_.tick_params(labelsize=labelsize, labelcolor=labelcolor)
+        
+    return ax,cax
+        
+
+         
+
+    
+
 def show_ZTF_fields(ax, maingrid=True, lower_dec=-30, alpha=0.1, facecolor="0.8", edgecolor="0.8", **kwargs):
     """ """
     print("show_ZTF_fields is DEPRECATED")

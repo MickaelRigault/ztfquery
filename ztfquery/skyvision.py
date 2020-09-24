@@ -10,7 +10,8 @@ import numpy as np
 import pandas
 
 from astropy import time
-    
+
+from io import StringIO
 from . import io, fields
 
 SKYVISIONSOURCE = os.path.join(io.LOCALSOURCE,"skyvision")
@@ -83,8 +84,9 @@ def get_daterange(start, end=None):
     # Dates to be downloaded.
     return [f"{i.year}-{i.month:02d}-{i.day:02d}" for i in pandas.Series(pandas.date_range(start,end, freq='D'))]
  
-def download_timerange_completed_log(start, end=None, nprocess=1, auth=None,
-                                         show_progress=True, notebook=True, verbose=True):
+def download_timerange_log(which="completed",
+                            start="2018-03-01", end=None, nprocess=1, auth=None,
+                            show_progress=True, notebook=True, verbose=True):
     """ Storing and not return forced. See download_completed_log() for individual date downloading. """
     if nprocess is None:
         nprocess = 1
@@ -128,7 +130,8 @@ def download_timerange_completed_log(start, end=None, nprocess=1, auth=None,
             if bar is not None:
                 bar.update( len(dates[1:]) )
     
-def download_completed_log(date, auth=None, store=True, returns=True, set_columns=True, verbose=False):
+def download_completed_log(date, auth=None, store=True,
+                            returns=True, set_columns=True, verbose=False):
     """ 
     Parameters
     ----------
@@ -148,7 +151,7 @@ def download_completed_log(date, auth=None, store=True, returns=True, set_column
         logtable=None
     else:
         response = requests.post(f"http://skyvision.caltech.edu/ztf/queue/?obsdate={date}",
-                                auth = io._load_id_("skyvision"))
+                                auth = io._load_id_("skyvision") if auth is None else auth)
         logtable = response.text
         
     if verbose:
@@ -179,15 +182,61 @@ def download_completed_log(date, auth=None, store=True, returns=True, set_column
         print(data)
         return None
         
-        
     if store:
         df.to_csv( completed_log_filepath(date), index=False)
     if returns:
         return df
 
+    
 def completed_log_filepath(date):
     """ local filepath of the completed_log for the given date """
     return os.path.join(SKYVISIONSOURCE, f"{date}_completed_log.csv")
+
+
+def download_qa_log(date, auth=None, summary_values=None, store=True):
+    """ """
+    if summary_values is None:
+        summary_values = ['obsdatetime', 'nightdate','obsjd',
+                          'exptime', 'ccdid','qid', "rcid",
+                          'scibckgnd','sciinpseeing','scisat','nsexcat',
+                          'refbckgnd','refinpseeing','refsat',
+                          'programid','maglimit', 'field', 'fwhm','status','statusdif', 
+                          'qcomment']
+            
+    url = "http://skyvision.caltech.edu/ztf/status/summary_table"
+    payload = {'summary_values': summary_values,
+               'obsdate': date,
+#               'where_statement': where_statement,
+#               'groupby_values': groupby_values,
+               'return_type': "csv",
+               'time_between': False,
+               'add_summary_map': False,
+               }
+
+    headers = {'content-type': 'application/json'}
+    json_data = json.dumps(payload)
+    response = requests.post(url,
+                             data=json_data,
+                             auth= io._load_id_("skyvision") if auth is None else auth,
+                             headers=headers)
+    
+    
+    y = json.loads(response.text)
+    
+    df = pandas.read_csv(StringIO(y['obstable']), header=0,
+                     low_memory=False, index_col=0)
+
+    df['obsdatetime'] = pandas.to_datetime(df['obsdatetime'])
+    
+    if store:
+        df.to_csv( qa_log_filepath(date), index=False)
+
+    return df
+
+def qa_log_filepath(date):
+    """ local filepath of the qa_log for the given date """
+    return os.path.join(SKYVISIONSOURCE, f"{date}_qa_log.csv")
+
 
 
 # ================ #
@@ -268,7 +317,7 @@ class CompletedLog( object ):
     # -------- #
     #  GETTER  #
     # -------- #
-    def get_count(self, entry, pid=[1,2,3], fid=None, grid=None, startdate=None, enddate=None, **kwargs):
+    def get_count(self, entry, pid=[1,2,3], fid=None, grid=None, startdate=None, enddate=None, normalize=False, **kwargs):
         """ count the number of time the entry exists 
         For instance, count the number of time a field has been observed:
         self.get_count("field")
@@ -276,7 +325,7 @@ class CompletedLog( object ):
         **kwargs goes to get_filter()
         """
         data = self.data[ self.get_filter(pid=pid, fid=fid, startdate=startdate, enddate=enddate, grid=grid, **kwargs) ]
-        return data.groupby(entry).size()
+        return data[entry].value_counts(normalize=normalize)
 
     def get_when_target_observed(self, radec, pid=[1,2,3], fid=None, startdate=None, enddate=None, **kwargs):
         """ Returns the data raws corresponding to the given coordinates
@@ -431,7 +480,6 @@ class CompletedLog( object ):
         if not hasattr(self,"_data"):
             self.load_data()
         return self._data
-
     
     def has_multiple_logs(self):
         """ """

@@ -172,7 +172,7 @@ class _ZTFTableHandler_( object ):
         """
         return getattr(self._get_filtered_(grid=grid, fid=fid).groupby("field"),method)()[value]
         
-    def get_field_obsdensity(self, grid="both", fid=[1,2,3]):
+    def get_field_obsdensity(self, grid="both", fid=[1,2,3], normalize=False):
         """ get the serie of the number of time the field has been visited
         
         See also: See get_field_average_value()
@@ -190,7 +190,7 @@ class _ZTFTableHandler_( object ):
         -------
         return pandas.Serie
         """
-        return self._get_filtered_(grid=grid, fid=fid).groupby("field").size()
+        return self._get_filtered_(grid=grid, fid=fid)["field"].value_counts(normalize=normalize)
 
     def _get_filtered_(self, grid="both", fid=[1,2,3]):
         """ """
@@ -527,9 +527,9 @@ class _ZTFDownloader_( object ):
             elif which in ["bad", "corrupted"]:
                 all_local = self.get_local_data(suffix, exists=True, filecheck=False)
                 actual_local = self.get_local_data(suffix, exists=True, filecheck=True)
-            elif which in ["notdl", "dl","nodl"]:
+            elif which in ["dl"]:
                 all_local = self.get_data_path(suffix ,source="local")
-                actual_local = self.get_local_data(suffix, exists=False, filecheck=False)
+                actual_local = self.get_local_data(suffix, exists=True, filecheck=False)
             else:
                 raise ValueError("cannot parse which %s: any, bad, notdl available"%which)
 
