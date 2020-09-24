@@ -367,7 +367,7 @@ As a final example of things you can do, watch what ZTF did:
 First download the logs on your laptop by doing (in this example since the 1st of May 2018):
 ```python
 from ztfquery import skyvision
-skyvision.download_timerange_completed_log("2018-05-01", nprocess=4)
+skyvision.download_timerange_log("2018-05-01", which="completed", nprocess=4)
 ```
 A progress bar is prompted. It roughly takes ten to twenty seconds per year. You will only need to do that once.
 
