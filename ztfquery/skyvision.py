@@ -94,8 +94,8 @@ def download_log(date, which="completed", auth=None, store=True, **kwargs):
     """
     return eval(f"download_{wich}_log")(date, auth=auth, store=store, **kwargs)
 
-def download_timerange_log(which="completed",
-                            start="2018-03-01", end=None, nprocess=1, auth=None,
+def download_timerange_log(start="2018-03-01", end=None, which="completed",
+                            nprocess=1, auth=None,
                             show_progress=True, notebook=True, verbose=True):
     """ Storing and not return forced. See download_completed_log() for individual date downloading. """
     if nprocess is None:
@@ -205,7 +205,7 @@ def download_completed_log(date, auth=None, store=True,
         return df
 
 def download_qa_log(date, auth=None, summary_values=None, store=True,
-                        where_statement="", groupby_values=False):
+                        where_statement="", groupby_values=False, returns=True):
     """ 
     Parameters
     ----------
@@ -216,7 +216,7 @@ def download_qa_log(date, auth=None, summary_values=None, store=True,
     """
     if summary_values is None:
         summary_values = ['obsdatetime', 'nightdate','obsjd',
-                          'exptime', 'ccdid','qid', "rcid",
+                          'exptime', 'ccdid','qid', "rcid","fid",
                           'scibckgnd','sciinpseeing','scisat','nsexcat',
                           'refbckgnd','refinpseeing','refsat',
                           'programid','maglimit', 'field', 'fwhm','status','statusdif', 
@@ -249,8 +249,9 @@ def download_qa_log(date, auth=None, summary_values=None, store=True,
     
     if store:
         df.to_csv( get_log_filepath(date, which="qa"), index=False)
-
-    return df
+        
+    if returns:
+        return df
 
 
 
@@ -325,21 +326,34 @@ class ZTFLog( object ):
         For instance, count the number of time a field has been observed:
         self.get_count("field")
 
-        **kwargs goes to get_filter()
+        **kwargs goes to get_filtered()
         """
         return self.get_filtered(query=query, **kwargs)[entry].value_counts(normalize=normalize)
-    
+
+    def get_field_average_value(self, entry, groupby="field", method="mean", query=None, **kwargs):
+        """ 
+        **kwargs goes to get_filtered()
+        """
+        return getattr(self.get_filtered(query=query, **kwargs).groupby("field"),method)()[entry]
     # -------- #
     # PLOTTER  #
     # -------- #
-    def show_gri_fields(self, sizeentry="field", grid="main", filterprop={}, **kwargs):
+    def show_gri_fields(self, sizeentry="visits", grid="main", filterprop={}, **kwargs):
         """ """
+        if sizeentry in ["visit","visits","density", "field"]:
+            func  = self.get_count
+            sizeentry = "field"
+        elif sizeentry in self.data.columns:
+            func  = self.get_field_average_value
+        else:
+            raise ValueError(f"cannot parse sizeentry {sizeentry}, could be visits or any data.column")
+        
         # Data
-        fieldsg = self.get_count(sizeentry, fid=1, grid=grid, **filterprop)
-        fieldsr = self.get_count(sizeentry, fid=2, grid=grid, **filterprop)
-        fieldsi = self.get_count(sizeentry, fid=3, grid=grid, **filterprop)
+        fieldsg = func(sizeentry, fid=1, grid=grid, **filterprop)
+        fieldsr = func(sizeentry, fid=2, grid=grid, **filterprop)
+        fieldsi = func(sizeentry, fid=3, grid=grid, **filterprop)
         # Plot        
-        return fields.show_gri_fields(fieldsg.to_dict(), fieldsr.to_dict(), fieldsi.to_dict(), grid=grid, **kwargs)
+        return fields.show_gri_fields(fieldsg, fieldsr, fieldsi, grid=grid, **kwargs)
 
     # =============== #
     #  Properties     #
@@ -534,3 +548,14 @@ class CompletedLog( ZTFLog ):
         fanim.launch(interval=1)
         return fanim
     
+# ============== #
+#                #
+#  QA            #
+#                #
+# ============== #
+class QALog( ZTFLog ):
+    """ """
+    def set_logs(self, logs):
+        """ """
+        self._logs  = logs.rename(columns={"programid":"pid"})
+
