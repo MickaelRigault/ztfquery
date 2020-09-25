@@ -15,12 +15,7 @@ _FIELD_SOURCE = os.path.dirname(os.path.realpath(__file__))+"/data/ztf_fields.tx
 FIELD_DATAFRAME = read_csv(_FIELD_SOURCE)
 FIELDSNAMES = FIELD_DATAFRAME["ID"].values
 
-_CCD_COORDS  = read_csv(os.path.dirname(os.path.realpath(__file__))+"/data/ztf_ccd_layout.tbl") # corner of each CCDS
-_ccd_xmin, _ccd_xmax = np.percentile(_CCD_COORDS["EW"], [0,100])
-_ccd_ymin, _ccd_ymax = np.percentile(_CCD_COORDS["NS"], [0,100])
-CCD_EDGES_DEG = np.asarray([[ _ccd_xmin, _ccd_ymin], [ _ccd_xmin, _ccd_ymax],
-                            [_ccd_xmax, _ccd_ymax], [_ccd_xmax, _ccd_ymin]])
-
+_CCD_COORDS  = read_csv(os.path.dirname(os.path.realpath(__file__))+"/data/ztf_ccd_layout.tbl").rename(columns={"CCD ":"CCD"}) # corner of each CCDS
 
 FIELD_COLOR = {1: "C2", 2: "C3", 3:"C1"}
 FIELD_CMAP = {1: mpl.cm.Greens, 2:mpl.cm.Reds, 3:mpl.cm.Oranges}
@@ -28,40 +23,65 @@ FIELDNAME_COLOR = {"zg": "C2", "zr":"C3", "zi":"C1"}
 
 _PLOTORIGIN = 180
 
-def _load_fields_geoserie_():
-    """ Loads the FIELDS_GEOSERIE global variable """
-    global FIELDS_GEOSERIE
+def _load_fields_geoserie_(inclccd=False):
+    """ Loads the FIELDS_GEOSERIE global variable 
+    = Internal Tools =
+    """
+    if not inclccd:
+        global FIELDS_GEOSERIE
+    else:
+        global FIELD_CCDS_GEOSERIE
+    
     try:
         from geopandas import geoseries
     except ImportError:
         warnings.warn("You do not have geopandas, Please run pip install geopandas.")
-        FIELDS_GEOSERIE = None
+        if not inclccd:
+            FIELDS_GEOSERIE = None
+        else:
+            FIELD_CCDS_GEOSERIE = None 
         return
     
-    field_verts = get_field_vertices(fieldid=FIELDSNAMES, asdict=True, aspolygon=True)
-    FIELDS_GEOSERIE = geoseries.GeoSeries(field_verts)
+    field_verts = get_field_vertices(fieldid=FIELDSNAMES, inclccd=inclccd,
+                                         asdict=True, aspolygon=True)
+    if not inclccd:
+        FIELDS_GEOSERIE = geoseries.GeoSeries(field_verts)
+    else:
+        FIELD_CCDS_GEOSERIE = geoseries.GeoSeries(field_verts)
 
-def get_fields_geoserie():
+    
+def get_fields_geoserie(inclccd=False):
     """ returns the global variable FIELDS_GEOSERIE, creates it if necessary """
-    if not hasattr(sys.modules[__name__], 'FIELDS_GEOSERIE'):
-        _load_fields_geoserie_()
+    if not inclccd:
+        if not hasattr(sys.modules[__name__], 'FIELDS_GEOSERIE'):
+            _load_fields_geoserie_(inclccd=False)
         
-    return FIELDS_GEOSERIE
+        return FIELDS_GEOSERIE
+    else:
+        if not hasattr(sys.modules[__name__], 'FIELD_CCDS_GEOSERIE'):
+            _load_fields_geoserie_(inclccd=True)
+        
+        return FIELD_CCDS_GEOSERIE
 
 # ------------------ #
 #                    #
 # Generic Tools      #
 #                    #
 # ------------------ #
-def get_fields_containing_target(ra, dec):
+def get_fields_containing_target(ra, dec, inclccd=False):
     """ return the list of fields into which the position ra, dec is. 
-    Remark that this is based on predefined field positions. Hence, small attrition could affect this.
+    Remark that this is based on predefined field positions. 
+    Hence, small attrition could affect this.
 
     Parameters
     ----------
     ra,dec: [float,float]
        coordinates in degree. 
-       
+    
+    inclccd: [bool] -optional-
+        do you want the details of the CCD id on top of the field
+        format: "field_ccdid"
+
     Returns
     -------
     list (all the field ID that contain the given ra,dec coordinates)
@@ -70,17 +90,19 @@ def get_fields_containing_target(ra, dec):
         from shapely import geometry
     except ImportError:
         raise ImportError("You need shapely to use this function. pip install shapely")
-
-    coordpoint = geometry.Point(ra, dec)
     
-    fields_geoserie = get_fields_geoserie()
+    
+    coordpoint = geometry.Point(ra, dec)
+    fields_geoserie = get_fields_geoserie(inclccd=inclccd)
     if fields_geoserie is None:
         warnings.warn("get_fields_containing_target would be much faster if you install geopandas (pip install geopandas)")
-        return [f for f in FIELDSNAMES if geometry.Polygon( get_field_vertices(f)[0]).contains(coordpoint)]
+        return [f for f in FIELDSNAMES
+                if geometry.Polygon( get_field_vertices(f)[0]).contains(coordpoint)]
     
-    return FIELDS_GEOSERIE.index[ FIELDS_GEOSERIE.contains(coordpoint) ]
+    return fields_geoserie.index[ fields_geoserie.contains(coordpoint) ]
 
-def get_field_vertices(fieldid=None, asdict=False, aspolygon=False):
+
+def get_field_vertices(fieldid=None, inclccd=False, ccd=None, asdict=False, aspolygon=False):
     """ Get the fields countours 
     
     Parameters
@@ -104,23 +126,35 @@ def get_field_vertices(fieldid=None, asdict=False, aspolygon=False):
     """
     if fieldid is None:
         fieldid = FIELDSNAMES
+        
+    if inclccd and ccd is None:
+        ccd = np.arange(1,17)
 
     # - Actual calculation
-    field_center     = get_field_centroid( np.asarray(np.atleast_1d(fieldid), dtype="int") ) 
-    fields_countours = np.swapaxes(get_camera_corners(field_center.T[0][:,None],field_center.T[1][:,None], inrad=False), 0, 1)
-
+    rafields, decfields  = get_field_centroid( np.asarray(np.atleast_1d(fieldid), dtype="int") ).T
+    fields_countours = get_corners(rafields, decfields, inclccd=inclccd,
+                                       ccd=ccd, inrad=False, squeeze=True)
+    
     # - Output format
     if aspolygon:
         try:
             from shapely import geometry
-            fields_countours = [geometry.Polygon(f_) for f_ in fields_countours]
+            if not inclccd:
+                fields_countours = [geometry.Polygon(f_) for f_ in fields_countours]
+            else:
+                fields_countours = [[geometry.Polygon(ccd_) for ccd_ in f_]
+                                        for f_ in fields_countours]
+                
         except ImportError:
             warnings.warn("You do not have shapely, Please run pip install shapely. 'aspolygon' set to False")
             
     if not asdict:
         return fields_countours
-    
-    return {i:k for i,k in zip(fieldid,fields_countours)}
+
+    if not inclccd:
+        return {i:k for i,k in zip(fieldid,fields_countours)}
+    return {f"{field_}_{ccd_}":geometry.Polygon(fields_countours[f_][i_])
+                for i_,ccd_ in enumerate(ccd) for f_,field_ in enumerate(fieldid)}
 
 def get_field_centroid(fieldid, system="radec"):
     """ Returns the central coordinate [RA,Dec] or  of the given field 
@@ -152,9 +186,15 @@ def get_field_centroid(fieldid, system="radec"):
     
     return radec
 
-def get_camera_corners(ra_field, dec_field, steps=5, inrad=False):
+def get_camera_corners(ra_field, dec_field, steps=5, ccd=None, inrad=False):
     """ """
+    if ccd is None:
+        [[_ccd_xmin, _ccd_ymin],[_ccd_xmax, _ccd_ymax]] = np.percentile(_CCD_COORDS[["EW","NS"]],[0,100], axis=0)
+    else:
+        [[_ccd_xmin, _ccd_ymin],[_ccd_xmax, _ccd_ymax]] = np.percentile(_CCD_COORDS.groupby("CCD").get_group(ccd)[["EW","NS"]],[0,100], axis=0)
+        
     from .utils.tools import rot_xz_sph, _DEG2RA
+    
     # Top (left to right)
     dec1 = np.ones(steps) * _ccd_ymax
     ra1 = np.linspace(_ccd_xmin, _ccd_xmax, steps) / np.cos(_ccd_ymax*_DEG2RA)
@@ -183,6 +223,51 @@ def get_camera_corners(ra_field, dec_field, steps=5, inrad=False):
         dec *= _DEG2RA
                     
     return np.asarray([ra,dec]).T
+
+def get_corners(ra_field, dec_field, inclccd=False, ccd=None, steps=5, squeeze=True, inrad=False):
+    """ """
+    from ztfquery.utils.tools import rot_xz_sph, _DEG2RA
+    ra_field = np.atleast_1d(ra_field)
+    dec_field = np.atleast_1d(dec_field)
+    
+    if not inclccd:
+        upper_left_corner = _CCD_COORDS.max()
+        lower_right_corner = _CCD_COORDS.min()
+    elif ccd is None:
+        upper_left_corner = _CCD_COORDS.groupby("CCD").max()
+        lower_right_corner = _CCD_COORDS.groupby("CCD").min()
+    else:
+        upper_left_corner = _CCD_COORDS.groupby("CCD").max().loc[ccd]
+        lower_right_corner = _CCD_COORDS.groupby("CCD").min().loc[ccd]
+        
+    ewmax = np.atleast_1d(upper_left_corner["EW"])
+    nsmax = np.atleast_1d(upper_left_corner["NS"])
+    ewmin = np.atleast_1d(lower_right_corner["EW"])
+    nsmin = np.atleast_1d(lower_right_corner["NS"])
+
+    ra1  = (np.linspace(ewmax, ewmin, steps)/np.cos(nsmax*_DEG2RA)).T
+    dec1 = (np.ones((steps,1))*nsmax).T
+    #
+    dec2  = np.linspace(nsmax,nsmin, steps).T
+    ra2   = ewmin[:,None]/np.cos(dec2*_DEG2RA)
+    #
+    ra3 = (np.linspace(ewmin,ewmax, steps)/np.cos(nsmin*_DEG2RA)).T
+    dec3 = (np.ones((steps,1))*nsmin).T
+    #
+    dec4  = np.linspace(nsmin,nsmax, steps).T
+    ra4 = ewmax[:,None]/np.cos(dec4*_DEG2RA)
+
+    ra_bd = np.concatenate((ra1, ra2, ra3, ra4  ), axis=1)  
+    dec_bd = np.concatenate((dec1, dec2, dec3,dec4 ), axis=1)
+
+    ra,dec = rot_xz_sph(ra_bd, dec_bd, dec_field[:,None,None])
+    ra += ra_field[:,None,None]
+
+    if inrad:
+        ra *= _DEG2RA
+        dec *= _DEG2RA
+    radec = np.moveaxis([ra,dec],(0,1,2,3),(3,0,1,2))
+    return radec if not squeeze else np.squeeze(radec)
 
 def get_grid_field(which):
     """ """
