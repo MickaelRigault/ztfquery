@@ -102,7 +102,8 @@ def get_fields_containing_target(ra, dec, inclccd=False):
     return fields_geoserie.index[ fields_geoserie.contains(coordpoint) ]
 
 
-def get_field_vertices(fieldid=None, inclccd=False, ccd=None, asdict=False, aspolygon=False):
+def get_field_vertices(fieldid=None, inclccd=False, ccd=None, asdict=False, aspolygon=False,
+                        squeeze=True):
     """ Get the fields countours 
     
     Parameters
@@ -120,6 +121,14 @@ def get_field_vertices(fieldid=None, inclccd=False, ccd=None, asdict=False, aspo
     aspolygon: [bool] -optional-
         Do you want the vertices as 2d-array (aspolygon=False) or as shapely Geometries (True)
 
+    squeeze: [bool] -optional-
+        Should unnecessary dimension be removed ?
+        if asdict is True:
+            if squeeze: {fid_ccdid: }
+            if not squeeze: {fid:{ccdid: }}
+            = if not inclccd, squeez ignored =
+        if not asdict:
+           using np.squeeze, basically doing [[]]->[]
     Returns
     -------
     list of dict (see asdict)
@@ -132,29 +141,40 @@ def get_field_vertices(fieldid=None, inclccd=False, ccd=None, asdict=False, aspo
 
     # - Actual calculation
     rafields, decfields  = get_field_centroid( np.asarray(np.atleast_1d(fieldid), dtype="int") ).T
-    fields_countours = get_corners(rafields, decfields, inclccd=inclccd,
-                                       ccd=ccd, inrad=False, squeeze=True)
-    
-    # - Output format
+    fields_verts = get_corners(rafields, decfields, inclccd=inclccd, ccd=ccd,
+                                       inrad=False, squeeze=False)
+
+    # ----------- #
+    #  Format     #
+    # ----------- #    
     if aspolygon:
         try:
             from shapely import geometry
-            if not inclccd:
-                fields_countours = [geometry.Polygon(f_) for f_ in fields_countours]
-            else:
-                fields_countours = [[geometry.Polygon(ccd_) for ccd_ in f_]
-                                        for f_ in fields_countours]
-                
+            fields_countours = [[geometry.Polygon(fields_verts[f_][c_])
+                                         for c_,ccd_ in enumerate(np.atleast_1d(ccd))]
+                                         for f_,field_ in enumerate(np.atleast_1d(fieldid))]
         except ImportError:
             warnings.warn("You do not have shapely, Please run pip install shapely. 'aspolygon' set to False")
-            
-    if not asdict:
-        return fields_countours
+    else:
+        fields_countours = fields_verts
 
+    # ----------- #
+    #  Output     #
+    # ----------- #    
+    if not asdict:
+        return fields_countours if not squeeze else np.squeeze(fields_countours)
+
+    # full camera dict
     if not inclccd:
         return {i:k for i,k in zip(fieldid,fields_countours)}
-    return {f"{field_}_{ccd_}":geometry.Polygon(fields_countours[f_][i_])
-                for i_,ccd_ in enumerate(ccd) for f_,field_ in enumerate(fieldid)}
+    
+    # ccd dict
+    if squeeze:
+        return {f"{field_}_{ccd_}":fields_countours[f_][c_]
+                    for c_,ccd_ in enumerate(np.atleast_1d(ccd)) for f_,field_ in enumerate(np.atleast_1d(fieldid))}
+    else:
+        return {field_:{ccd_:fields_countours[f_][c_] for c_,ccd_ in enumerate(np.atleast_1d(ccd))}
+                    for f_,field_ in enumerate(np.atleast_1d(fieldid))}
 
 def get_field_centroid(fieldid, system="radec"):
     """ Returns the central coordinate [RA,Dec] or  of the given field 
@@ -186,49 +206,10 @@ def get_field_centroid(fieldid, system="radec"):
     
     return radec
 
-def get_camera_corners(ra_field, dec_field, steps=5, ccd=None, inrad=False):
-    """ """
-    if ccd is None:
-        [[_ccd_xmin, _ccd_ymin],[_ccd_xmax, _ccd_ymax]] = np.percentile(_CCD_COORDS[["EW","NS"]],[0,100], axis=0)
-    else:
-        [[_ccd_xmin, _ccd_ymin],[_ccd_xmax, _ccd_ymax]] = np.percentile(_CCD_COORDS.groupby("CCD").get_group(ccd)[["EW","NS"]],[0,100], axis=0)
-        
-    from .utils.tools import rot_xz_sph, _DEG2RA
-    
-    # Top (left to right)
-    dec1 = np.ones(steps) * _ccd_ymax
-    ra1 = np.linspace(_ccd_xmin, _ccd_xmax, steps) / np.cos(_ccd_ymax*_DEG2RA)
-        
-    # Right (top to bottom)
-    dec2 = np.linspace(_ccd_ymax, _ccd_ymin, steps)
-    ra2 = _ccd_ymax/np.cos(dec2*_DEG2RA)
-
-    # Bottom (right to left)
-    dec3 = np.ones(steps) * (_ccd_ymin)
-    ra3 = np.linspace(_ccd_xmax,_ccd_xmin, steps) / np.cos(_ccd_ymax*_DEG2RA)
-        
-    # Left (bottom to top)
-    dec4 = np.linspace(_ccd_ymin,_ccd_ymax, steps)
-    ra4 = _ccd_ymin/np.cos(dec4*_DEG2RA)
-    #
-    # 
-    ra_bd = np.concatenate((ra1, ra2, ra3, ra4  ))  
-    dec_bd = np.concatenate((dec1, dec2, dec3,dec4 )) 
-
-    ra, dec = rot_xz_sph(ra_bd, dec_bd, dec_field)
-    ra += ra_field
-        
-    if inrad:
-        ra *= _DEG2RA
-        dec *= _DEG2RA
-                    
-    return np.asarray([ra,dec]).T
 
 def get_corners(ra_field, dec_field, inclccd=False, ccd=None, steps=5, squeeze=True, inrad=False):
     """ """
-    from ztfquery.utils.tools import rot_xz_sph, _DEG2RA
-    ra_field = np.atleast_1d(ra_field)
-    dec_field = np.atleast_1d(dec_field)
+    from .utils.tools import rot_xz_sph, _DEG2RA
     
     if not inclccd:
         upper_left_corner = _CCD_COORDS.max()
@@ -240,9 +221,9 @@ def get_corners(ra_field, dec_field, inclccd=False, ccd=None, steps=5, squeeze=T
         upper_left_corner = _CCD_COORDS.groupby("CCD").max().loc[ccd]
         lower_right_corner = _CCD_COORDS.groupby("CCD").min().loc[ccd]
         
-    ewmax = np.atleast_1d(upper_left_corner["EW"])
+    ewmin = -np.atleast_1d(upper_left_corner["EW"])
     nsmax = np.atleast_1d(upper_left_corner["NS"])
-    ewmin = np.atleast_1d(lower_right_corner["EW"])
+    ewmax = -np.atleast_1d(lower_right_corner["EW"])
     nsmin = np.atleast_1d(lower_right_corner["NS"])
 
     ra1  = (np.linspace(ewmax, ewmin, steps)/np.cos(nsmax*_DEG2RA)).T
@@ -259,14 +240,15 @@ def get_corners(ra_field, dec_field, inclccd=False, ccd=None, steps=5, squeeze=T
 
     ra_bd = np.concatenate((ra1, ra2, ra3, ra4  ), axis=1)  
     dec_bd = np.concatenate((dec1, dec2, dec3,dec4 ), axis=1)
-
-    ra,dec = rot_xz_sph(ra_bd, dec_bd, dec_field[:,None,None])
-    ra += ra_field[:,None,None]
+    
+    ra,dec = rot_xz_sph(np.moveaxis(ra_bd,0,1), np.moveaxis(dec_bd,0,1), np.moveaxis(np.atleast_3d(dec_field),0,1))
+    ra += np.moveaxis(np.atleast_3d(ra_field),0,1)
 
     if inrad:
         ra *= _DEG2RA
         dec *= _DEG2RA
-    radec = np.moveaxis([ra,dec],(0,1,2,3),(3,0,1,2))
+        
+    radec = np.moveaxis([ra,dec],(0,1,2,3),(3,0,2,1))
     return radec if not squeeze else np.squeeze(radec)
 
 def get_grid_field(which):
@@ -361,6 +343,28 @@ def show_fields(fields, vmin=None, vmax=None,
         
     return fplot.fig
 
+def show_field_ccds(fieldid, ax=None, ccd=None, textcolor="k", facecolor="0.9", edgecolor="k",
+                        autoscale=True, **kwargs):
+    """ """
+    if ax is None:
+        fig = mpl.figure()
+        ax = fig.add_subplot(111)
+    else:
+        fig = ax.figure
+
+    if ccd is None:
+        ccd = range(1,17)
+    ff = get_fields_geoserie(inclccd=True)
+    fccd = {i:ff[f"{fieldid}_{i}"] for i in ccd}
+    for i,s_ in fccd.items():
+        verts = np.asarray(s_.exterior.xy).T
+        ax.add_patch( patches.Polygon(verts, facecolor=facecolor, edgecolor=edgecolor, **kwargs))
+        ax.text(*np.mean(verts,axis=0),i, color=textcolor, va="center", ha="center")
+
+    if autoscale:
+        ax.autoscale()
+        
+    return fig
 
 def show_gri_fields(fieldsg=None, fieldsr=None, fieldsi=None,
                     title=" ", alignment="horizontal",
