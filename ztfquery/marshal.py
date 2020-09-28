@@ -809,10 +809,10 @@ class MarshalAccess( object ):
         """
         # Cleaning Marshal's datainput
         split_ = lambda x: [None, x] if not len(np.atleast_1d(x))==2 else x
-        
-        requested_program = self._program_to_programidx_(program, auth=auth)
+        program = np.atleast_1d(program)        
         df = {}
-        for i,program_ in enumerate(requested_program):
+        for i,programname_ in enumerate(program):
+            program_ = self._program_to_programidx_(programname_, auth=auth)[0]
             df_ = query_program_target(program_,
                                        getredshift=getredshift,
                                           getclassification=getclassification,
@@ -824,10 +824,10 @@ class MarshalAccess( object ):
                 df_["classification"] = df_["classification"].astype("str")
 
             
-            df[program_] = df_
+            df[programname_] = df_
              
         if setit:
-            self.set_target_sources( df )
+            self.set_target_sources( df, program=program)
         if store:
             self.store()
             
@@ -842,9 +842,13 @@ class MarshalAccess( object ):
         """
         if type(target_source_dataframe) is pandas.DataFrame:
             target_source_dataframe = [target_source_dataframe]
-        program = np.atleast_1d(program)
-        self.target_sources = pandas.concat(target_source_dataframe, keys=program)
-        self._loaded_program = program
+        elif type(target_source_dataframe) is dict:
+            self.target_sources = pandas.concat(target_source_dataframe)
+            self._loaded_program = np.asarray(list(target_source_dataframe.keys()))
+        else:
+            program = np.atleast_1d(program)
+            self.target_sources = pandas.concat(target_source_dataframe, keys=program)
+            self._loaded_program = program
         
     # 
     # GETTER
