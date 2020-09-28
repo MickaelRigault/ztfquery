@@ -596,116 +596,25 @@ class FieldPlotter( object ):
 
 
 
-
-##############################
-#                            #
-#  Individual Field Class    #
-#                            #
-##############################
-class Field():
-    """ """
-    def __init__(self, fieldid=None, ra=None, dec=None):
-        """ """
-        self.id = "Unkown" if fieldid is None else fieldid
-        # Coordinates
-        if ra is not None and dec is not None:
-            self.set_radec(ra, dec)
-            
-        elif id is not None:
-            datafield = load_fields_data()
-            self.set_radec(*field_to_radec(fieldid))
-        
-
-    
-    # ================== #
-    #    Methods         #
-    # ================== #
-    # --------- #
-    #  SETTER   #
-    # --------- #
-    
-    
-
-    # --------- #
-    #  SETTER   #
-    # --------- #
-    def set_radec(self, ra, dec):
-        """ Set the field coordinates """
-        self.ra, self.dec  = ra, dec
-
-
-    def display(self, ax):
-        """ """
-
-        
-    # ================== #
-    #   Properties       #
-    # ================== #
-    
-
 ##############################
 #                            #
 #    ZTF Fields Class        #
 #                            #
 ##############################
-def load_fields_data():
-    """ Pandas DataFrame containing field information
-    (See http://noir.caltech.edu/twiki_ptf/bin/view/ZTF/ZTFFieldGrid)
-    """
-    return read_csv(_FIELD_SOURCE)
 
-class ZTFFields():
-    """ """
-    def __init__(self):
-        """ """
-        self._fieldsdata = load_fields_data()
-
-    # ================== #
-    #   Properties       #
-    # ================== #
-    @property
-    def fieldsdata(self):
-        """ Pandas DataFrame containing ztf field information.
-        Primary Grid patern have ID<1000 ; Secondary are field >1000
-        """
-        return self._fieldsdata
-
-
-
-
-
-class FieldAnimation():
+class FieldAnimation( FieldPlotter ):
     
-    def __init__(self, fields, dates=None, facecolors=None, alphas=None, edgecolors=None):
+    def __init__(self, fields, ax=None,dates=None, facecolors=None, alphas=None, edgecolors=None):
         """ """
+        super().__init__(ax=ax)
+        
         self.set_fields(fields)
         self.set_dates(dates)
         self.set_properties(facecolors=facecolors, alphas=alphas, edgecolors=edgecolors)
-        self.load_ax()
+        
     # ================= #
     #   Methods         #
     # ================= #
-    
-    # ---------- #
-    #  SETUP     #
-    # ---------- #
-    def load_ax(self, dpi=100, iref=0):
-        """ """
-        self.fig = mpl.figure(figsize=(8,5))
-        self.ax = self.fig.add_axes([0.1,0.1,0.9,0.9], projection="hammer")
-        self.fig.set_dpi(dpi)
-
-        # Build the first
-        self.poly_ = Polygon(self.field_vertices[self.fields[0]],
-                        facecolor=self.display_prop["facecolor"][0],
-                        edgecolor=self.display_prop["edgecolor"][0],
-                        alpha=self.display_prop["alpha"][0])
-        if self._dates is not None:
-            self.text_ = self.fig.text(0.01,0.99, self._dates[0],
-                                           va="top", ha="left", weight="bold")
-            
-        p_ = self.ax.add_patch(self.poly_)
-        
     def set_dates(self, dates):
         """ """
         self._dates = np.atleast_1d(dates) if dates is not None else None
@@ -714,8 +623,7 @@ class FieldAnimation():
         """ """
         self._fields = fields
         self._unique_fields = np.unique(self._fields)
-        self._field_vertices = fv = {k:v for k,v in zip(np.unique(self._unique_fields),
-                                                        get_field_vertices(self._unique_fields, indeg=False))}
+        self._field_vertices = {i:v for i,v in zip(self._unique_fields,self.get_field_vertices(self._unique_fields))}
         
     def set_properties(self, facecolors=None, edgecolors=None, alphas=None):
         """ """
@@ -738,34 +646,48 @@ class FieldAnimation():
         else:
             self.display_prop[key] = value
             self.display_prop[f"unique_{key}"] = False
+            
+    # ---------- #
+    #  SETUP     #
+    # ---------- #
+    def reset(self):
+        """ """
+        self.intpoly_ = Polygon(self.field_vertices[self.fields[0]],
+                                    facecolor=self.display_prop["facecolor"][0],
+                                    edgecolor=self.display_prop["edgecolor"][0],
+                                    alpha=self.display_prop["alpha"][0])
+        
+        if self._dates is not None:
+            self.inttext_ = self.fig.text(0.01,0.99, self._dates[0],
+                                           va="top", ha="left", weight="bold")
+            
+        p_ = self.ax.add_patch(self.intpoly_)
+        return self.intpoly_
         
 
     # ---------- #
     #  Animate   #
-    # ---------- #
-    def init(self):
-        """ """
-        return self.poly_
-    
+    # ---------- #    
     def update_field_to(self, i):
         """ """
         try:
-            self.poly_.set_xy(self.field_vertices[ self.fields[i] ])
+            self.intpoly_.set_xy(self.field_vertices[ self.fields[i] ])
             if self.dates is not None and len(self.dates)>1:
-                self.text_.set_text(self.dates[i])
+                self.inttext_.set_text(self.dates[i])
         except:
             print(f"FAILES for i={i}")
             
         for key in ["facecolor","edgecolor","alpha"]:
             if not self.display_prop[f"unique_{key}"]:
-                getattr(self.poly_,f"set_{key}")(self.display_prop[key][i])
-        return self.poly_
+                getattr(self.intpoly_,f"set_{key}")(self.display_prop[key][i])
+                
+        return self.intpoly_
 
     def launch(self, interval=5, repeat=False, blit=True, savefile=None):
         """ """
         from matplotlib import animation
         self.anim = animation.FuncAnimation(self.fig, self.update_field_to,
-                                                init_func=self.init,
+                                                init_func=self.reset,
                                frames=self.nfields, interval=interval, repeat=repeat, blit=blit)
         
     # ================= #

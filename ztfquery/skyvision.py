@@ -493,7 +493,7 @@ class CompletedLog( ZTFLog ):
     # -------- #
     # PLOTTER  #
     # -------- #
-    def show_survey(self):
+    def show_survey(self, grid="main", show_mw=True, interval=5):
         """ """
         from ztfquery import fields
         
@@ -501,7 +501,11 @@ class CompletedLog( ZTFLog ):
         fid_color = [fields.FIELD_COLOR[i] for i in filterid]
         
         fanim = fields.FieldAnimation(field_id, dates=dates, facecolors=fid_color)
-        fanim.launch(interval=1)
+        if grid is not None:
+            fanim.show_ztf_grid(grid)
+        if show_mw:
+            fanim.show_milkyway()
+        fanim.launch(interval=interval)
         return fanim
     
 # ============== #
@@ -511,7 +515,11 @@ class CompletedLog( ZTFLog ):
 # ============== #
 class QALog( ZTFLog ):
     """ """
+    _NAME_ = "qa"
     def set_logs(self, logs):
         """ """
         self._logs  = logs.rename(columns={"programid":"pid"})
 
+    def load_data(self, pid=[1,2,3]):
+        """ """
+        self._data = self.logs.query("pid in @pid")
