@@ -580,7 +580,7 @@ class FieldPlotter( object ):
         
     def get_field_vertices(self, fields_):
         """ Get the field vertices in plotting coordinates. """
-        fields_ = get_field_vertices(fields_)
+        fields_ = np.squeeze(get_field_vertices(fields_, squeeze=False), axis=1) # remove CCDs
         return [self.radec_to_plot(*f_.T).T for f_ in fields_] 
     
     def radec_to_plot(self, ra, dec):

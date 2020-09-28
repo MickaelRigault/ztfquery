@@ -47,7 +47,7 @@ class _ZTFTable_( object ):
     # PLOTTER  #
     # -------- #
     def show_fields(self, field_val,
-                    ax=None,
+                    ax=None, filterprop={},
                     show_ztf_fields=True, grid="main",
                     colorbar=True, cax=None, clabel=" ", 
                     cmap="viridis",
@@ -61,10 +61,17 @@ class _ZTFTable_( object ):
         
         """
         from .fields import show_fields
+        if type(field_val) is str:        
+            if field_val in ["visit","visits","density", "field"]:
+                func  = self.get_count
+                field_val = "field"
+            elif sizeentry in self.data.columns:
+                func  = self.get_field_average_value
+            else:
+                raise ValueError(f"cannot parse sizeentry {sizeentry}, could be visits or any data.column")
 
-        if type(field_val) is str:
-            field_val = self.get_field_average_value(field_val, grid=grid)
-        
+            field_val = func(field_val, grid=grid, **filterprop)
+            
         return show_fields(field_val, ax=ax,
                     show_ztf_fields=show_ztf_fields, grid=grid,
                     colorbar=colorbar, cax=cax, clabel=clabel, 
