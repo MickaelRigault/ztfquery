@@ -65,10 +65,10 @@ class _ZTFTable_( object ):
             if field_val in ["visit","visits","density", "field"]:
                 func  = self.get_count
                 field_val = "field"
-            elif sizeentry in self.data.columns:
+            elif field_val in self.data.columns:
                 func  = self.get_field_average_value
             else:
-                raise ValueError(f"cannot parse sizeentry {sizeentry}, could be visits or any data.column")
+                raise ValueError(f"cannot parse sizeentry {field_val}, could be visits or any data.column")
 
             field_val = func(field_val, grid=grid, **filterprop)
             
