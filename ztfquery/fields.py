@@ -467,18 +467,19 @@ def _radec_to_plot_(self, ra, dec):
 ##############################
 class FieldPlotter( object ):
     """ """
-    def __init__(self, ax=None, origin=180):
+    def __init__(self, ax=None, origin=180, inclcax=True):
         """ """
         self.origin = origin        
-        self.load_ax(ax)
+        self.load_ax(ax, inclcax=inclcax)
 
         
-    def load_ax(self, ax=None, update_ticks=True):
+    def load_ax(self, ax=None, update_ticks=True, inclcax=True):
         """ """
         if ax is None:
             self.fig = mpl.figure(figsize=(8,5))
             self.ax = self.fig.add_axes([0.15,0.15,0.75,0.75], projection="hammer")
-            self.cax = self.fig.add_axes([0.15,0.12,0.75,0.02])
+            if inclcax:
+                self.cax = self.fig.add_axes([0.15,0.12,0.75,0.02])
         else:
             self.ax = ax
             self.fig = self.ax
@@ -604,9 +605,9 @@ class FieldPlotter( object ):
 
 class FieldAnimation( FieldPlotter ):
     
-    def __init__(self, fields, ax=None,dates=None, facecolors=None, alphas=None, edgecolors=None):
+    def __init__(self, fields, ax=None,dates=None, facecolors=None, alphas=None, edgecolors=None, inclcax=False):
         """ """
-        super().__init__(ax=ax)
+        super().__init__(ax=ax, inclcax=inclcax)
         
         self.set_fields(fields)
         self.set_dates(dates)
