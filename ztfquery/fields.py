@@ -68,6 +68,19 @@ def get_fields_geoserie(inclccd=False):
 # Generic Tools      #
 #                    #
 # ------------------ #
+def get_field_ccd_qid(ra, dec):
+    """ """
+    d_ = {}
+    field_ccds = get_fields_containing_target(ra,dec, inclccd=True)
+    for field_ccd in field_ccds:
+        (ramin,decmin),(ramax,decmax) = np.percentile(np.asarray(FIELD_CCDS_GEOSERIE[field_ccd].exterior.xy).T, [0,100], axis=0)
+        ccdpos=np.asarray([(ra-ramin)/(ramax-ramin)*6144,(dec-decmin)/(decmax-decmin)*6160])
+        qid = ccdpos_to_qid(*ccdpos)
+        field, ccd = field_ccd.split("_")
+        d_[int(field)] = {"ccd":int(ccd), "qid":int(qid), "rcid":ccdid_qid_to_rcid(int(ccd), int(qid))}
+        
+    return d_
+    
 def get_fields_containing_target(ra, dec, inclccd=False):
     """ return the list of fields into which the position ra, dec is. 
     Remark that this is based on predefined field positions. 
@@ -262,6 +275,20 @@ def get_grid_field(which):
         
     raise ValueError(f"Cannot parse which field grid you want {which}")
 
+def ccdpos_to_qid(ccdx, ccdy):
+    """ returns the qid for the given ccd position """
+    flagqid = np.asarray(np.asarray([ccdx<3072, ccdy<3080]), dtype=int)    
+    return np.asarray([[1,4],[2,3]])[flagqid[0]][flagqid[1]]
+
+def ccdid_qid_to_rcid(ccdid, qid):
+    """ computes the rcid """
+    return 4*(ccdid - 1) + qid - 1
+
+def rcid_to_ccdid_qid(rcid):
+    """ computes the rcid """
+    qid = (rcid%4)+1
+    ccdid  = int((rcid-(qid - 1))/4 +1)
+    return ccdid,qid
 
 ##############################
 #                            #

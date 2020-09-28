@@ -175,8 +175,9 @@ def cart2sph(vec):
     """
     x, y ,z = vec
     v = np.sqrt(x**2 + y**2 + z**2)
-    return np.array([v, (np.arctan2(y,x) / _DEG2RA + 180) % 360 - 180, 
-                          np.arcsin(z/v) / _DEG2RA])
+    return np.array([v,
+                    (np.arctan2(y,x) / _DEG2RA + 180) % 360 - 180, 
+                     np.arcsin(z/v) / _DEG2RA])
      
 # ---------------------- #
 #  Rotation              #
