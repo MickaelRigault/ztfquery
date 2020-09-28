@@ -250,8 +250,15 @@ def target_alerts_directory(name):
     """ where Marshal lightcurves are stored """
     return os.path.join(MARSHALSOURCE,"alerts",name)
 
+def get_program_filepath(program):
+    """ builds the program filepath 
+    
+    """
+    return os.path.join(MARSHALSOURCE,f"{program}_target_sources.csv")
+
 def program_datasource_filepath(program):
     """ Where target sources are stored in your local files 
+
     Parameters
     ----------
     program: [string/None list of]
@@ -607,7 +614,7 @@ class MarshalAccess( object ):
         None
         """
         for program in self.get_loaded_programs():
-            fileout = program_datasource_filepath(program)[program]
+            fileout = get_program_filepath(program)#[program]
             if not os.path.isfile( fileout ):
                 dirout  = "/".join(fileout.split("/")[:-1])
                 if not os.path.exists(dirout):
