@@ -374,7 +374,7 @@ def show_field_ccds(fieldid, ax=None, ccd=None, textcolor="k", facecolor="0.9", 
                         autoscale=True, **kwargs):
     """ """
     if ax is None:
-        fig = mpl.figure()
+        fig = mpl.figure(figsize=[8,6])
         ax = fig.add_subplot(111)
     else:
         fig = ax.figure
@@ -477,7 +477,8 @@ class FieldPlotter( object ):
         """ """
         if ax is None:
             self.fig = mpl.figure(figsize=(8,5))
-            self.ax = self.fig.add_subplot(111, projection="hammer")
+            self.ax = self.fig.add_axes([0.15,0.15,0.75,0.75], projection="hammer")
+            self.cax = self.fig.add_axes([0.15,0.12,0.75,0.02])
         else:
             self.ax = ax
             self.fig = self.ax
@@ -533,6 +534,10 @@ class FieldPlotter( object ):
         # For now, then will move to pandas.Series as native
         if type(fields) is pandas.Series:
             fields = fields.to_dict()
+
+        if cax is None and hasattr(self, "cax"):
+            cax = self.cax
+            
         if type(fields)==dict:
             # popint out nans
             fields = {f:v for f,v in fields.items() if not np.isnan(v)} 
@@ -565,11 +570,13 @@ class FieldPlotter( object ):
 
     def insert_colorbar(self, cmap, vmin, vmax, cax=None, clabel=None):
         """ """
+        if cax is None and hasattr(self,"cax"):
+            cax = self.cax
         if vmax-vmin !=0:
             from .utils.tools import insert_ax, colorbar
             self.cax = cax if cax is not None else \
                               insert_ax(self.ax, "bottom",
-                                            shrunk=0.93, space=-0.0,
+                                            shrunk=0.93, space=-0.05,
                                             axspace=0.02)
                 
             colorbar(self.cax, cmap, vmin=vmin, vmax=vmax, label=clabel)
