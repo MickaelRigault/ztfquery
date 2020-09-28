@@ -90,9 +90,9 @@ def get_daterange(start, end=None):
 
 def download_log(date, which="completed", auth=None, store=True, **kwargs):
     """ Generic downloading function for the logs. 
-    Calls the individual download_{wich}_log
+    Calls the individual download_{which}_log
     """
-    return eval(f"download_{wich}_log")(date, auth=auth, store=store, **kwargs)
+    return eval(f"download_{which}_log")(date, auth=auth, store=store, **kwargs)
 
 def download_timerange_log(start="2018-03-01", end=None, which="completed",
                             nprocess=1, auth=None,
