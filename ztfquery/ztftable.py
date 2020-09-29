@@ -24,6 +24,9 @@ class _ZTFTable_( object ):
         gridflag = True if grid is None else self.data["field"].isin( fields.get_grid_field(grid) )
         
         if query is None:
+            if fidflag & fieldflag & gridflag is True:
+                return self.data
+            
             return self.data[fidflag & fieldflag & gridflag]
 
         return self.data[fidflag & fieldflag & gridflag].query(query)
@@ -77,6 +80,7 @@ class _ZTFTable_( object ):
                     colorbar=colorbar, cax=cax, clabel=clabel, 
                     cmap=cmap,
                     vmin=vmin, vmax=vmax,  **kwargs)
+    
     def show_gri_fields(self, sizeentry="visits", grid="main", filterprop={}, **kwargs):
         """ """
         if sizeentry in ["visit","visits","density", "field"]:
@@ -94,6 +98,55 @@ class _ZTFTable_( object ):
         # Plot        
         return fields.show_gri_fields(fieldsg, fieldsr, fieldsi, grid=grid, **kwargs)
 
+    def show_evolution(self, value, timekey=None, ax=None, filterprop={}, 
+                   groupby=None, groupbymethod="sum", **kwargs):
+        """ """
+        from matplotlib import dates as mdates
+        if ax is None:
+            fig = mpl.figure(figsize=[7,4])
+            ax  = fig.add_subplot(111)
+        else:
+            fig = ax.figure
+
+        # - Select the data to plot
+        data = self.get_filtered(**filterprop)
+        if groupby is not None:
+            data = getattr(data.groupby(groupby), groupbymethod)()
+            timekey = "index"
+        
+        #
+        # Parsing time
+        #
+        if timekey is None:
+            if "datetime" in data.columns:
+                timekey = "datetime"
+            elif "obsjd" in data.columns:
+                timekey = "obsjd"
+            elif "date" in data.columns:
+                timekey = "date"
+            else:
+                raise ValueError(f"cannot automatially find the time key, none of obsjd/datetime/date in data.comluns")
+        
+        if timekey is "index":
+            timearray = pandas.to_datetime(data.index)
+        elif timekey is "obsjd":
+            from astropy import time
+            timearray = time.Time(np.asarray(data[timekey], format="jd").datetime)
+        elif timekey in data.columns:
+            timearray = pandas.to_datetime(data[timekey])
+        else:
+            raise ValueError(f"cannot parse the given date key {timekey}")
+
+        # -
+        ax.plot(timearray, data[value], **kwargs)
+        # -
+    
+        locator = mdates.AutoDateLocator()
+        formatter = mdates.ConciseDateFormatter(locator)
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(formatter)
+    
+        return fig
     # =============== #
     #  Properties     #
     # =============== #    

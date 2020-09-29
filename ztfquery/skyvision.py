@@ -359,18 +359,7 @@ class CompletedLog( ZTFLog ):
                 "totaltime":lm["Setup Time"]
                 }
         self._data = pandas.DataFrame(dict_)
-        if load_obsjd:
-            self.load_obsjd()
-
-    def load_obsjd(self):
-        """ converts the datetime format in obsjd """
-        self.data.loc[:, "obsjd"] = time.Time(np.asarray(self.data.datetime, dtype="str")).jd
-        
-    def get_obsjd(self, update=False):
-        """ get the data.datetime in obsjd format. Loads it the first time you call it."""
-        if "obsjd" not in self.data.columns:
-            self.load_obsjd()
-        return self.data.obsjd
+        self.data.loc[:, "obsjd"] = pandas.DatetimeIndex(self.data["datetime"]).to_julian_date()
     
     # -------- #
     #  GETTER  #
