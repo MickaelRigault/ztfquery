@@ -487,9 +487,9 @@ from ztfquery import marshal
 
 marshal.download_lightcurve("ZTF18abcdef")
 # Loading it // this returns a dict with the format {filename: DataFrame} because one could have saved several .csv.
-lc_dict = marshal.get_local_lightcurves("ZTF18abcdef")
+lcdataframe = marshal.get_local_lightcurves("ZTF18abcdef")
 # Plot it
-marshal.plot_lightcurve(lc_dict["marshal_lightcurve_ZTF18abcdef.csv"])
+marshal.plot_lightcurve(lcdataframe)
 ```
 
 ![](examples/figures/lc_examples.png)
