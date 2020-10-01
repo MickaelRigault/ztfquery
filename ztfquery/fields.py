@@ -42,8 +42,7 @@ def _load_fields_geoserie_(inclccd=False):
             FIELD_CCDS_GEOSERIE = None 
         return
     
-    field_verts = get_field_vertices(fieldid=FIELDSNAMES, inclccd=inclccd,
-                                         asdict=True, aspolygon=True)
+    field_verts = get_field_vertices(fieldid=FIELDSNAMES, inclccd=inclccd, asdict=True, aspolygon=True)
     if not inclccd:
         FIELDS_GEOSERIE = geoseries.GeoSeries(field_verts)
     else:
@@ -179,7 +178,7 @@ def get_field_vertices(fieldid=None, inclccd=False, ccd=None, asdict=False, aspo
 
     # full camera dict
     if not inclccd:
-        return {i:k for i,k in zip(fieldid,fields_countours)}
+        return {i:k[0] for i,k in zip(fieldid,fields_countours)}
     
     # ccd dict
     if squeeze:
@@ -447,11 +446,34 @@ def _get_gri_axes_(alignment="classic", title=None, titlefontsize="large", proje
         ax_.tick_params(labelsize=labelsize, labelcolor=labelcolor)
         
     return ax,cax
-            
 
-def show_ZTF_fields(ax, maingrid=True, lower_dec=-30, alpha=0.1, facecolor="0.8", edgecolor="0.8", **kwargs):
+
+def show_ztf_fieldvalues(key="Ebv", fieldid="main", mindec=-30,
+                        vmin=None, vmax=None,
+                        ax=None, cmap="viridis", title=None,
+                        colorbar=True, cax=None, clabel=" ",
+                        show_ztf_fields=True, grid="main", grid_prop={},
+                        show_mw=True, mw_b=None, mw_prop={},
+                        savefile=None, **kwargs):
     """ """
-    print("show_ZTF_fields is DEPRECATED")
+    if key not in FIELD_DATAFRAME.columns:
+        raise ValueError(f"cannot parse the given key {key}, only columns from FIELD_DATAFRAME available")
+    
+    
+    if type(fieldid) is str or fieldid is None:
+        fieldid = get_grid_field(fieldid)
+    query_ = "ID in @fieldid"
+    if mindec is not None:
+        query_ +=" and Dec > @mindec"
+    # Serie to plot 
+    serie = FIELD_DATAFRAME.query(query_)[["ID",key]].set_index("ID")[key]
+    return show_fields(fields=serie, vmin=vmin, vmax=vmax,
+                           ax=ax, cmap=cmap, title=title,
+                           colorbar=colorbar, cax=cax, clabel=clabel,
+                           show_ztf_fields=show_ztf_fields, grid=grid, grid_prop=grid_prop,
+                           show_mw=show_mw, mw_b=mw_b, mw_prop=mw_prop,
+                           savefile=savefile, **kwargs)
+    
     
 def display_field(ax, fieldid, origin=None, facecolor="0.8", lower_dec=None, edgecolor=None, **kwargs):
     """ """

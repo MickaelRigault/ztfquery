@@ -9,12 +9,9 @@ import numpy as np
 LOGIN_URL = "https://irsa.ipac.caltech.edu/account/signon/login.do"
 
 import base64
-if sys.version_info > (3,0):
-    from configparser import ConfigParser
-    _PYTHON3 = True
-else:
-    from ConfigParser import ConfigParser
-    _PYTHON3 = False
+
+from configparser import ConfigParser
+
     
 _SOURCEDIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -35,6 +32,11 @@ def _load_id_(which, askit=True):
     import base64
     config = ConfigParser()
     config.read( _ENCRYPT_FILE )
+    
+    token_based = False
+    if which in ["fritz"]:
+        token_based = True
+        
     if which not in config.sections():
         if not askit:
             raise AttributeError(f"No {which} account setup. Add then in .ztfquery or run ztfquery.io.set_account({which})"%(which,which))
@@ -44,12 +46,12 @@ def _load_id_(which, askit=True):
             config = ConfigParser()
             config.read( _ENCRYPT_FILE )
 
-    if _PYTHON3:
+    if not token_based:
         return config[which.lower()]["username"], base64.b64decode(config[which.lower()]["password"][2:-1]).decode("utf-8")
-    else:
-        return config.get(which.lower(),"username"), base64.b64decode(config.get(which.lower(),"password"))
+    return base64.b64decode(config[which.lower()]["token"][2:-1]).decode("utf-8")
 
-def set_account(which, username=None, password=None, test=True, force=False):
+    
+def set_account(which, username=None, password=None, token=None, test=True, force=False):
     """ Setup the username and password (simply encrypted!) for the given `which` account. 
     Saved in ~/.ztfquery
     """
@@ -57,17 +59,23 @@ def set_account(which, username=None, password=None, test=True, force=False):
     import getpass
     config = ConfigParser()
     config.read( _ENCRYPT_FILE )
-    # - Name & Password
-    if username is None:
-        if _PYTHON3:
-            username = input('Enter your %s login: '%which)
-        else:
-            username = raw_input('Enter your %s login: '%which)
+    
+    token_based = False
+    
+    if which in ["fritz"]:
+        token_based = True
+        if token is None:
+            token = input(f"Enter your {which} token:")
+    else:
+        # - Name & Password
+        if username is None:
+            username = input(f'Enter your {which} login: ')
             
-    if password is None:
-        password = getpass.getpass()
-        
-    # - Check inputs
+        if password is None:
+            password = getpass.getpass()
+
+    #
+    # -> Starting tests
     if test:
         wrong_ = False
         if which == "irsa":
@@ -75,24 +83,28 @@ def set_account(which, username=None, password=None, test=True, force=False):
                 warnings.warn("The irsa_test for you account returns False. Most likely you provided incorrect logins")
                 wrong_ = True
         else:
-            warnings.warn("No test designed for %s. Cannot test if logins are correct."%which)
-        if wrong_ and not force:
-            raise ValueError("Bad username/passworg for %s. force=False so the logins are not stored. "%which)
+            if not token_based:
+                warnings.warn(f"No test designed for {which}. Cannot test if logins are correct.")
+            else:
+                warnings.warn(f"No test designed for {which}. Cannot test if token is correct.")
             
-    password_ = base64.b64encode( password.encode("utf-8") )
-    if _PYTHON3:
-        config[which.lower()] = {"username":username, "password": password_ }        
+        if wrong_ and not force:
+            if not token_based:
+                raise ValueError(f"Bad username/passworg for {which}. force=False so the logins are not stored. ")
+            else:
+                raise ValueError("Bad token for {which}. force=False so the logins are not stored.")
+    # <- end of tests
+    #
+    if not token_based:
+        password_ = base64.b64encode( password.encode("utf-8") )
+        config[which.lower()] = {"username":username, "password": password_ }
     else:
-        section = which.lower()
-        if section not in config.sections():
-            config.add_section(section)
-        config.set(section,"username",username)
-        config.set(section,"password",password_)
-
+        token_ = base64.b64encode( token.encode("utf-8") )
+        config[which.lower()] = {"token":token_}
         
     with open( _ENCRYPT_FILE , 'w') as configfile:
         config.write(configfile)
-        
+
 
 #
 # TEST

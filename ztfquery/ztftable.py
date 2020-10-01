@@ -99,9 +99,11 @@ class _ZTFTable_( object ):
         return fields.show_gri_fields(fieldsg, fieldsr, fieldsi, grid=grid, **kwargs)
 
     def show_evolution(self, value, timekey=None, ax=None, filterprop={}, 
-                   groupby=None, groupbymethod="sum", **kwargs):
+                   groupby=None, groupbymethod="sum", ycoef=1, **kwargs):
         """ """
+        import matplotlib.pyplot as mpl
         from matplotlib import dates as mdates
+        import pandas
         if ax is None:
             fig = mpl.figure(figsize=[7,4])
             ax  = fig.add_subplot(111)
@@ -138,7 +140,9 @@ class _ZTFTable_( object ):
             raise ValueError(f"cannot parse the given date key {timekey}")
 
         # -
-        ax.plot(timearray, data[value], **kwargs)
+        if ycoef is None:
+            ycoef = 1
+        ax.plot(timearray, data[value]*ycoef, **kwargs)
         # -
     
         locator = mdates.AutoDateLocator()

@@ -195,7 +195,7 @@ def plot_lightcurve(lc_dataframe, savefile=None, ax=None, title=None, show_legen
     # DataPoints
     for filter_ in np.unique(lc_dataframe[keys["filter"]]):
         if filter_ not in  PROP:
-            print("WARNING: Unknown instrument: %s | magnitude not shown"%filter_)
+            warnings.warn(f"Unknown instrument: {filter_} | magnitude not shown")
             continue
             
         jd, mag, magerr = lc_dataframe[lc_dataframe[keys["filter"]].isin([filter_]) & 
@@ -210,7 +210,7 @@ def plot_lightcurve(lc_dataframe, savefile=None, ax=None, title=None, show_legen
     ax.invert_yaxis()  
     for filter_ in np.unique(lc_dataframe[keys["filter"]]):
         if filter_ not in  PROP:
-            print("WARNING: Unknown instrument: %s | upper limits not shown"%filter_)
+            warnings.warn(f"Unknown instrument: {filter_} | magnitude not shown")
             continue
 
         jdup, upmag = lc_dataframe[lc_dataframe[keys["filter"]].isin([filter_]) & 

@@ -78,7 +78,7 @@ def get_local_log(date, which="completed", safeout=False):
     
     return pandas.read_csv(filein)
 
-def get_daterange(start, end=None):
+def get_daterange(start, end=None, freq='D'):
     """ """
     if end is None:
         import datetime
@@ -86,7 +86,7 @@ def get_daterange(start, end=None):
         end = yesterday.isoformat()
 
     # Dates to be downloaded.
-    return [f"{i.year}-{i.month:02d}-{i.day:02d}" for i in pandas.Series(pandas.date_range(start,end, freq='D'))]
+    return [f"{i.year}-{i.month:02d}-{i.day:02d}" for i in pandas.Series(pandas.date_range(start,end, freq=freq))]
 
 def download_log(date, which="completed", auth=None, store=True, **kwargs):
     """ Generic downloading function for the logs. 
