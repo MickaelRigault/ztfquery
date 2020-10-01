@@ -44,13 +44,9 @@ git clone https://github.com/MickaelRigault/ztfquery.git
 cd ztfquery
 python setup.py install
 ```
-Then you will need to setup your login and password information:
-```
-ipython
-> import ztfquery
-# This will ask you for your login information.
-```
-The login and password will be stored crypted under ~/.ztfquery. Remove this file to reload it.
+
+Your credentials will requested the first time you want to access a service (IRSA, Marshal, etc.). They will then be stored, crypted, under ~/.ztfquery. 
+use `ztfquery.io.set_account(servicename)` to reset it.
 
 You can also directly provide account settings when running `load_metadata` and `download_data` using the `auth=[your_username, your_password]` parameter. Similarly, directly provide the username and password to the ztf ops page when loading `NightSummary` using the `ztfops_auth` parameter.
 
