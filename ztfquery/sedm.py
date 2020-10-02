@@ -226,7 +226,7 @@ class _SEDMFiles_():
     @property
     def datetime(self):
         """ pandas.to_datetime(p.sedmwhatfiles.data["night"]) """
-        return pandas.to_datetime(self.data["night"])
+        return pandas.to_datetime(self.data["night"], format='%Y%m%d')
     
 ##################
 #                #
