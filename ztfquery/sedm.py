@@ -13,8 +13,8 @@ import pandas
 import warnings
 from . import io
 
-SEDMLOCAL_BASESOURCE = os.join.path(io.LOCALSOURCE,"SEDM")
-SEDMLOCALSOURCE = os.join.path(SEDMLOCAL_BASESOURCE,"redux")
+SEDMLOCAL_BASESOURCE = os.path.join(io.LOCALSOURCE,"SEDM")
+SEDMLOCALSOURCE = os.path.join(SEDMLOCAL_BASESOURCE,"redux")
 if not os.path.exists(SEDMLOCAL_BASESOURCE):
     os.makedirs(SEDMLOCAL_BASESOURCE)
 if not os.path.exists(SEDMLOCALSOURCE):
