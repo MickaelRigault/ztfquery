@@ -13,8 +13,8 @@ import pandas
 import warnings
 from . import io
 
-SEDMLOCAL_BASESOURCE = io.LOCALSOURCE+"SEDM"
-SEDMLOCALSOURCE = SEDMLOCAL_BASESOURCE+"/redux"
+SEDMLOCAL_BASESOURCE = os.join.path(io.LOCALSOURCE,"SEDM")
+SEDMLOCALSOURCE = os.join.path(SEDMLOCAL_BASESOURCE,"redux")
 if not os.path.exists(SEDMLOCAL_BASESOURCE):
     os.makedirs(SEDMLOCAL_BASESOURCE)
 if not os.path.exists(SEDMLOCALSOURCE):
@@ -28,7 +28,7 @@ if not os.path.exists(SEDMLOCALSOURCE):
 #######################
 def _download_sedm_data_(night, pharosfile, fileout=None, verbose=False):
     """ """
-    url = PHAROS_BASEURL+"/data/%s/"%night+pharosfile
+    url = os.path.join(PHAROS_BASEURL,"data",night,pharosfile)
     if verbose:
         print(url)
     return io.download_single_url(url,fileout=fileout,
@@ -40,9 +40,9 @@ def _relative_to_source_(relative_datapath, source=None):
     if source is None:
         return relative_datapath
     if source in ["pharos"]:
-        return [PHAROS_BASEURL+"/data/"+l for l in relative_datapath]
+        return [os.path.joi(PHAROS_BASEURL,"data",l) for l in relative_datapath]
     if source in ["local"]:
-        return [SEDMLOCALSOURCE+"/"+l for l in relative_datapath]
+        return [os.path.join(SEDMLOCALSOURCE,"/",l) for l in relative_datapath]
     
 def get_night_file(night):
     """ get the what.list for a given night 
@@ -61,7 +61,7 @@ def get_pharos_night_data(date, auth=None):
                                             }),
                          "headers":{'content-type': 'application/json'}}
             
-    t = requests.post(PHAROS_BASEURL+"/get_user_observations", **requests_prop).text
+    t = requests.post(os.path.join(PHAROS_BASEURL,"get_user_observations"), **requests_prop).text
     if "data" not in t:
         raise IOError("night file download fails. Check you authentification maybe?")
     return np.sort(json.loads(t)["data"])
@@ -93,8 +93,8 @@ def whatfiles_to_dataframe(whatfile):
 
 class _SEDMFiles_():
     """ """
-    SOURCEFILE  = SEDMLOCAL_BASESOURCE+"/whatfiles.json"
-    PHAROSFILES = SEDMLOCAL_BASESOURCE+"/pharosfiles.json"
+    SOURCEFILE  = os.path.join(SEDMLOCAL_BASESOURCE,"whatfiles.json")
+    PHAROSFILES = os.path.join(SEDMLOCAL_BASESOURCE+"pharosfiles.json")
     def __init__(self):
         """ """
         self.load()
