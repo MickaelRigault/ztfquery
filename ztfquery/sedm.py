@@ -94,7 +94,7 @@ def whatfiles_to_dataframe(whatfile):
 class _SEDMFiles_():
     """ """
     SOURCEFILE  = os.path.join(SEDMLOCAL_BASESOURCE,"whatfiles.json")
-    PHAROSFILES = os.path.join(SEDMLOCAL_BASESOURCE+"pharosfiles.json")
+    PHAROSFILES = os.path.join(SEDMLOCAL_BASESOURCE,"pharosfiles.json")
     def __init__(self):
         """ """
         self.load()
