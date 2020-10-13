@@ -4,11 +4,8 @@
 """  
 https://irsa.ipac.caltech.edu/docs/program_interface/ztf_api.html
 """
-from .io import _PYTHON3
-if _PYTHON3:
-    from io import StringIO
-else:
-    from StringIO import StringIO
+
+from io import StringIO
     
 import requests
 import warnings
