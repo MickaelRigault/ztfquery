@@ -153,6 +153,10 @@ if  __name__ == "__main__":
 
     parser.add_argument('--storemeta', type=str, default=None,
                         help="Provide the filename of where you want to save the metatable. None means no save.")
+
+    parser.add_argument('--queryonly',  action="store_true", default=False,
+                        help="Only run the load_metatable query, no download. Remark, you want to use --storemeta to save this query.")
+    
     # // Download options
     parser.add_argument('--dlsource', type=str, default="IRSA",
                         help="From where the data should be downloaded ?")
@@ -210,7 +214,9 @@ if  __name__ == "__main__":
         zquery = query.ZTFQuery.from_metaquery(**metaquery)
         if args.storemeta is not None:
             zquery.metatable.to_csv(args.storemeta)
-        
+
+    if args.queryonly:
+        sys.exit(0)
     #
     # Lunch Downloading
     #
