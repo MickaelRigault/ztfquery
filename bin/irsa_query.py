@@ -80,6 +80,7 @@ if  __name__ == "__main__":
     
     import argparse
     import sys
+    import ztfquery
     from ztfquery import query
     # ================= #
     #   Options         #
@@ -189,6 +190,8 @@ if  __name__ == "__main__":
     args = parser.parse_args()
 
     # Matplotlib
+    if args.verbose:
+        print(f"based on ztfquery {ztfquery.__version__}")
     # ================= #
     #   The Scripts     #
     # ================= #
@@ -200,6 +203,10 @@ if  __name__ == "__main__":
     #
     if args.fromname is not None:
         from ztfquery.io import download_from_filename
+        if args.verbose:
+            print(f"Query from file {args.fromname}")
+
+        
         for filename in args.fromname.split(","):
             if args.suffix in None:
                 download_from_filename(filename, **download_prop)
@@ -214,6 +221,9 @@ if  __name__ == "__main__":
     #
 
     if args.frommetafile is not None:
+        if args.verbose:
+            print(f"ZTFQuery build from input metafile {args.frommetafile}")
+
         zquery = query.ZTFQuery.from_metafile(args.frommetafile)
     else:
         sql_query = build_query(args)
@@ -232,6 +242,7 @@ if  __name__ == "__main__":
     #
     # Lunch Downloading
     #
+    
     download_prop = {**download_prop,
                      **dict(source=args.dlsource,
                             indexes=args.dlindex, download_dir=args.outdir,
@@ -242,6 +253,10 @@ if  __name__ == "__main__":
                             redownload=True,
                             ignore_warnings=args.nowarnings)
                     }
+
+    if args.verbose:
+        print(f"Download starting...")
+            
     if args.suffix is None:
         _ = zquery.download_data(suffix=None, **download_prop)
     else:
