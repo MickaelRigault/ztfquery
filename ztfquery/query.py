@@ -238,14 +238,14 @@ class _ZTFDownloader_( object ):
         self._relative_data_path = self.get_data_path(suffix=suffix, source="None", indexes=indexes, **kwargs)
         
         # The IRSA location
-        self.to_download_urls    = [buildurl._source_to_location_(source) + d_
+        self.to_download_urls    = [os.path.join(buildurl._source_to_location_(source),d_)
                                      for d_ in self._relative_data_path]
         # Where do you want them?
         if download_dir is None: # Local IRSA structure
-            self.download_location   = [buildurl._source_to_location_("local") + d_
+            self.download_location   = [os.path.join(buildurl._source_to_location_("local"), d_)
                                         for d_ in self._relative_data_path]
         else:
-            self.download_location   = [download_dir + "/%s"%(d_.split("/")[-1])
+            self.download_location   = [os.path.join(download_dir,"%s"%(d_.split("/")[-1]))
                                         for d_ in self._relative_data_path]
             
         if nodl:
