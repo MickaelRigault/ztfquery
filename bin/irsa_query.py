@@ -24,8 +24,11 @@ def build_query(inputargs):
     """ Builds the SQL Query based on the input args """
     #
     # - Dates
+    if inputargs.obsdate is not None:
+        inputargs.startdate = inputargs.obsdate
+        inputargs.enddate = "+1"
     if inputargs.startdate is not None or inputargs.enddate is not None:
-        from astropy import time
+        from astropy import time, units
         # - Start
         if inputargs.startdate is not None:
             starting_date = time.Time(inputargs.startdate, format=inputargs.dateformat)
@@ -33,7 +36,10 @@ def build_query(inputargs):
             starting_date = None
         # - End            
         if inputargs.enddate is not None:
-            ending_date = time.Time(inputargs.enddate, format=inputargs.dateformat)
+            if type(inputargs.enddate) is str and ("+" in inputargs.enddate or "-" in inputargs.enddate):
+                ending_date=time.Time(inputargs.startdate)+float(inputargs.enddate)*units.day
+            else:
+                ending_date = time.Time(inputargs.enddate, format=inputargs.dateformat)
         else:
             ending_date = None
                     
@@ -122,12 +128,15 @@ if  __name__ == "__main__":
     parser.add_argument('--size', type=float, default=0.01,
                         help="Size [in degree] of the cone search..\n *Ignored* if --radec is not used.")
 
-    # // Detailed Query 
+    # // Detailed Query
+    parser.add_argument('--obsdate', type=str, default=None,
+                        help="Date in YYYY-MM-DD format")
+    
     parser.add_argument('--startdate', type=str, default=None,
                         help="Starting date. Should be understood by astropy.time.Time() ; see --dateformat")
     
     parser.add_argument('--enddate', type=str, default=None,
-                        help="Ending date. Should be understood by astropy.time.Time() ; see --dateformat")
+                        help="Ending date. Should be understood by astropy.time.Time() ; see --dateformat"+"\n Could also be relative [in days] like +2 for 2 days after startdate")
     
     parser.add_argument('--dateformat', type=str, default=None,
                         help="Format of of the given startdate and stopdate if any. astropy.time.Time format.")
@@ -212,6 +221,9 @@ if  __name__ == "__main__":
         if args.verbose:
             print(metaquery)
         zquery = query.ZTFQuery.from_metaquery(**metaquery)
+        if args.verbose:
+            print(f"{len(zquery.metatable)} entries")
+
         if args.storemeta is not None:
             zquery.metatable.to_csv(args.storemeta)
 
