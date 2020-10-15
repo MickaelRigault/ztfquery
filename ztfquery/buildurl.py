@@ -250,10 +250,10 @@ def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=False):
         suffix = suffix_
         
     return science_path(year, month, day, fracday,
-                paddedfield, filtercode,
-                paddedccdid, qid, # added in input
-                imgtypecode=imgtypecode, suffix=suffix,
-                source=source, verbose=verbose)
+                        paddedfield, filtercode,
+                        paddedccdid, qid, # added in input
+                        imgtypecode=imgtypecode, suffix=suffix,
+                        source=source, verbose=verbose)
     
 
 def filename_to_refurl(filename, suffix, source="irsa", verbose=False):

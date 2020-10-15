@@ -10,8 +10,8 @@ MAINTAINER = 'Mickael Rigault'
 MAINTAINER_EMAIL = 'm.rigault@ipnl.in2p3.fr'
 URL = 'https://github.com/MickaelRigault/ztfquery'
 LICENSE = 'BSD (3-clause)'
-DOWNLOAD_URL = 'https://github.com/MickaelRigault/ztfquery/tarball/1.10'
-VERSION = '1.10.11'
+DOWNLOAD_URL = 'https://github.com/MickaelRigault/ztfquery/tarball/1.11'
+VERSION = '1.11.1'
 
 try:
     from setuptools import setup, find_packages
@@ -50,6 +50,7 @@ if __name__ == "__main__":
           install_requires=install_requires,
           packages=packages,
           package_data={'ztfquery': ['data/*']},
+          scripts=["bin/irsa_query.py"],
           classifiers=[
               'Intended Audience :: Science/Research',
               'Programming Language :: Python :: 2.7',

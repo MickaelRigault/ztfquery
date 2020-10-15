@@ -119,7 +119,18 @@ def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
                         for  paddedfield_, filtercode_, paddedccdid_, qid_
                     in zip(paddedfield, filtercode, paddedccdid, qid)]
         
-    
+def guess_kind_from_metatable(df):
+    """ Given what is inside the dataframe, this guesses the data kind"""
+    if "caltype" in df.columns:
+        return "cal"
+    if "startobsdate" in df.columns:
+        return "ref"
+    if "rcid" in df.columns:
+        return "sci"
+    if "expid" in df.columns:
+        return "raw"
+    raise TypeError("The given dataframe is not a ZTF IRSA metatable")
+
 #############################
 #                           #
 #   Main Query Tools        #
@@ -469,8 +480,24 @@ class ZTFQuery( ztftable._ZTFTable_, _ZTFDownloader_ ):
     def __init__(self, metatable=None, kind=None):
         """ """
         if metatable is not None:
-            self.set_metable(metatable, kind)
+            self.set_metatable(metatable, kind)
 
+    @classmethod
+    def from_metafile(cls, metafile, **kwargs):
+        """ Loads a ZTFQuery instance from a metatable file. """
+        import pandas
+        metatable = pandas.read_csv(metafile, **{**{"index_col":0},**kwargs})
+        kind = guess_kind_from_metatable(metatable)
+        return cls(metatable, kind)
+
+    @classmethod
+    def from_metaquery(cls, kind="sci", radec=None, size=None, caltype=None,
+                           sql_query=None, auth=None, **kwargs):
+        """ Loads a ZTFQuery instance and runs load_metadata with the given input """
+        this = cls()
+        this.load_metadata(kind=kind, radec=radec, size=size, caltype=caltype, sql_query=sql_query, auth=auth, **kwargs)
+        return this
+    
     def set_metatable(self, metatable, kind):
         """ directly provide the metatable of interest"""
         self._metatable = metatable
@@ -623,9 +650,7 @@ class ZTFQuery( ztftable._ZTFTable_, _ZTFDownloader_ ):
         // if queried metadata is for kind calibration
             
         """
-        if not hasattr(self,"metaquery"):
-            raise AttributeError("metaquery has not been loaded. Run load_metadata(). ")
-        if self.metaquery.nentries ==0:
+        if len(self.metatable) == 0:
             warnings.warn("No entry associated to the query you made: metatable is empty")
             return []
         return metatable_to_url(self.metatable if indexes is None else self.metatable.loc[np.atleast_1d(indexes)],
@@ -718,7 +743,7 @@ class ZTFQuery( ztftable._ZTFTable_, _ZTFDownloader_ ):
         """ """
         if not hasattr(self,"_metatable"):
             if not hasattr(self, "metaquery"):
-                raise AttributeError("metaquery has not been loaded. Run load_metadata(). ")
+                raise AttributeError("No metatable has not been loaded. Run load_metadata(). ")
         
             return self.metaquery.metatable
         

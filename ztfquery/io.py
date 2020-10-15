@@ -372,7 +372,7 @@ def _download_(args):
 
 
 def download_from_filename(filename, suffix=None, verbose=False, overwrite=False,
-                               auth=None, **kwargs):
+                               auth=None, nodl=False, **kwargs):
     """ Download the file associated to the given filename """
     from .buildurl import filename_to_scienceurl
     if auth is None:
@@ -381,7 +381,8 @@ def download_from_filename(filename, suffix=None, verbose=False, overwrite=False
         
     irsa_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose, source="irsa")
     local_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose, source="local")
-    
+    if nodl:
+        return [irsa_filename,local_filename]
     download_url(np.atleast_1d(irsa_filename),
                  np.atleast_1d(local_filename),
                  overwrite=overwrite,
