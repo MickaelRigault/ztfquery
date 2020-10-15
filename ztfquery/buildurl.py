@@ -114,7 +114,8 @@ def science_path(year, month, day, fracday,
         raise ValueError("Unkwown suffix %s for 'sci' exposures"%suffix, "\n known suffixes: \n", KNOWN_SCIENCE_SUFFIXES)
     
     filefracday = "".join([year+month+day+fracday])
-    return source+'sci/'+year+'/'+month+day+'/'+fracday+'/ztf_'+filefracday+'_'+paddedfield+'_'+filtercode+'_c'+paddedccdid+'_'+imgtypecode+'_q'+qid+'_'+suffix
+    file_ = 'sci/'+year+'/'+month+day+'/'+fracday+'/ztf_'+filefracday+'_'+paddedfield+'_'+filtercode+'_c'+paddedccdid+'_'+imgtypecode+'_q'+qid+'_'+suffix
+    return os.path.join(source,file_)
     
 def raw_path(year, month, day, fracday,
             paddedfield,
@@ -140,7 +141,8 @@ def raw_path(year, month, day, fracday,
     """
     source = _source_to_location_(source)
     filefracday = "".join([year+month+day+fracday])
-    return source+'raw/'+year+'/'+month+day+'/'+fracday+'/ztf_'+filefracday+'_'+paddedfield+'_'+filtercode+'_c'+paddedccdid+'_'+imgtypecode+'.fits.fz'
+    file_ = 'raw/'+year+'/'+month+day+'/'+fracday+'/ztf_'+filefracday+'_'+paddedfield+'_'+filtercode+'_c'+paddedccdid+'_'+imgtypecode+'.fits.fz'
+    return os.path.join(source,file_)
 
 # ------------- #
 #  Calibration  #
@@ -192,8 +194,8 @@ def calibration_path(caltype,
     #  Build URL       #
     # ================ #
     filestartdate = "".join([year,month,day])
-    return source+'cal/'+year+'/'+month+day+'/%s/'%caltype.lower()+filtercode+'/ccd'+paddedccdid+'/q'+qid+'/ztf_'+filestartdate+'_'+filtercode+'_c'+paddedccdid+'_q'+qid+'_%s'%suffix
-    
+    file_ = 'cal/'+year+'/'+month+day+'/%s/'%caltype.lower()+filtercode+'/ccd'+paddedccdid+'/q'+qid+'/ztf_'+filestartdate+'_'+filtercode+'_c'+paddedccdid+'_q'+qid+'_%s'%suffix
+    return os.path.join(source,file_)
 
 # ------------- #
 #  References   #
@@ -232,8 +234,8 @@ def reference_path(paddedfield,
     if suffix is None:
         suffix = "refimg.fits"
     source = _source_to_location_(source)
-    
-    return source+'ref/'+fieldprefix+'/field'+paddedfield+'/'+filtercode+'/ccd'+paddedccdid+'/q'+qid+'/ztf_'+paddedfield+'_'+filtercode+'_c'+paddedccdid+'_q'+qid+'_%s'%suffix
+    file_ = 'ref/'+fieldprefix+'/field'+paddedfield+'/'+filtercode+'/ccd'+paddedccdid+'/q'+qid+'/ztf_'+paddedfield+'_'+filtercode+'_c'+paddedccdid+'_q'+qid+'_%s'%suffix
+    return os.path.join(source,file_)
 
 # ============= #
 #   TOOLS       #
