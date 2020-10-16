@@ -1,9 +1,11 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
-
+#import numpy as np
+from astropy import time, units
+    
 STRINGTYPEKEYS = []
-
+        
 def build_singlequery(key, value, asstring=False):
     """ """
     if type(value) == str:
@@ -20,42 +22,71 @@ def build_singlequery(key, value, asstring=False):
     value = ",".join(value)
     return f"{key} IN ({value})"
 
+def _isfloat_(value):
+    """ """
+    try:
+        _ = float(value)
+        return True
+    except:
+        return False
+    
+def _get_time_(default, input_, refdate=None, format=None):
+    """ """
+    if default is None and input_ is None:
+        return None
+    
+    if _isfloat_(input_):
+        if refdate is None:
+            raise ValueError("Cannot set relative times to undefined refdate time.")        
+        return time.Time(refdate, format=format)+ float(input_)*units.day
+
+    return  time.Time(default if input_ is None else input_, format=format) 
+        
+    
+    
+    
+
 def build_query(inputargs):
     """ Builds the SQL Query based on the input args """
     #
     # - Dates
+    starting_date = None
+    ending_date   = None
+    
+    if inputargs.target is not None:
+        if inputargs.targetsource.lower() in ["marshal"]:
+            from ztfquery import marshal
+            m = marshal.MarshalAccess.load_local()
+            if inputargs.target not in m.target_sources["name"].values:
+                raise ValueError(f"unknown target {inputargs.target}")
+            # Overwriting
+            inputargs.radec  = list(m.get_target_coordinates(inputargs.target).values[0])
+            tcreation, tlast = m.get_target_jdrange(inputargs.target, format="time")
+            starting_date    =  _get_time_(tcreation-30*units.day, inputargs.startdate, refdate=tcreation, format=inputargs.dateformat)
+            ending_date      =  _get_time_(tlast+30*units.day, inputargs.enddate, refdate=tlast, format=inputargs.dateformat)
+        else:
+            raise NotImplementedError("Only targetsource marshal implemented")
+
+    
     if inputargs.obsdate is not None:
         inputargs.startdate = inputargs.obsdate
         inputargs.enddate = "+1"
-    if inputargs.startdate is not None or inputargs.enddate is not None:
-        from astropy import time, units
-        # - Start
-        if inputargs.startdate is not None:
-            starting_date = time.Time(inputargs.startdate, format=inputargs.dateformat)
-        else:
-            starting_date = None
-        # - End            
-        if inputargs.enddate is not None:
-            if type(inputargs.enddate) is str and ("+" in inputargs.enddate or "-" in inputargs.enddate):
-                ending_date=time.Time(inputargs.startdate)+float(inputargs.enddate)*units.day
-            else:
-                ending_date = time.Time(inputargs.enddate, format=inputargs.dateformat)
-        else:
-            ending_date = None
-                    
-        # - Query
-        if starting_date is not None and ending_date is not None:
-            timequery = f"obsjd BETWEEN {starting_date.jd} AND {ending_date.jd}"
-        elif starting_date is not None:
-            timequery = f"obsjd >= {starting_date.jd}"
-        elif ending_date is not None:
-            timequery = f"obsjd <= {ending_date.jd}"
-        else:
-            raise ValueError("Code error, this should not exist.")
-        timequery = timequery
+        
+    if starting_date is None:
+        starting_date = _get_time_(None, inputargs.startdate, refdate=None, format=inputargs.dateformat)
+    if ending_date is None:
+        ending_date   = _get_time_(None, inputargs.enddate, refdate=inputargs.startdate, format=inputargs.dateformat)
+        
+    # - Query
+    if starting_date is not None and ending_date is not None:
+        timequery = f"obsjd BETWEEN {starting_date.jd} AND {ending_date.jd}"
+    elif starting_date is not None:
+        timequery = f"obsjd >= {starting_date.jd}"
+    elif ending_date is not None:
+        timequery = f"obsjd <= {ending_date.jd}"
     else:
         timequery = None
-        
+                
     # - Queries
     queries = [build_singlequery(k, getattr(inputargs,k), k in STRINGTYPEKEYS) for k in ["ccdid","qid","rcid","fid","field"] if getattr(inputargs,k) is not None]
     if timequery is not None:
@@ -97,6 +128,11 @@ if  __name__ == "__main__":
     parser.add_argument('--frommetafile', type=str, default=None,
                         help="Provide a local metatable csv file.")
 
+    parser.add_argument('--target', type=str, default=None,
+                        help="Provide a target name and this will look its ra, dec and dates to ")
+
+    parser.add_argument('--targetsource', type=str, default="marshal",
+                        help="Where should the target information come from ? ")
 
     # // Generic
     parser.add_argument('--suffix', type=str, default=None,
@@ -124,17 +160,17 @@ if  __name__ == "__main__":
 
     # // Target Oriented
     parser.add_argument('--radec', nargs=2, type=float, default=None,
-                        help="RA Dec Coordinates in degree if any.")
+                        help="RA Dec Coordinates in degree if any. *Ignored* if --target given")
 
     parser.add_argument('--size', type=float, default=0.01,
-                        help="Size [in degree] of the cone search..\n *Ignored* if --radec is not used.")
+                        help="Size [in degree] of the cone search..\n *Ignored* if --radec or --target is not used.")
 
     # // Detailed Query
     parser.add_argument('--obsdate', type=str, default=None,
                         help="Date in YYYY-MM-DD format")
     
     parser.add_argument('--startdate', type=str, default=None,
-                        help="Starting date. Should be understood by astropy.time.Time() ; see --dateformat")
+                        help="Starting date. Should be understood by astropy.time.Time() ; see --dateformat \n If --target given this could also be relative [in days] like -2 for 2 days before first detection.")
     
     parser.add_argument('--enddate', type=str, default=None,
                         help="Ending date. Should be understood by astropy.time.Time() ; see --dateformat"+"\n Could also be relative [in days] like +2 for 2 days after startdate")
