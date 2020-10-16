@@ -67,7 +67,7 @@ def build_query(inputargs):
         else:
             raise NotImplementedError("Only targetsource marshal implemented")
 
-    
+    #{'kind': 'sci', 'radec': [152.7069519, 54.214881999999996], 'size': 0.01, 'caltype': None, 'sql_query': 'rcid = 9 and obsjd BETWEEN 2458537.755162037 AND 2458675.108217593'}
     if inputargs.obsdate is not None:
         inputargs.startdate = inputargs.obsdate
         inputargs.enddate = "+1"
@@ -278,7 +278,6 @@ if  __name__ == "__main__":
     #
     # Lunch Downloading
     #
-    
     download_prop = {**download_prop,
                      **dict(source=args.dlsource,
                             indexes=args.dlindex, download_dir=args.outdir,
