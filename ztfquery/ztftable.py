@@ -5,6 +5,17 @@
 import numpy as np
 from . import fields
 
+
+def show_timedf(timedf, ax=None):
+    """ """
+    if ax is None:
+        fig = mpl.figure(figsize=[7,4])
+        ax  = fig.add_subplot(111)
+    else:
+        fig = ax.figure
+
+    
+
 class _ZTFTable_( object ):
     """ """
     def __init__(self, dataframe):

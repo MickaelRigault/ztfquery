@@ -849,7 +849,7 @@ class MarshalAccess( object ):
         """
         if type(target_source_dataframe) is pandas.DataFrame:
             target_source_dataframe = [target_source_dataframe]
-        elif type(target_source_dataframe) is dict:
+        if type(target_source_dataframe) is dict:
             self.target_sources = pandas.concat(target_source_dataframe)
             self._loaded_program = np.asarray(list(target_source_dataframe.keys()))
         else:

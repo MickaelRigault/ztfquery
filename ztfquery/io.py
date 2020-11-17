@@ -23,6 +23,103 @@ _ENCRYPTING_FILE = os.path.expanduser("~")+"/.queryirsa"
 LOCALSOURCE   = os.getenv('ZTFDATA',"./Data/")
 
 
+
+# ================= #
+#  High level tools #
+# ================= #
+def download_from_filename(filename, suffix=None, verbose=False, overwrite=False,
+                               auth=None, nodl=False,
+                               show_progress=True, notebook=True, **kwargs):
+    """ Download the file associated to the given filename """
+    from .buildurl import filename_to_scienceurl
+    if auth is None:
+        auth = _load_id_("irsa")
+    cookies = get_cookie(*auth)
+        
+    irsa_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose, source="irsa")
+    local_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose, source="local")
+    if nodl:
+        return [irsa_filename,local_filename]
+    download_url(np.atleast_1d(irsa_filename),
+                 np.atleast_1d(local_filename),
+                 overwrite=overwrite,verbose=verbose,
+                 cookies = cookies,
+                  show_progress=show_progress, notebook=notebook,
+                  **kwargs)
+
+def get_file(filename, suffix=None, downloadit=True, verbose=False, **kwargs):
+    """ Get full path associate to the filename. 
+    If you don't have it on your computer, this downloads it for you.
+
+    Parameters
+    ----------
+    filename: [string]
+        name of the file you want
+        
+    suffix: [string] -optional-
+        actual suffix of the file you want. By default it is that of the filename
+        but you can request associated files with other suffix.
+        For instance:
+        if filename = ztf_20190917468333_000698_zi_c03_o_q2_sciimg.fits and suffix='mskimg.fits'
+        you will be looking for ztf_20190917468333_000698_zi_c03_o_q2_mskimg.fits.
+
+    downloadit: [bool] -optional-
+        If you do not have the file locally, shall this download it for you ?
+        
+    **kwargs goes to download_from_filename
+
+    Returns
+    -------
+    fullpath (or None if not data)
+        
+    """
+    from .buildurl import filename_to_scienceurl
+    local_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose,
+                                                source="local")
+    if not os.path.isfile(local_filename):
+        local_filename = None
+        if downloadit:
+            download_from_filename(filename, suffix=suffix, verbose=verbose, **kwargs)
+            return get_file(filename, suffix=suffix, downloadit=False, verbose=verbose)
+        
+    return local_filename
+
+
+def isnotebook():
+    """ Test if currently ran in notebook """
+    try:
+        shell = get_ipython().__class__.__name__
+        if shell == 'ZMQInteractiveShell':
+            return True   # Jupyter notebook or qtconsole
+        elif shell == 'TerminalInteractiveShell':
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False 
+
+def _parse_filename_(filename, builddir=False, squeeze=True, exists=False):
+    """ """
+    from glob import glob
+    directory = os.path.dirname(filename)
+    #basename  = os.path.basename(filename).split(".")[0]
+    #extension = filename.split(".")[-1]
+    
+    if builddir:
+        os.makedirs(directory, exist_ok=True)
+
+    # unique object
+    if "*" in filename and not exists:
+        warnings.warn("apparent variable conflict, filename contains '*', but exists is False.")
+        
+    localfile = glob(filename) if exists else np.atleast_1d(filename)
+    if squeeze:
+        if len(localfile)==0:
+            return None
+        if len(localfile)==1:
+            return localfile[0]
+        
+    return localfile
 # ================= #
 #  Crypting         #
 # ================= #
@@ -369,26 +466,6 @@ def _download_(args):
     """
     url, fileout,  overwrite, verbose = args
     download_single_url(url, fileout=fileout, overwrite=overwrite, verbose=verbose)
-
-
-def download_from_filename(filename, suffix=None, verbose=False, overwrite=False,
-                               auth=None, nodl=False, **kwargs):
-    """ Download the file associated to the given filename """
-    from .buildurl import filename_to_scienceurl
-    if auth is None:
-        auth = _load_id_("irsa")
-    cookies = get_cookie(*auth)
-        
-    irsa_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose, source="irsa")
-    local_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose, source="local")
-    if nodl:
-        return [irsa_filename,local_filename]
-    download_url(np.atleast_1d(irsa_filename),
-                 np.atleast_1d(local_filename),
-                 overwrite=overwrite,
-                 cookies = cookies, **kwargs)
-    
-    
     
 def download_url(to_download_urls, download_location,
                 show_progress = True, notebook=False, verbose=True,
