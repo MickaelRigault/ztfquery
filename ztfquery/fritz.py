@@ -7,6 +7,7 @@ import json
 import requests
 import numpy as np
 
+from astropy import time
 
 from .io import LOCALSOURCE, _load_id_
 FRITZSOURCE = os.path.join(LOCALSOURCE,"fritz")
@@ -57,9 +58,33 @@ def api(method, endpoint, data=None, load=True, token=None, **kwargs):
 #
 def download_lightcurve(name, asdataframe=True,
                             get_object=False, saveonly=False,
-                            token=None, dirout="default"):
-    """ """
-    lcdata = api('get', _BASE_FRITZ_URL+f'api/sources/{name}/photometry', load=True, token=token)
+                            token=None, dirout="default",
+                            format=None, magsys=None):
+    """ 
+    Parameters
+    ----------
+    format: [string] -optional-
+        = skyportal api option = 
+        flux or mag (None means default)
+
+    magsys: [string] -optional-
+        = skyportal api option = 
+        ab or vega (None means default)
+    
+    """
+    #
+    # - start: addon
+    addon = []
+    if format is not None:
+        addon.append(f"format={format}")
+    if magsys is not None:
+        addon.append(f"magsys={magsys}")
+        
+    addon = "" if len(addon)==0 else "?"+"&".join(addon)
+    # - end: addon
+    #
+        
+    lcdata = api('get', _BASE_FRITZ_URL+f'api/sources/{name}/photometry{addon}', load=True, token=token)
 
     if dirout is not None:
         FritzPhotometry( pandas.DataFrame(lcdata) ).store(dirout=dirout)
@@ -101,20 +126,34 @@ def download_spectra(name, get_object=False,saveonly=False,
 #
 #  Alerts
 #
-def download_alerts(name, get_object=False, token=None):
-    """ """
+def download_alerts(name, candid=None, allfields=None,
+                    get_object=False, token=None):
+    """ 
+    Parameters
+    ----------
+    candid: [int/str]
+        alert candid like: 1081317100915015025
+    """
+    #
+    # - start: addon
+    addon = []    
+    if candid is not None:
+        addon.append("candid={candid}")
+    if allfields is not None:
+        addon.append("includeAllFields={allfields}")
+
+    addon = "" if len(addon)==0 else "?"+"&".join(addon)
+    # - end: addon
+    #    
     alerts = api('get', _BASE_FRITZ_URL+f'api/alerts/ztf/{name}', load=True,
-                     token=token)
-    if get_object:
-        return FritzAlerts(alerts)
-    
+                     token=token)    
     return alerts
 #
 #  Source
 #
-def download_source(name, get_object=False, includeallfield=False, token=None):
+def download_source(name, get_object=False, token=None):
     """ """
-    addon = "?includeAllFields=true" if includeallfield else ""
+    addon=''
     source = api('get', _BASE_FRITZ_URL+f'api/sources/{name}{addon}', load=True,
                      token=token)
     if get_object:
@@ -122,12 +161,54 @@ def download_source(name, get_object=False, includeallfield=False, token=None):
 
     return source
 
-def download_groupsources(groupid=None, token=None, asdataframe=False):
-    """ """
-    if groupid is None:
-        sources = api("get",_BASE_FRITZ_URL+"api/sources", load=True, token=token)
-    else:
-        sources = api("get",_BASE_FRITZ_URL+f"api/sources?group_ids={groupid}", load=True, token=token)
+def download_sources(asdataframe=False,
+                     groupid=None, 
+                     savesummary=False, 
+                     savedafter=None, savedbefore=None,
+                     name=None,
+                     includephotometry=False,
+                     includerequested=False,
+                     addon=None, token=None, ):
+    """ 
+    
+    includephotometry: [bool] -optional-
+        Includes the photometric table inside sources["photometry"]
+    """
+    #
+    # - start: addon
+    if addon is None:
+        addon = []
+        
+    elif type(addon) is str:
+        addon = [addon]
+
+    if savesummary:
+        addon.append(f"saveSummary=true")
+        
+    if groupid is not None:
+        addon.append(f"group_ids={groupid}")
+
+    if savedafter is not None:
+        addon.append(f"savedAfter={time.Time(savedafter).isot}")
+        
+    if savedbefore is not None:
+        addon.append(f"savedBefore={time.Time(savedbefore).isot}")
+
+    if name is not None:
+        addon.append(f"sourceID={name}")
+
+    if includephotometry:
+        addon.append(f"includePhotometry=true")
+        
+    if includephotometry:
+        addon.append(f"includeRequested=true")
+        
+    addon = "" if len(addon)==0 else "?"+"&".join(addon)
+    # - end: addon
+    #
+
+    sources = api("get",_BASE_FRITZ_URL+f"api/sources{addon}", load=True, token=token)
+    
     if asdataframe:
         return pandas.DataFrame(sources["sources"])
     
@@ -458,7 +539,7 @@ class FritzAccess( object ):
         df = {}
         for i, groupname in enumerate(groups):
             groupid = self.get_group_id(groupname)
-            dataframe = download_groupsources(groupid=groupid, asdataframe=True)
+            dataframe = download_sources(groupid=groupid, asdataframe=True)
             df[groupname] = dataframe
         
         if setit:
@@ -902,7 +983,6 @@ class FritzPhotometry( object ):
             if tstart is None and tend is None:
                 pass
             else:
-                from astropy import time
                 tindex = pandas.DatetimeIndex(time.Time(self.data["mjd"], format="mjd").datetime)
                 
                 if tstart is None:
@@ -925,7 +1005,6 @@ class FritzPhotometry( object ):
         """ """
         import matplotlib.pyplot as mpl
         from matplotlib import dates as mdates
-        from astropy import time
         
         if ax is None:
             fig = mpl.figure(figsize=[5,3])
@@ -1443,7 +1522,6 @@ class FritzSource( object ):
         if format is None or format in ["str","default","string"]:
             times = {k:self.fritzdict[k] for k in which}
         else:
-            from astropy import time
             if format in ["time","Time","astropy","astropy.time", "astropy.Time"]:
                 times = {k:time.Time(self.fritzdict[k]) for k in which}
             else:
