@@ -166,9 +166,9 @@ def download_sources(asdataframe=False,
                      savesummary=False, 
                      savedafter=None, savedbefore=None,
                      name=None,
-                     includephotometry=False,
-                     includerequested=False,
-                     addon=None, token=None, ):
+                     includephotometry=None,
+                     includerequested=None,
+                     addon=None, token=None):
     """ 
     
     includephotometry: [bool] -optional-
@@ -197,11 +197,11 @@ def download_sources(asdataframe=False,
     if name is not None:
         addon.append(f"sourceID={name}")
 
-    if includephotometry:
-        addon.append(f"includePhotometry=true")
+    if includephotometry is not None:
+        addon.append(f"includePhotometry={includephotometry}")
         
-    if includephotometry:
-        addon.append(f"includeRequested=true")
+    if includerequested is not None:
+        addon.append(f"includeRequested={includerequested}")
         
     addon = "" if len(addon)==0 else "?"+"&".join(addon)
     # - end: addon

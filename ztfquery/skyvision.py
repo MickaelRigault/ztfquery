@@ -184,9 +184,13 @@ def download_completed_log(date, auth=None, store=True,
             
     if verbose:
         print(data)
+        
     if time.Time(date)<=time.Time("2018-07-09"):
         columns = ['UT Date','UT Time','Sequence ID', 'Program ID', 'Field ID', 'RA', 'DEC', 'Epoch',
                    'RA Rate', 'Dec Rate', 'Exptime', 'Filter', 'Observation Status', 'Setup Time', 'Exptime']
+    elif time.Time(date)>=time.Time("2020-10-29"):
+        columns = ['UT Date','UT Time', 'Base Image Name','Sequence ID', 'Program ID', 'Field ID', 'RA', 'DEC', 'Epoch',
+                   'RA Rate', 'Dec Rate', 'Exptime', 'Filter', 'Observation Status', 'Setup Time', 'Exptime',"_num"]
     else:
         columns = ['UT Date','UT Time', 'Base Image Name','Sequence ID', 'Program ID', 'Field ID', 'RA', 'DEC', 'Epoch',
                    'RA Rate', 'Dec Rate', 'Exptime', 'Filter', 'Observation Status', 'Setup Time', 'Exptime']
