@@ -17,6 +17,8 @@ _fritz.py documentation_
 ```python
 from ztfquery import fritz
 lc = fritz.download_lightcurve("ZTF20acmzoxo", get_object=True)
+# or if you already have done it and want the stored version:
+# lc = fritz.get_local_lightcurve("ZTF20acmzoxo", directory="default")
 lc.show()
 ```
 ![](images/fritz_lc.png)
@@ -63,6 +65,29 @@ lc = fritz.download_lightcurve("ZTF20acmzoxo", get_object=True)
 lc.show(filtering= dict(filters="ztfi", detected=True, time_range=["2020-10-22", "2020-11-15"]) )
 ```
 ![](images/fritz_lc_filtered.png)
+
+*I/O*: Use the `lc.store(fileout)` to store the lightcurve. (calling `spec.to_csv`, `spec.to_hdf` or `spec.to_json` depending on the extension given) 
+
+## Spectra
+
+```python
+from ztfquery import fritz
+spec = fritz.download_spectra("ZTF20acmzoxo", get_object=True, dirout="default")
+# or if you already have done it and want the stored version: 
+# spec = fritz.get_local_spectra("ZTF20acmzoxo", directory="default")
+spec.show()
+```
+![](images/fritz_spectrum.png)
+
+The data downloaded from () are stored as `spec.fritzdict`:
+```python
+print(spec.fritzdict.keys())
+> dict_keys(['created_at', 'followup_request_id', 'modified', 'assignment_id', 'wavelengths', 'altdata', 'fluxes', 'original_file_string', 'errors', 'original_file_filename', 'obj_id', 'owner_id', 'observed_at', 'id', 'origin', 'instrument_id', 'groups', 'instrument_name', 'reducers', 'observers'])
+```
+
+An pyifu.Spectrum object is created as spec.spectrum (from which the aforementioned `show()` comes from). It contains methods like `spec.spectrum.synthesize_photometry(filter_wave, filter_trans)` or `spec.spectrum.scale_by(flux_or_array)`.
+
+*I/O*: Use the `spec.store(fileout)` to store the spectrum. (calling `spec.to_fits`, `spec.to_ascii`, `spec.to_json` or `spec.to_txt` depending on the extension given) 
 
 ***
 
