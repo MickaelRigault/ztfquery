@@ -82,7 +82,7 @@ class AlertReader():
     # --------- #
     # PLOTTER   #
     # --------- #
-    def show(self, savefile=None, show_ps_stamp=False,pcvmin=0, pcvmax=100):
+    def show(self, savefile=None, show_ps_stamp=False, pcvmin=0, pcvmax=100):
         """ 
         Parameters
         ----------
