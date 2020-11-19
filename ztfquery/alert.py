@@ -26,6 +26,7 @@ def query_alert(alertid):
     """ """
     print("This service will soon be added")
     pass
+
 ####################
 #                  #
 #  Basic Class     #
@@ -81,8 +82,13 @@ class AlertReader():
     # --------- #
     # PLOTTER   #
     # --------- #
-    def show(self, savefile=None, show_ps_stamp=False):
-        """ """
+    def show(self, savefile=None, show_ps_stamp=False,pcvmin=0, pcvmax=100):
+        """ 
+        Parameters
+        ----------
+        pcvmin, pcvmax: [0<float<100] -optional-
+            percentile of the saturating (min and max) color for the stamps
+        """
         from astropy import visualization
         from astropy.time import Time
         import matplotlib.dates as mdates
@@ -121,7 +127,7 @@ class AlertReader():
                     flag_fid = fidup==i
                     ax.errorbar([Time(jd_, format="jd").datetime for jd_ in jdup[flag_fid]], 
                                 upmag[flag_fid], yerr=0.2, lolims=True,
-                                    color=FILTER_COLORS[j], ls="None", 
+                                    color=FILTER_COLORS[j], ls="None", alpha=0.7,
                                     label="_no_legend_")
                 
         # ----------- #
@@ -149,7 +155,10 @@ class AlertReader():
         # ----------------- # 
         # Loop Over the stamps
         for ax_, source in zip([aximg, axref, axdif], ['Science','Template','Difference']):
-            data_ = visualization.AsinhStretch(self.get_stamp(source).data).a
+            origdata = self.get_stamp(source).data
+            vmin,vmax = np.percentile(origdata[origdata==origdata], [pcvmin,pcvmax])
+            data_ = visualization.AsinhStretch()((origdata-vmin)/(vmax-vmin))
+
             ax_.imshow(data_, norm=Normalize(*np.percentile(data_[data_==data_], [0.5,99.5])), aspect="auto")
             ax_.set_yticks([])
             ax_.set_xticks([])
@@ -196,7 +205,12 @@ class AlertReader():
                                                                                    self.alert['candidate']['ra'],self.alert['candidate']['dec'],
                                                                                    FILTER_CODE[self.alert['candidate']['fid']-1]),
                      fontsize="medium", color="k", va="top", ha="left")
-        axlc.xaxis.set_major_formatter(mdates.DateFormatter('%m/%d/%y'))
+        
+        locator = mdates.AutoDateLocator()
+        formatter = mdates.ConciseDateFormatter(locator)
+        axlc.xaxis.set_major_locator(locator)
+        axlc.xaxis.set_major_formatter(formatter)
+
 
         if savefile is not None:
             fig.savefig(savefile, dpi=250)

@@ -138,14 +138,14 @@ def download_alerts(name, candid=None, allfields=None,
     # - start: addon
     addon = []    
     if candid is not None:
-        addon.append("candid={candid}")
+        addon.append(f"candid={candid}")
     if allfields is not None:
-        addon.append("includeAllFields={allfields}")
+        addon.append(f"includeAllFields={allfields}")
 
     addon = "" if len(addon)==0 else "?"+"&".join(addon)
     # - end: addon
     #    
-    alerts = api('get', _BASE_FRITZ_URL+f'api/alerts/ztf/{name}', load=True,
+    alerts = api('get', _BASE_FRITZ_URL+f'api/alerts/ztf/{name}{addon}', load=True,
                      token=token)    
     return alerts
 #
