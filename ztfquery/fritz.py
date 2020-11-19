@@ -110,6 +110,11 @@ def download_spectra(name, get_object=False,saveonly=False,
     """ """
     list_of_dict = api('get', _BASE_FRITZ_URL+f'api/sources/{name}/spectra', load=True,
                            token=token)
+    if list_of_dict is None or len(list_of_dict)==0:
+        url = _BASE_FRITZ_URL+f'api/sources/{name}/spectra'
+        warnings.warn(f"no spectra downloaded. {url} download is empty")
+        return None
+    
     if get_object or dirout is not None:
         specobject = FritzSpectrum(list_of_dict[0]) if len(list_of_dict)==1 else FritzSpectra(list_of_dict)
         # to be stored
@@ -1001,7 +1006,7 @@ class FritzPhotometry( object ):
         """ list of filter in the data """
         return np.unique(self.data["filter"]).astype(str)
     
-    def show(self, ax=None):
+    def show(self, ax=None, savefile=None):
         """ """
         import matplotlib.pyplot as mpl
         from matplotlib import dates as mdates
@@ -1041,6 +1046,11 @@ class FritzPhotometry( object ):
         ax.xaxis.set_major_locator(locator)
         ax.xaxis.set_major_formatter(formatter)
         ax.set_ylabel("mag")
+        if savefile is not None:
+            fig.savefig(savefile)
+            
+        return fig 
+            
 
     # ============= #
     #  Properties   #
