@@ -1006,7 +1006,7 @@ class FritzPhotometry( object ):
         """ list of filter in the data """
         return np.unique(self.data["filter"]).astype(str)
     
-    def show(self, ax=None, savefile=None):
+    def show(self, ax=None, savefile=None, filtering={}):
         """ """
         import matplotlib.pyplot as mpl
         from matplotlib import dates as mdates
@@ -1019,24 +1019,30 @@ class FritzPhotometry( object ):
 
         base_prop = dict(ls="None", mec="0.9", mew=0.5, ecolor="0.7")
         base_up   = dict(ls="None", label="_no_legend_")
+
+        if filtering is None:
+            data = self.data.copy()
+        else:
+            data = self.get_data(**filtering)
+        
         # - Detected
-        for filter_ in np.unique(self.data["filter"]):
+        for filter_ in np.unique(data["filter"]):
             if filter_ not in ZTFCOLOR:
                 warnings.warn(f"Unknown instrument: {filter_} | magnitude not shown")
                 continue
         
-            datadet_ = self.data.query("filter == @filter_ and mag != 'NaN'")
+            datadet_ = data.query("filter == @filter_ and mag != 'NaN'")
             ax.errorbar(time.Time(datadet_["mjd"], format="mjd").datetime, 
                      datadet_["mag"], yerr= datadet_["magerr"], 
                      label=filter_, **{**base_prop,**ZTFCOLOR[filter_]})
             
         ax.invert_yaxis()  
         
-        for filter_ in np.unique(self.data["filter"]):
+        for filter_ in np.unique(data["filter"]):
             if filter_ not in ZTFCOLOR:
                 continue
             # Upper limits
-            datadet_ = self.data.query("filter == @filter_ and mag == 'NaN'")
+            datadet_ = data.query("filter == @filter_ and mag == 'NaN'")
             ax.errorbar(time.Time(datadet_["mjd"], format="mjd").datetime, 
                      datadet_["limiting_mag"], yerr= 0.1, lolims=True, alpha=0.3,
                      **{**base_up,**{"color":ZTFCOLOR[filter_]["mfc"]}})
