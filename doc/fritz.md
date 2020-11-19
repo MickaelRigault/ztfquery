@@ -95,6 +95,59 @@ An pyifu.Spectrum object is created as spec.spectrum (from which the aforementio
 
 ## FritzAccess
 
+`FritzAccess` is a general user-based access to Fritz. The mostly enables you to access the sources associated to your groups.
+
+```python
+faccess = fritz.FritzAccess()
+```
+Load your group (loading the `faccess.groups` FritzGroups object, see download_groups())
+```python
+faccess.load_groups()
+```
+the groups you have access to are:
+```python
+print(faccess.groups.accessible)
+> # DataFrame
+       nickname	       modified	              id	name	       single_user_group	created_at
+0	infant	2020-10-21T06:20:34.549465	49	Infant Supernovae	False	2020-10-21T06:20:34.549465
+...
+4	SNeIa	2020-11-15T09:33:18.151551	177	Type Ia Supernovae	False	2020-11-15T09:33:18.151551
+```
+and to get the sources associated to a group (might be slow). 
+```python
+faccess.load_sources("SNeIa")
+```
+You can load several groups one at the time or together by providing a list like `faccess.load_sources(["infant","SNeIa"])`
+to get load sources be only from one group:
+```python
+source_df= faccess.get_group_sources("SNeIa")
+print(source_df.keys())
+> Index(['id', 'origin', 'dist_nearest_source', 'ra_dis', 'internal_key',
+       'mag_nearest_source', 'dec_dis', 'detect_photometry_count',
+       'e_mag_nearest_source', 'ra_err', 'created_at', 'transient', 'dec_err',
+       'modified', 'varstar', 'offset', 'ra', 'is_roid', 'redshift', 'dec',
+       'score', 'redshift_history', 'altdata', 'thumbnails', 'comments',
+       'classifications', 'annotations', 'last_detected', 'gal_lon', 'gal_lat',
+       'luminosity_distance', 'dm', 'angular_diameter_distance', 'groups'],
+      dtype='object')
+```
+
+### `FritzAccess.get_target_{}`
+
+Finally, you have `faccess.get_target_{}([options])` methods where {} could be `classification`, `coordinates`, `redshift`, `jdrange` and `data`.
+
+You have in addition `faccess.get_target_metadataquery()` that you can directly pass to ZTFQuery.load_metatable() to download IRSA data associated to this source.
+
+### `FritzAccess.load_local()`
+
+Since downloading sources could be very slow, every time you do that, the data are stored locally as `$ZTFDATA/fritz/{groupname}_sources.csv`. If you are happy with accessing the stored versions, simply do:
+
+```python
+from ztfquery import fritz
+faccess = fritz.FritzAccess.load_local()
+```
+(you can still do `facces.load_sources(groupname)` to download the latest version, which will automatically be stored, updating `$ZTFDATA/fritz/{groupname}_sources.csv`).
+
 ## Source(s)
 
 ## Alerts
