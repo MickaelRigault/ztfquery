@@ -45,5 +45,5 @@ from ztfquery import fritz
 lc = fritz.download_lightcurve("ZTF20acmzoxo", get_object=True)
 lc.show()
 ```
-![](images/fritz_lc.gif)
+![](images/fritz_lc.png)
 
