@@ -77,7 +77,10 @@ spec = fritz.download_spectra("ZTF20acmzoxo", get_object=True, dirout="default")
 # spec = fritz.get_local_spectra("ZTF20acmzoxo", directory="default")
 spec.show()
 ```
-![](images/fritz_spectrum.png)
+<p align="left">
+  <img src="images/fritz_spectrum.png" width="550" title="spectrum">
+</p>
+
 
 The data downloaded from () are stored as `spec.fritzdict`:
 ```python
