@@ -17,6 +17,7 @@
 
 - **ZTF alert:** Currently only a simple alert reader.
 
+- **Fritz Data**: see [documentation](doc/fritz.md)
 
 ### Citing 
 
