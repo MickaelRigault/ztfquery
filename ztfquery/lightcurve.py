@@ -4,13 +4,14 @@
 """ LightCurve Query from IRSA """
 
 
-from StringIO import StringIO
+
     
 import requests
 import warnings
+from io import StringIO
+
 import numpy as np
 from pandas import read_csv
-
 """
 These are not lightcurves generated from alert packets. 
 These are from the matching the epochal catalogs. Totally independent of alerts. 
