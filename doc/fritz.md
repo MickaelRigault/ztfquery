@@ -38,7 +38,7 @@ Similarly as `download_{}` you can access your local files (already downloaded) 
 
 # Examples
 
-Download a lightcurves:
+## LightCurves and Photometry
 
 ```python
 from ztfquery import fritz
