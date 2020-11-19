@@ -92,6 +92,15 @@ An pyifu.Spectrum object is created as spec.spectrum (from which the aforementio
 
 *I/O*: Use the `spec.store(fileout)` to store the spectrum. (calling `spec.to_fits`, `spec.to_ascii`, `spec.to_json` or `spec.to_txt` depending on the extension given) 
 
+
+## FritzAccess
+
+## Source(s)
+
+## Alerts
+
+## Groups
+
 ***
 
 # Structure
