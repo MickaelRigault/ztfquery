@@ -8,33 +8,7 @@ _fritz.py documentation_
 - You need an account on [fritz.science](https://fritz.science/) and you need to create a token from your [profile](https://fritz.science/profile)
 - You need a `ztfquery` version >= 1.12.0
 
-# Structure
-
-With `ztfquery.fritz.py` you can download and store locally **lightcurve**, **spectra**, **alerts**, **sources** and **groups** information. 
-For convinience, each of these have a dedicated python object, e.g., `FritzSpectrum`, `FritzGroups` or `FritzPhotometry`.
-
-`ztfquery.fritz.py` has global functions for quick access: 
-- For downloading: `download_{}`
-- For getting local data: `get_local_{}`
-
-
-## Downloads
-The functions are called `download_{}`:
-- `download_lightcurve(source_name, [option])`
-- `download_spectra(source_name, [option])`
-- `download_alerts(source_name, [option])`
-- `download_source(source_name, [option])`
-- `download_sources([option])`
-- `download_groups([option])`
-
-See the [option] to get details but each should have at least the following:
-- `token`: you can directly provide a token. If not, the first time, this will call for you token (see [your profile](https://fritz.science/profile)). I will store it in ~/.ztfquery
-- `get_object`: Set that to True to for the dedicated FritzObject implemented in `ztfquery.fritz.py`, if not, this returns the direct download.
-- `dirout`: Directory where the data are stored. None means no storing at all and 'default' is the ztfquery default structure (highly recommanded).
-
-## Get Local
-Similarly as `download_{}` you can access your local files (already downloaded) using the corresponding `get_local_{}`
-
+*** 
 
 # Examples
 
@@ -43,6 +17,8 @@ Similarly as `download_{}` you can access your local files (already downloaded) 
 ```python
 from ztfquery import fritz
 lc = fritz.download_lightcurve("ZTF20acmzoxo", get_object=True)
+# or if you already have done it and want the stored version:
+# lc = fritz.get_local_lightcurve("ZTF20acmzoxo", directory="default")
 lc.show()
 ```
 ![](images/fritz_lc.png)
@@ -89,3 +65,57 @@ lc = fritz.download_lightcurve("ZTF20acmzoxo", get_object=True)
 lc.show(filtering= dict(filters="ztfi", detected=True, time_range=["2020-10-22", "2020-11-15"]) )
 ```
 ![](images/fritz_lc_filtered.png)
+
+*I/O*: Use the `lc.store(fileout)` to store the lightcurve. (calling `spec.to_csv`, `spec.to_hdf` or `spec.to_json` depending on the extension given) 
+
+## Spectra
+
+```python
+from ztfquery import fritz
+spec = fritz.download_spectra("ZTF20acmzoxo", get_object=True, dirout="default")
+# or if you already have done it and want the stored version: 
+# spec = fritz.get_local_spectra("ZTF20acmzoxo", directory="default")
+spec.show()
+```
+![](images/fritz_spectrum.png)
+
+The data downloaded from () are stored as `spec.fritzdict`:
+```python
+print(spec.fritzdict.keys())
+> dict_keys(['created_at', 'followup_request_id', 'modified', 'assignment_id', 'wavelengths', 'altdata', 'fluxes', 'original_file_string', 'errors', 'original_file_filename', 'obj_id', 'owner_id', 'observed_at', 'id', 'origin', 'instrument_id', 'groups', 'instrument_name', 'reducers', 'observers'])
+```
+
+An pyifu.Spectrum object is created as spec.spectrum (from which the aforementioned `show()` comes from). It contains methods like `spec.spectrum.synthesize_photometry(filter_wave, filter_trans)` or `spec.spectrum.scale_by(flux_or_array)`.
+
+*I/O*: Use the `spec.store(fileout)` to store the spectrum. (calling `spec.to_fits`, `spec.to_ascii`, `spec.to_json` or `spec.to_txt` depending on the extension given) 
+
+***
+
+# Structure
+
+With `ztfquery.fritz.py` you can download and store locally **lightcurve**, **spectra**, **alerts**, **sources** and **groups** information. 
+For convinience, each of these have a dedicated python object, e.g., `FritzSpectrum`, `FritzGroups` or `FritzPhotometry`.
+
+`ztfquery.fritz.py` has global functions for quick access: 
+- For downloading: `download_{}`
+- For getting local data: `get_local_{}`
+
+
+## Downloads
+The functions are called `download_{}`:
+- `download_lightcurve(source_name, [option])`
+- `download_spectra(source_name, [option])`
+- `download_alerts(source_name, [option])`
+- `download_source(source_name, [option])`
+- `download_sources([option])`
+- `download_groups([option])`
+
+See the [option] to get details but each should have at least the following:
+- `token`: you can directly provide a token. If not, the first time, this will call for you token (see [your profile](https://fritz.science/profile)). I will store it in ~/.ztfquery
+- `get_object`: Set that to True to for the dedicated FritzObject implemented in `ztfquery.fritz.py`, if not, this returns the direct download.
+- `dirout`: Directory where the data are stored. None means no storing at all and 'default' is the ztfquery default structure (highly recommanded).
+
+## Get Local
+Similarly as `download_{}` you can access your local files (already downloaded) using the corresponding `get_local_{}`
+
+
