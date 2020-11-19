@@ -5,7 +5,9 @@
 
 
 import numpy as np
-from .lightcurve import FILTER_COLORS, FILTER_CODE
+
+FILTER_COLORS = ["C2","C3","C1"]
+FILTER_CODE   = ["zg","zr","zi"]
 
 
 def display_alert(alert, savefile=None, show_ps_stamp=False):
