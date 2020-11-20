@@ -69,7 +69,7 @@ def get_fields_geoserie(inclccd=False):
 #                    #
 # Generic Tools      #
 #                    #
-# ------------------ #
+# ------------------ #    
 def get_field_ccd_qid(ra, dec):
     """ """
     d_ = {}
