@@ -7,9 +7,12 @@ import pandas
 import numpy as np
 import warnings
 from pandas import read_csv
-from astropy import units
+from astropy import units, coordinates, time
 import matplotlib.pyplot as mpl
 from matplotlib.patches import Polygon
+
+
+
 
 _FIELD_SOURCE = os.path.dirname(os.path.realpath(__file__))+"/data/ztf_fields.txt"
 FIELD_DATAFRAME = read_csv(_FIELD_SOURCE)
@@ -341,14 +344,15 @@ def show_fields(fields, vmin=None, vmax=None,
                 colorbar=True, cax=None, clabel=" ",
                 show_ztf_fields=True, grid="main", grid_prop={},
                 show_mw=True, mw_b=None, mw_prop={},
-                savefile=None,
+                savefile=None, figsize=None,
+                axparam={},
                 **kwargs):
     """ 
     Parameters
     ----------
     colored_by: 
     """
-    fplot = FieldPlotter(ax=ax)
+    fplot = FieldPlotter(ax=ax, cax=cax, figsize=figsize,**axparam)
     # - Plotting
     if show_ztf_fields:
         fplot.show_ztf_grid(which=grid, **grid_prop)
@@ -359,7 +363,7 @@ def show_fields(fields, vmin=None, vmax=None,
     # Removing the NaNs
     fplot.show_fields(fields,
                         colorbar=colorbar,
-                        cax=cax, clabel=clabel,cmap=cmap,
+                        clabel=clabel,cmap=cmap,
                         vmin=vmin, vmax=vmax,**kwargs)
     
     if title is not None:
@@ -412,7 +416,8 @@ def show_gri_fields(fieldsg=None, fieldsr=None, fieldsi=None,
                             **prop)
     return _
 
-def _get_gri_axes_(alignment="classic", title=None, titlefontsize="large", projection="hammer", labelsize="x-small", labelcolor="0.7"):
+def _get_gri_axes_(alignment="classic", title=None, titlefontsize="large", projection="hammer",
+                       labelsize="x-small", labelcolor="0.7"):
     """ """
     if alignment is None:
         alignment = "classic"
@@ -491,28 +496,38 @@ def _radec_to_plot_(self, ra, dec):
 ##############################
 class FieldPlotter( object ):
     """ """
-    def __init__(self, ax=None, origin=180, inclcax=True):
+    def __init__(self, ax=None, origin=180, inclcax=True, cax=None, **kwargs):
         """ """
         self.origin = origin        
-        self.load_ax(ax, inclcax=inclcax)
+        self.load_ax(ax, inclcax=inclcax, cax=cax, **kwargs)
 
         
-    def load_ax(self, ax=None, update_ticks=True, inclcax=True):
+    def load_ax(self, ax=None, update_ticks=True, cax=None, inclcax=True, figsize=None,
+                    **kwargs):
         """ """
-        if ax is None:
-            self.fig = mpl.figure(figsize=(8,5))
-            self.ax = self.fig.add_axes([0.15,0.15,0.75,0.75], projection="hammer")
+        if ax is None or len(np.atleast_1d(ax))==4:
+            self.fig = mpl.figure(figsize=(8,5) if figsize is None else figsize)
+            self.ax = self.fig.add_axes([0.15,0.15,0.75,0.75] if ax is None else ax, projection="hammer")
             if inclcax:
-                self.cax = self.fig.add_axes([0.15,0.12,0.75,0.02])
+                if cax is None or len(np.atleast_1d(cax))==4:
+                    self.cax = self.fig.add_axes([0.15,0.12,0.75,0.02] if cax is None else cax)
+                else:
+                    self.cax = cax
         else:
             self.ax = ax
             self.fig = self.ax
+            if cax is not None and inclcax:
+                self.cax = cax
             
         if update_ticks:
             tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
             tick_labels = np.remainder(tick_labels+360+self.origin,360)
             self.ax.set_xticklabels(tick_labels)     # we add the scale on the x axis
 
+        # Label param
+        if len(kwargs)>0:
+            self.ax.tick_params(**kwargs)
+            
     # ---------- #
     #  PLOTTER   #
     # ---------- #
@@ -526,7 +541,6 @@ class FieldPlotter( object ):
 
     def show_milkyway(self, b=None, nbins=100, l_start=-241, l_stop=116,**kwargs):
         """ """
-        from astropy import coordinates, units
         
         nbins=100
         if b is None:
@@ -552,7 +566,7 @@ class FieldPlotter( object ):
                      for p_ in fields_verts]
 
     def show_fields(self, fields, cax=None, cmap="viridis",
-                        colorbar=True,clabel=None,
+                        colorbar=True, clabel=None, cfontsize=None,
                         vmin=None, vmax=None, **kwargs):
         """ fields could be a list of field or a dictionary with single values """
         
@@ -583,7 +597,7 @@ class FieldPlotter( object ):
 
             # - Cbar
             if colorbar:
-                self.insert_colorbar(cmap, vmin, vmax, cax=cax, clabel=clabel)
+                self.insert_colorbar(cmap, vmin, vmax, cax=cax, clabel=clabel, cfontsize=cfontsize)
                     
         else:
             self.add_fields(fields, **kwargs)
@@ -593,7 +607,7 @@ class FieldPlotter( object ):
         xy = self.radec_to_plot(*radec)
         self.ax.scatter(*xy, **kwargs)
 
-    def insert_colorbar(self, cmap, vmin, vmax, cax=None, clabel=None):
+    def insert_colorbar(self, cmap, vmin, vmax, cax=None, clabel=None, cfontsize=None):
         """ """
         if cax is None and hasattr(self,"cax"):
             cax = self.cax
@@ -604,7 +618,7 @@ class FieldPlotter( object ):
                                             shrunk=0.93, space=-0.05,
                                             axspace=0.02)
                 
-            colorbar(self.cax, cmap, vmin=vmin, vmax=vmax, label=clabel)
+            colorbar(self.cax, cmap, vmin=vmin, vmax=vmax, label=clabel, fontsize=cfontsize)
                     
         elif cax is not None:
             self.cax = cax
@@ -620,7 +634,7 @@ class FieldPlotter( object ):
         return np.asarray([-(np.asarray(ra)-self.origin)*np.pi/180, np.asarray(dec)*np.pi/180])
 
 
-
+   
 ##############################
 #                            #
 #    ZTF Fields Class        #
@@ -741,3 +755,261 @@ class FieldAnimation( FieldPlotter ):
     def display_prop(self):
         """ """
         return self._display_prop
+
+
+    
+##############################
+#                            #
+#    Planner Class           #
+#                            #
+##############################
+
+class PalomarPlanning( object):
+    """ """
+    def __init__(self, night=None, **kwargs):
+        """ """
+        self._site = coordinates.EarthLocation.of_site("palomar")
+        self._utcshift = -8*units.h
+        if night is not None:
+            self.set_night(night, **kwargs)
+
+    # --------- #
+    #  SETTER   #
+    # --------- #
+    def set_night(self, night, timerange=[-9,9], to_utc=True, **kwargs):
+        """ """    
+        self._night = self.get_night(night, timerange=timerange, to_utc=to_utc, **kwargs)
+        self._nightaltaz = self._get_night_altaz_(self.night)
+        
+    # --------- #
+    #  GETTER   #
+    # --------- #
+    def get_night(self, date, timerange=[-9,9], to_utc=True, range_units=units.h, **kwargs):
+        """ """
+        if type(date) is not time.Time:
+            date = time.Time(date, **kwargs)
+        if to_utc:
+            date -= self.utcshift
+            
+        if timerange is None:
+            return date
+        
+        return date + np.linspace(*timerange, 100)*range_units
+        
+    def _get_night_altaz_(self, night, **kwargs):
+        """ 
+        **kwargs goes to astropy.time.Time if date is not one already.
+        """
+        return coordinates.AltAz(obstime=night, location=self.site)
+    
+    def _read_date_input_(self, date):
+        """ """
+        if date is not None:
+            if type(date) is not time.Time:
+                date = self.get_night(date, **kwargs)
+            datealtaz = self._get_night_altaz_(date)
+        elif self.has_night():
+            date      = self.night
+            datealtaz = self.nightaltaz
+        else:
+            raise ValueError("No night set (self.set_night), no date given (see date option).")
+            
+        return date, datealtaz
+    
+    def get_fields_altaz(self, fieldid, date=None, **kwargs):
+        """ """
+        radec = get_field_centroid(fieldid)
+        return self.get_coord_altaz(radec, date=date, **kwargs)
+
+    
+    def get_coord_altaz(self, radec, date=None, **kwargs):
+        """ """
+        if type(radec) is not coordinates.SkyCoord:
+            radec = coordinates.SkyCoord(radec, unit="deg")
+            
+        date, datealtaz = self._read_date_input_(date)
+            
+        return date, radec.transform_to( datealtaz[:,None] )
+    
+    def get_body_altaz(self, bodyname, date=None, **kwargs):
+        """ 
+        'sun', 'moon', 'mercury', 'venus', 'earth-moon-barycenter', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'
+        """
+        date, datealtaz = self._read_date_input_(date)
+        body = coordinates.get_body(bodyname, date)            
+        return date, body.transform_to( self._get_night_altaz_(date) )
+        
+        
+    def get_fields_observability(self, fieldid, date=None, airmasslimit=[1,1.5], twilight=-18*units.deg):
+        """ """
+        nighttime, field_altaz = self.get_fields_altaz(fieldid, date=date)
+
+        airmasses = np.asarray(field_altaz.secz)
+        flagtwilight = self.is_twilight(date, twilight, squeeze=True)
+        flag_good = ((~flagtwilight[:,None]) * (airmasses>=airmasslimit[0]) * (airmasses<airmasslimit[1]) )
+
+        return [pandas.Series(np.sum(flag_good, axis=1),  
+                            index=pandas.DatetimeIndex(nighttime.datetime)),
+                pandas.Series(np.sum(flag_good, axis=0)/len(nighttime[~flagtwilight]), index=fieldid)]
+        
+        
+    def is_twilight(self, date=None, sunlimit=-18*units.deg, squeeze=True):
+        """ """
+        time_, sunaltaz = self.get_body_altaz("sun", date)
+        sunlimit = np.atleast_1d(sunlimit)
+        
+        flags = [sunaltaz.alt>slimit for slimit in sunlimit]
+        
+        if len(sunlimit) ==1 and squeeze:
+            return flags[0]
+        return flags
+    
+    def is_day(self, date, sunlimit=0*units.deg, squeeze=True, **kwargs):
+        """ """
+        return self.is_twilight(sunlimit=0*units.deg, squeeze=squeeze, **kwargs)
+    
+    # -------- #
+    #  PLOTTER #
+    # -------- #
+    def show(self, date=None, fields=None, radec=None, body=None, propdate={},
+            show_twilight=True, as_airmass=False, ctwilight="0.7"):
+        """ """
+        import matplotlib.pyplot as mpl
+        from matplotlib import dates as mdates
+        
+        fig = mpl.figure(figsize=[7,4])
+        ax = fig.add_subplot(111)
+
+        if date is not None:
+            if type(date) is not time.Time:
+                date = self.get_night(date, **propdate)
+        else:
+            date = self.night
+            
+        # 
+        # - start: Plotting
+        for type_ in ["fields", "radec", "body"]:
+            t_ = eval(type_)
+            if t_ is not None:
+                _, v_ = getattr(self,f"get_{type_}_altaz")(t_, date)
+                ax.plot(date.datetime, v_.alt if not as_airmass else v_.secz)
+        # - end: Plotting
+        # 
+            
+        # 
+        # - start: Twilight bands
+        if show_twilight:
+            self.show_twilight(ax=ax, date=date)
+            
+        # - start: End bands
+        # 
+        
+        # - 
+        ax.set_ylabel("Altitude [deg]" if not as_airmass else "Airmass")
+        # - cleaning
+        locator = mdates.AutoDateLocator()
+        formatter = mdates.ConciseDateFormatter(locator)
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(formatter)
+        # - Limites
+        ax.set_xlim(date.datetime[0],date.datetime[-1])
+        
+        ax.set_ylim(-1,3) if as_airmass else ax.set_ylim(-10,95)
+        
+    def show_twilight(self, date=None, ax=None, sunlimit=[0,-12,-18]*units.deg,
+                     ctwilights="0.7", alphas=[0.8,0.3,0.1], propdate={}):
+        """ """
+        import matplotlib.pyplot as mpl
+                
+        ctwilights = np.atleast_1d(ctwilights)
+        alphas = np.atleast_1d(alphas)
+        
+        if len(ctwilights)==1:
+            ctwilights = list(ctwilights)*len(sunlimit)
+        if len(alphas)==1:
+            alphas = list(alphas)*len(alphas)
+            
+        if ax is None:
+            fig = mpl.figure(figsize=[7,4])
+            ax = fig.add_subplot(111)
+        else:
+            fig = ax.figure
+            
+        
+        if date is not None:
+            if type(date) is not time.Time:
+                date = self.get_night(date, **propdate)
+        else:
+            date = self.night
+        
+        for i, tflag in enumerate(self.is_twilight(date=date, sunlimit=sunlimit, squeeze=False)):
+            ax.fill_between(date.datetime, 0,1, where=tflag, 
+                            transform=ax.get_xaxis_transform(), 
+                            color=ctwilights[i], alpha=alphas[i])
+        
+        
+    def show_fields_observability(self, fieldids, show_twilight=True, cmap="viridis",
+                                      airmasslimit=[1,1.5], twilight=-18*units.deg, **kwargs):
+        """ """
+        import matplotlib.pyplot as mpl        
+        from matplotlib import dates as mdates
+
+        figsize = [9,3.5]
+        axmap   = [0.05,0.21,0.45,0.7]
+        caxmap  = [0.05,0.18,0.45,0.02]
+
+        stime, ffrac = self.get_fields_observability(fieldids, airmasslimit=airmasslimit, twilight=twilight)
+        
+        fig = show_fields( ffrac[ffrac.values>0], 
+                                  ax=axmap, cax=caxmap, figsize=figsize, cmap=cmap,
+                                  axparam={"labelsize":"x-small","color":"0.7", "labelcolor":"0.7"},
+                                  clabel="Fraction of night observable", cfontsize="medium")
+
+        axh = fig.add_axes([0.6,0.17,0.35,0.68])
+        axh.fill_between(stime.index, stime.values, 
+                         facecolor=mpl.cm.get_cmap(cmap)(0.1,0.2), 
+                         edgecolor=mpl.cm.get_cmap(cmap)(0.1,0.9), lw=2, **kwargs)
+
+
+        locator = mdates.AutoDateLocator(minticks=4, maxticks=6)
+        formatter = mdates.ConciseDateFormatter(locator)
+        axh.xaxis.set_major_locator(locator)
+        axh.xaxis.set_major_formatter(formatter)
+        axh.set_ylim(bottom=0)
+        axh.set_xlim(*self.night.datetime[[0,-1]])
+        axh.set_ylabel("Number of fields observable")
+        if show_twilight:
+            self.show_twilight(ax=axh, date=self.night, ctwilights="0.9")
+            
+        fig.text(0.02,0.98, "Field Observability", color="0.7", fontsize="medium", va="top",ha="left")
+
+    # ============= #
+    #  Properties   #
+    # ============= #
+    @property
+    def site(self):
+        """ """
+        return self._site
+    @property
+    def utcshift(self):
+        """ """
+        return self._utcshift
+    
+    @property
+    def night(self):
+        """ """
+        if not self.has_night():
+            return None
+        return self._night
+    
+    def has_night(self):
+        """ """
+        return getattr(self,"_night") and self._night is not None
+    
+    @property
+    def nightaltaz(self):
+        """ """
+        if not self.has_night():
+            raise AttributeError("No night set.")
+            
+        return self._nightaltaz
