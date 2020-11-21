@@ -359,7 +359,7 @@ def show_fields(fields, vmin=None, vmax=None,
         fplot.show_ztf_grid(which=grid, **grid_prop)
         
     if bkgd_fields is not None:
-        def_prop = dict(facecolor="None", edgecolor="0.5", alpha=0.2, zorder=2)
+        def_prop = dict(facecolor="0.7", edgecolor="0.5", alpha=0.2, zorder=2)
         fplot.show_fields(bkgd_fields,**{**def_prop,**bkgd_prop})
         
     if show_mw:
@@ -954,8 +954,13 @@ class PalomarPlanning( object):
         
         
     def show_fields_observability(self, fieldids, show_twilight=True, cmap="viridis",
-                                      airmasslimit=[1,1.5], twilight=-18*units.deg, **kwargs):
-        """ """
+                                      airmasslimit=[1,1.5], twilight=-18*units.deg,
+                                      show_notobs=True,
+                                      fcno="0.7",ecno="0.7", alphano=0.15, nolw=0, noprop={},
+                                      **kwargs):
+        """ 
+        **kwargs foes to get_fields_observability() 
+        """
         import matplotlib.pyplot as mpl        
         from matplotlib import dates as mdates
 
@@ -963,10 +968,11 @@ class PalomarPlanning( object):
         axmap   = [0.05,0.21,0.45,0.7]
         caxmap  = [0.05,0.18,0.45,0.02]
 
-        stime, ffrac = self.get_fields_observability(fieldids, airmasslimit=airmasslimit, twilight=twilight)
+        stime, ffrac = self.get_fields_observability(fieldids, airmasslimit=airmasslimit, twilight=twilight, **kwargs)
         
         fig = show_fields( ffrac[ffrac.values>0],
-                               bkgd_fields=fieldids,
+                               bkgd_fields=fieldids[ffrac.values==0] if show_notobs else None,
+                               bkgd_prop={**dict(facecolor=fcno, edgecolor=ecno, alpha=alphano, lw=nolw),**noprop},
                                   ax=axmap, cax=caxmap, figsize=figsize, cmap=cmap,
                                   axparam={"labelsize":"x-small","color":"0.7", "labelcolor":"0.7"},
                                   clabel="Fraction of night observable", cfontsize="medium")
