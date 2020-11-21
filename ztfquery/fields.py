@@ -343,6 +343,7 @@ def show_fields(fields, vmin=None, vmax=None,
                 ax=None, cmap="viridis", title=None,
                 colorbar=True, cax=None, clabel=" ",
                 show_ztf_fields=True, grid="main", grid_prop={},
+                bkgd_fields=None, bkgd_prop={},
                 show_mw=True, mw_b=None, mw_prop={},
                 savefile=None, figsize=None,
                 axparam={},
@@ -356,7 +357,11 @@ def show_fields(fields, vmin=None, vmax=None,
     # - Plotting
     if show_ztf_fields:
         fplot.show_ztf_grid(which=grid, **grid_prop)
-
+        
+    if bkgd_fields is not None:
+        def_prop = dict(facecolor="None", edgecolor="0.5", alpha=0.2, zorder=2)
+        fplot.show_fields(bkgd_fields,**{**def_prop,**bkgd_prop})
+        
     if show_mw:
         fplot.show_milkyway(b=mw_b, **mw_prop)
 
@@ -960,7 +965,8 @@ class PalomarPlanning( object):
 
         stime, ffrac = self.get_fields_observability(fieldids, airmasslimit=airmasslimit, twilight=twilight)
         
-        fig = show_fields( ffrac[ffrac.values>0], 
+        fig = show_fields( ffrac[ffrac.values>0],
+                               bkgd_fields=fieldids,
                                   ax=axmap, cax=caxmap, figsize=figsize, cmap=cmap,
                                   axparam={"labelsize":"x-small","color":"0.7", "labelcolor":"0.7"},
                                   clabel="Fraction of night observable", cfontsize="medium")
@@ -982,7 +988,9 @@ class PalomarPlanning( object):
             self.show_twilight(ax=axh, date=self.night, ctwilights="0.9")
             
         fig.text(0.02,0.98, "Field Observability", color="0.7", fontsize="medium", va="top",ha="left")
-
+        
+        return fig
+    
     # ============= #
     #  Properties   #
     # ============= #
