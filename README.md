@@ -11,7 +11,7 @@
 	- LightCurves (not from image subtraction).
 	- ZTF observing logs _(requires special access)_ see [documentation](doc/skyvision.md)
 
-- **Marshal Data:** tools to download [Marshal](http://skipper.caltech.edu:8080/cgi-bin/growth/marshal.cgi) data, including alert lightcurves and target coordinates _(requires access)_
+- **Marshal Data:** tools to download [Marshal](http://skipper.caltech.edu:8080/cgi-bin/growth/marshal.cgi) data, including alert lightcurves and target coordinates _(requires access)_ [documentation](doc/marshal.md)
 
 - **SEDM Data:** tools to download SEDM data, including IFU cubes and target spectra, from [pharos](http://pharos.caltech.edu) _(requires access)_
 
