@@ -4,9 +4,6 @@ _query.py documentation_
 
 `ztfquery.query.py` is module to access ZTF data [IRSA]((https://irsa.ipac.caltech.edu/)
 
-
-***
-
 # Requirements 
 - You need an account on [IRSA]((https://irsa.ipac.caltech.edu/) and, if you need access to private data, this account must be associated to ztf. 
 
