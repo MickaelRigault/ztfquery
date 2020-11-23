@@ -22,7 +22,7 @@ See the [`ztfquery.sedm.py` documentation](doc/sedm.md)
 
 - **ZTF alert:** Currently only a simple alert reader. See the [`ztfquery.alert.py` documentation](doc/alert.md)
 
-
+***
 
 # Credits
 
@@ -36,6 +36,7 @@ _"The ztfquery code was funded by the European Research Council (ERC) under the 
 ## Corresponding Author:
 M. Rigault: m.rigault@ipnl.in2p3.fr, CNRS/IN2P3
 
+***
 
 # Installation
 
@@ -60,4 +61,8 @@ Your credentials will requested the first time you need to access a service (IRS
 Use `ztfquery.io.set_account(servicename)` to reset it.
 
 You can also directly provide account settings when running `load_metadata` and `download_data` using the `auth=[your_username, your_password]` parameter. Similarly, directly provide the username and password to the ztf ops page when loading `NightSummary` using the `ztfops_auth` parameter.
+
+***
+
+# Quick Examples
 
