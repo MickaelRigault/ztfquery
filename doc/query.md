@@ -179,11 +179,18 @@ _Where are the downloaded data  ?_
 
 The data are saved following IRSA structure (default, see download_data option if you do not want that).
 
-To retrieve them simply do:
+# Retreive the local data:
+
+To retrieve data you downloaded (once you have done the `load_metatable()`):
 ```python
 zquery.get_local_data("psfcat.fits")
 ```
 
-**Important: Retrieving data** If you need to get them again later on, after you closed the session, you will need to redo the `load_metadata()` query to find back the structure of the database, otherwise `get_local_data()` will not know what to do. 
-If you need to work offline, I suggest you overwrite the download location within `download_data` using the 'download_dir' option. If provided, all the data will be dumped inside this directory without following the IRSA structure.
+If you need to get them again later on, after you closed the session, you will need to redo the `load_metadata()` query to find back the structure of the database, otherwise `get_local_data()` will not know what to do. 
+
+# Get the Data from a filename
+```python
+from ztfquery import io
+io.download_from_filename(ztfdata_filename):
+```
 
