@@ -7,7 +7,7 @@
 **ztfquery is a python tool to access ztf (and SEDM) data. It contains**:
 
 - **ZTF products:** a wrapper of the [IRSA web API](https://irsa.ipac.caltech.edu/docs/program_interface/ztf_api.html) that enable to get ztf data _(requires access for full data, but not public data)_:
-	- Images and pipeline products, e.g. catalog ;
+	- Images and pipeline products, e.g. catalog ; see [documentation](doc/query.md)
 	- LightCurves (not from image subtraction). see [documentation](doc/lightcurve.md)
 	- ZTF observing logs _(requires special access)_ see [documentation](doc/skyvision.md)
 
