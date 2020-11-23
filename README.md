@@ -8,14 +8,14 @@
 
 - **ZTF products:** a wrapper of the [IRSA web API](https://irsa.ipac.caltech.edu/docs/program_interface/ztf_api.html) that enable to get ztf data _(requires access for full data, but not public data)_:
 	- Images and pipeline products, e.g. catalog ;
-	- LightCurves (not from image subtraction).
+	- LightCurves (not from image subtraction). see [documentation](doc/lightcurve.md)
 	- ZTF observing logs _(requires special access)_ see [documentation](doc/skyvision.md)
 
 - **Marshal Data:** tools to download [Marshal](http://skipper.caltech.edu:8080/cgi-bin/growth/marshal.cgi) data, including alert lightcurves and target coordinates _(requires access)_ [documentation](doc/marshal.md)
 
 - **SEDM Data:** tools to download SEDM data, including IFU cubes and target spectra, from [pharos](http://pharos.caltech.edu) _(requires access)_ see [documentation](doc/sedm.md)
 
-- **ZTF alert:** Currently only a simple alert reader.
+- **ZTF alert:** Currently only a simple alert reader. see [documentation](doc/alert.md)
 
 - **Fritz Data**: see [documentation](doc/fritz.md)
 
@@ -268,67 +268,6 @@ fields.get_fields_with_band_reference("zi")
 """
 ```
 
-*** 
-
-# Getting IRSA LightCurves
-
-*These are not lightcurves generated from alert packets. These are from the matching the epochal catalogs. Totally independent of alerts. The variable star/AGN community will be most interested in these.*
-
-ztfquery (starting version>1.5.0) enables to access the [LightCurve Query API](https://irsa.ipac.caltech.edu/docs/program_interface/ztf_lightcurve_api.html).
-
-You can directly query by coordinates (Ra, DEC and radius in arcsec):
-```
-from ztfquery import lightcurve
-lcq = lightcurve.LCQuery()
-lcq.query_position(197.501495, +75.721959, 5)
-```
-Data are stored in `lcq.data`.
-
-To plot the lightcurve, simply do:
-```
-lcq.show()
-```
-
-You can also query by ID:
-```
-from ztfquery import lightcurve
-lcq = lightcurve.LCQuery()
-lcq.query_id([686103400067717,686103400106565])
-```
-
-or any kind of query using the list of parameter from the [LightCurve Query API](https://irsa.ipac.caltech.edu/docs/program_interface/ztf_lightcurve_api.html)
-
-```
-from ztfquery import lightcurve
-lcq = lightcurve.LCQuery.download_data(circle=[298.0025,29.87147,0.0014], bandname="g")
-```
-
-
-
-# Reading Avro Alert
-
-_available starting version 0.5_
-
-There is a simple library inside `ztfquery` to load, access and display ZTF alerts. 
-
-Assuming you have a `.avro` alert stored in you computer at `full_path_to_avro` then:
-```python
-from ztfquery import alert
-ztfalert = alert.AlertReader.load(full_path_to_avro)
-```
-Inthere, the alert itself is stored as `ztfalert.alert`.  
-Now, if you want  to display the alert for instance, simply use the `show()` method.
-
-You can also quickly display the alert by using the `display_alert`:
-```python
-from ztfquery import alert
-fig = alert.display_alert(full_path_to_avro, show_ps_stamp=True)
-```
-
-![](examples/figures/alert_plotter.png)
-
-***
-***
 
 # IRSA Web API
 
