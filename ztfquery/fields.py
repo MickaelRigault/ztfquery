@@ -15,8 +15,8 @@ from matplotlib.patches import Polygon
 
 
 _FIELD_SOURCE = os.path.dirname(os.path.realpath(__file__))+"/data/ztf_fields.txt"
-FIELD_DATAFRAME = read_csv(_FIELD_SOURCE)
-FIELDSNAMES = FIELD_DATAFRAME["ID"].values
+FIELD_DATAFRAME = read_csv(_FIELD_SOURCE, index_col="ID")
+FIELDSNAMES = FIELD_DATAFRAME.index.values
 
 _CCD_COORDS  = read_csv(os.path.dirname(os.path.realpath(__file__))+"/data/ztf_ccd_layout.tbl").rename(columns={"CCD ":"CCD"}) # corner of each CCDS
 
@@ -69,7 +69,92 @@ def get_fields_geoserie(inclccd=False):
 #                    #
 # Generic Tools      #
 #                    #
-# ------------------ #    
+# ------------------ #
+def get_fieldid(grid=None, decrange=None, rarange=None, 
+                gallrange=None, galbrange=None, 
+                ecllrange=None, eclbrange=None, 
+                ebvrange=None, verbose=False):
+                
+    """ 
+
+    Parameters
+    ----------
+    grid: [None/str] -optional-
+        Select the grid you want. If None the both will be considered.
+        'main' or 'secondary' expected otherwise.
+
+    decrange, rarange, galbrange, gallrange, ecllgrange, eclbrange: [2-array or None] -optional-
+        dec, ra, galactic l, galactic b, ecliptic long and ecliptic lat to be considered [inclusive]. 
+        In degree.
+        3 formats available:
+        - None: means no selection
+        - [min,max]: means range to be considered, None means no limit. 
+          example: decrange=[-10,None] means dec>-10.
+        - [[min1,max1],[min2,max2], ...]: means zones to be considered.
+          example: decrange=[[None, -10],[5,None]] will simply exclude the [-10,5] dec range.
+        - None means no selection.
+
+    ebvrange: [2-array or None] -optional-
+        same format as 'decrange' but for Mily way E(B-V) extinction.
+        
+    """
+    def get_query(key, krange=None, merging_logic="or"):
+        """ """
+        def _build_2d_(kmin,kmax):
+            """ """
+            if kmin is None and kmax is None:
+                return []
+            if kmin is None:
+                return [f"{key}<={kmax}"]
+            elif kmax is None:
+                return [f"{key}>={kmin}"]
+            else:
+                return [f"{kmin}<={key}<={kmax}"]
+        
+        if krange is None:
+            return []
+        if np.shape(krange) == (2,):
+            return _build_2d_(*krange)
+        if np.shape(krange) == (2,2):
+            query = [_build_2d_(*krange_) for krange_ in krange]
+            return ["("+f" {merging_logic} ".join(np.squeeze(query))+")"]
+        
+        raise ValueError(f"Cannot for the format of the input krange: {krange}")
+
+    query = []
+    # Grid
+    gridid = None if (grid is None or grid in ["*","all"]) else get_grid_field(grid)
+    query.append([] if gridid is None else ["ID in @gridid"])
+    # Ra
+    
+    query.append(get_query("RA", rarange))
+    # Dec
+    query.append(get_query("Dec", decrange))
+    # gall
+    query.append(get_query("GalLong", gallrange))
+    # galb
+    query.append(get_query("GalLat", galbrange))
+    # ecll
+    query.append(get_query("EclLong", ecllrange))
+    # eclb
+    query.append(get_query("EclLat", eclbrange))
+    # MW ebmv
+    query.append(get_query("Ebv", ebvrange))
+    
+    
+    queries = np.concatenate(query)
+    if verbose:
+        print(queries)
+    if len(queries) == 0:
+        return FIELD_DATAFRAME.index
+    if verbose:
+        print(" & ".join(queries) ) 
+    return FIELD_DATAFRAME.query( " & ".join(queries) ).index
+
+
+    
+
+
 def get_field_ccd_qid(ra, dec):
     """ """
     d_ = {}
@@ -217,10 +302,9 @@ def get_field_centroid(fieldid, system="radec"):
     else:
         raise ValueError("unknown coordinate system %s select among: [radec / galactic / ecliptic]"%system)
     fieldid = np.atleast_1d(fieldid)
-    radec = np.asarray(FIELD_DATAFRAME[np.in1d(FIELD_DATAFRAME['ID'], fieldid)][syst].values)
+    radec = np.asarray(FIELD_DATAFRAME[np.in1d(FIELD_DATAFRAME.index, fieldid)][syst].values)
     
     return radec
-
 
 def get_corners(ra_field, dec_field, inclccd=False, ccd=None, steps=5, squeeze=True, inrad=False):
     """ """
@@ -472,11 +556,11 @@ def show_ztf_fieldvalues(key="Ebv", fieldid="main", mindec=-30,
     
     if type(fieldid) is str or fieldid is None:
         fieldid = get_grid_field(fieldid)
-    query_ = "ID in @fieldid"
+    query_ = "index in @fieldid"
     if mindec is not None:
         query_ +=" and Dec > @mindec"
     # Serie to plot 
-    serie = FIELD_DATAFRAME.query(query_)[["ID",key]].set_index("ID")[key]
+    serie = FIELD_DATAFRAME.query(query_)[key]
     return show_fields(fields=serie, vmin=vmin, vmax=vmax,
                            ax=ax, cmap=cmap, title=title,
                            colorbar=colorbar, cax=cax, clabel=clabel,
@@ -771,16 +855,21 @@ class FieldAnimation( FieldPlotter ):
 
 class PalomarPlanning( object):
     """ """
-    def __init__(self, night=None, **kwargs):
+    def __init__(self, date=None, **kwargs):
         """ """
         self._site = coordinates.EarthLocation.of_site("palomar")
         self._utcshift = -8*units.h
-        if night is not None:
-            self.set_night(night, **kwargs)
+        if date is not None:
+            self.set_date(date, **kwargs)
 
     # --------- #
     #  SETTER   #
     # --------- #
+    def set_date(self, date, timerange=[-9,9], to_utc=True, **kwargs):
+        """ """
+        self._date = date
+        self.set_night(date,timerange=[-9,9], to_utc=True, **kwargs)
+        
     def set_night(self, night, timerange=[-9,9], to_utc=True, **kwargs):
         """ """    
         self._night = self.get_night(night, timerange=timerange, to_utc=to_utc, **kwargs)
@@ -807,7 +896,7 @@ class PalomarPlanning( object):
         """
         return coordinates.AltAz(obstime=night, location=self.site)
     
-    def _read_date_input_(self, date):
+    def _read_date_input_(self, date, **kwargs):
         """ """
         if date is not None:
             if type(date) is not time.Time:
@@ -845,18 +934,46 @@ class PalomarPlanning( object):
         return date, body.transform_to( self._get_night_altaz_(date) )
         
         
-    def get_fields_observability(self, fieldid, date=None, airmasslimit=[1,1.5], twilight=-18*units.deg):
+    def get_fields_observability(self, fieldid, date=None, airmasslimit=[1,1.5], minobservability=90*units.min,
+                                     twilight=-18*units.deg, still_observablein=None):#2*units.week):
         """ """
         nighttime, field_altaz = self.get_fields_altaz(fieldid, date=date)
 
         airmasses = np.asarray(field_altaz.secz)
+        # Twilight Cut
         flagtwilight = self.is_twilight(date, twilight, squeeze=True)
         flag_good = ((~flagtwilight[:,None]) * (airmasses>=airmasslimit[0]) * (airmasses<airmasslimit[1]) )
+        if minobservability is not None:
+            min_night_frac = minobservability/(nighttime[~flagtwilight].max()-nighttime[~flagtwilight].min()).to("min")
+            flag_nightfrac = (np.sum(flag_good, axis=0)/len(nighttime[~flagtwilight])>=min_night_frac)
+            flag_good *= flag_nightfrac[None,:]
 
-        return [pandas.Series(np.sum(flag_good, axis=1),  
-                            index=pandas.DatetimeIndex(nighttime.datetime)),
-                pandas.Series(np.sum(flag_good, axis=0)/len(nighttime[~flagtwilight]), index=fieldid)]
+
+        stime, ffrac = [pandas.Series(np.sum(flag_good, axis=1), index=pandas.DatetimeIndex(nighttime.datetime)),
+                        pandas.Series(np.sum(flag_good, axis=0)/len(nighttime[~flagtwilight]), index=fieldid)]
         
+        if still_observablein is not None:
+            print("using still_observablein options") 
+            if date is None:
+                date = self.date
+                
+            delay_date = (time.Time(date) + still_observablein).iso.split(" ")[0]
+            delay_stime, delay_ffrac = self.get_fields_observability(fieldid, date=delay_date,
+                                                                    airmasslimit=airmasslimit, minobservability=minobservability,
+                                                                    twilight=twilight, still_observablein=None)
+            fieldidstillin = ffrac[ffrac>0].index[np.in1d(ffrac[ffrac>0].index,delay_ffrac[delay_ffrac>0].index)]
+            flagstillin = np.in1d(ffrac.index,fieldidstillin)
+            flag_good *= flagstillin[None,:]
+            
+        return [pandas.Series(np.sum(flag_good, axis=1), index=pandas.DatetimeIndex(nighttime.datetime)),
+                pandas.Series(np.sum(flag_good, axis=0)/len(nighttime[~flagtwilight]), index=fieldid)]
+    
+        
+    def get_observable_fields(self, fieldids, date=None, airmasslimit=[1,1.5], minobservability=90*units.min, twilight=-18*units.deg, **kwargs):
+        """ """
+        stime, ffrac = self.get_fields_observability(fieldids, date=date, airmasslimit=airmasslimit, twilight=twilight, minobservability=minobservability, **kwargs)
+        return ffrac[ffrac>0].index
+    
         
     def is_twilight(self, date=None, sunlimit=-18*units.deg, squeeze=True):
         """ """
@@ -954,8 +1071,8 @@ class PalomarPlanning( object):
         
         
     def show_fields_observability(self, fieldids, show_twilight=True, cmap="viridis",
-                                      airmasslimit=[1,1.5], twilight=-18*units.deg,
-                                      show_notobs=True,
+                                      airmasslimit=[1,1.5], twilight=-18*units.deg, minobservability=90*units.min,
+                                      show_notobs=True, cmapv=0.1,
                                       fcno="0.7",ecno="0.7", alphano=0.15, nolw=0, noprop={},
                                       **kwargs):
         """ 
@@ -968,7 +1085,7 @@ class PalomarPlanning( object):
         axmap   = [0.05,0.21,0.45,0.7]
         caxmap  = [0.05,0.18,0.45,0.02]
 
-        stime, ffrac = self.get_fields_observability(fieldids, airmasslimit=airmasslimit, twilight=twilight, **kwargs)
+        stime, ffrac = self.get_fields_observability(fieldids, airmasslimit=airmasslimit, twilight=twilight, minobservability=minobservability)
         
         fig = show_fields( ffrac[ffrac.values>0],
                                bkgd_fields=fieldids[ffrac.values==0] if show_notobs else None,
@@ -979,8 +1096,8 @@ class PalomarPlanning( object):
 
         axh = fig.add_axes([0.6,0.17,0.35,0.68])
         axh.fill_between(stime.index, stime.values, 
-                         facecolor=mpl.cm.get_cmap(cmap)(0.1,0.2), 
-                         edgecolor=mpl.cm.get_cmap(cmap)(0.1,0.9), lw=2, **kwargs)
+                         facecolor=mpl.cm.get_cmap(cmap)(cmapv,0.2), 
+                         edgecolor=mpl.cm.get_cmap(cmap)(cmapv,0.9), lw=2, **kwargs)
 
 
         locator = mdates.AutoDateLocator(minticks=4, maxticks=6)
@@ -993,7 +1110,7 @@ class PalomarPlanning( object):
         if show_twilight:
             self.show_twilight(ax=axh, date=self.night, ctwilights="0.9")
             
-        fig.text(0.02,0.98, "Field Observability", color="0.7", fontsize="medium", va="top",ha="left")
+        fig.text(0.02,0.98, f"Field Observability | {len(ffrac[ffrac>0])} fields", color="0.7", fontsize="medium", va="top",ha="left")
         
         return fig
     
@@ -1008,6 +1125,11 @@ class PalomarPlanning( object):
     def utcshift(self):
         """ """
         return self._utcshift
+
+    @property
+    def date(self):
+        """ """
+        return None if not hasattr(self,"_date") else self._date
     
     @property
     def night(self):

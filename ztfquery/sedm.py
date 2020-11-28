@@ -37,12 +37,13 @@ def _download_sedm_data_(night, pharosfile, fileout=None, verbose=False):
 
 def _relative_to_source_(relative_datapath, source=None):
     """ """
+
     if source is None:
         return relative_datapath
     if source in ["pharos"]:
-        return [os.path.joi(PHAROS_BASEURL,"data",l) for l in relative_datapath]
+        return [os.path.join(PHAROS_BASEURL,"data",l) for l in relative_datapath]
     if source in ["local"]:
-        return [os.path.join(SEDMLOCALSOURCE,"/",l) for l in relative_datapath]
+        return [os.path.join(SEDMLOCALSOURCE,l) for l in relative_datapath]
     
 def get_night_file(night):
     """ get the what.list for a given night 
@@ -395,7 +396,7 @@ class SEDMQuery( object ):
         if download_dir is None or download_dir in ["default"]:
             self.download_location = _relative_to_source_(relative_path, "local")
         else:
-            self.download_location = [download_dir+f.split("/")[-1] for f in self.to_download_urls]
+            self.download_location = [os.path.join(download_dir,f.split("/")[-1]) for f in self.to_download_urls]
             
         if not nodl:
             io.download_url(self.to_download_urls, self.download_location,
