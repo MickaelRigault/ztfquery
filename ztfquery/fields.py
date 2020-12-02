@@ -425,19 +425,19 @@ def show_reference_map(band, **kwargs):
 # ===================== #
 def show_fields(fields, vmin=None, vmax=None,
                 ax=None, cmap="viridis", title=None,
-                colorbar=True, cax=None, clabel=" ",
+                colorbar=True, cax=None, clabel=" ", inclhist=True, 
                 show_ztf_fields=True, grid="main", grid_prop={},
                 bkgd_fields=None, bkgd_prop={},
                 show_mw=True, mw_b=None, mw_prop={},
                 savefile=None, figsize=None,
-                axparam={},
+                axparam={}, get_fplot=False,
                 **kwargs):
     """ 
     Parameters
     ----------
     colored_by: 
     """
-    fplot = FieldPlotter(ax=ax, cax=cax, figsize=figsize,**axparam)
+    fplot = FieldPlotter(ax=ax, cax=cax, figsize=figsize, inclhist=inclhist, **axparam)
     # - Plotting
     if show_ztf_fields:
         fplot.show_ztf_grid(which=grid, **grid_prop)
@@ -461,7 +461,8 @@ def show_fields(fields, vmin=None, vmax=None,
     # Output
     if savefile is not None:
         fplot.fig.savefig(savefile, dpi=150)
-        
+    if get_fplot:
+        return fplot
     return fplot.fig
 
 def show_field_ccds(fieldid, ax=None, ccd=None, textcolor="k", facecolor="0.9", edgecolor="k",
@@ -491,10 +492,10 @@ def show_gri_fields(fieldsg=None, fieldsr=None, fieldsi=None,
                     title=" ", alignment="horizontal",
                     show_ztf_fields=True, colorbar=True,
                     show_mw=True, mw_b=None, mw_prop={},
-                    projection="hammer",
+                    projection="hammer",moveup=0.05,
                     **kwargs):
     """  """
-    ax, cax = _get_gri_axes_(alignment=alignment, title=title, projection=projection)
+    ax, cax = _get_gri_axes_(alignment=alignment, title=title, projection=projection, moveup=moveup)
     
     prop = {**dict(colorbar=colorbar, edgecolor="0.5", linewidth=0.5),**kwargs}
     for i,ax_,cax_,fields_ in zip([1,2,3], ax, cax, [fieldsg, fieldsr, fieldsi]):
@@ -506,21 +507,25 @@ def show_gri_fields(fieldsg=None, fieldsr=None, fieldsi=None,
     return _
 
 def _get_gri_axes_(alignment="classic", title=None, titlefontsize="large", projection="hammer",
-                       labelsize="x-small", labelcolor="0.7"):
+                       labelsize="x-small", labelcolor="0.7",  clabelsize="x-small", clabelcolor="k",  moveup=None):
     """ """
     if alignment is None:
         alignment = "classic"
+
+    if moveup is None:
+        moveup=0
+        
     if alignment in ["classic"]:
         fig = mpl.figure(figsize=[9,6])
         # G
-        axg   = fig.add_axes([0.03,0.52,0.43,0.48], projection=projection)
-        caxg  = fig.add_axes([0.03,0.54,0.43,0.015])
+        axg   = fig.add_axes([0.03,0.52+moveup,0.43,0.48], projection=projection)
+        caxg  = fig.add_axes([0.03,0.54+moveup,0.43,0.015])
         # R
-        axr   = fig.add_axes([0.54,0.52,0.43,0.48], projection=projection)
-        caxr  = fig.add_axes([0.54,0.54,0.43,0.015])
+        axr   = fig.add_axes([0.54,0.52+moveup,0.43,0.48], projection=projection)
+        caxr  = fig.add_axes([0.54,0.54+moveup,0.43,0.015])
         # I
-        axi   = fig.add_axes([0.27,0.04,0.43,0.48], projection=projection)
-        caxi  = fig.add_axes([0.27,0.05,0.43,0.015])
+        axi   = fig.add_axes([0.27,0.04+moveup,0.43,0.48], projection=projection)
+        caxi  = fig.add_axes([0.27,0.05+moveup,0.43,0.015])
         ax = [axg,axr,axi]
         cax = [caxg,caxr,caxi]
     elif alignment in ["flat","aligned", "horizontal"]:
@@ -528,8 +533,8 @@ def _get_gri_axes_(alignment="classic", title=None, titlefontsize="large", proje
         # G
         spanx, spanm = 0.05,0.05
         width = (1-(2*spanx+2*spanm))/3
-        ax = [fig.add_axes([spanm+i*(width+spanx),0.2,width,0.7], projection=projection) for i in range(3)]
-        cax = [fig.add_axes([spanm+i*(width+spanx),0.12,width,0.025]) for i in range(3)]
+        ax = [fig.add_axes([spanm+i*(width+spanx),0.2+moveup,width,0.7], projection=projection) for i in range(3)]
+        cax = [fig.add_axes([spanm+i*(width+spanx),0.12+moveup,width,0.025]) for i in range(3)]
     else:
         raise ValueError(f"cannot parse the given show_gri alignment {alignment}, classic or horizontal")
 
@@ -538,6 +543,8 @@ def _get_gri_axes_(alignment="classic", title=None, titlefontsize="large", proje
     # labels
     for ax_ in ax:
         ax_.tick_params(labelsize=labelsize, labelcolor=labelcolor)
+    for ax_ in cax:        
+        ax_.tick_params(labelsize=clabelsize, labelcolor=clabelcolor)
         
     return ax,cax
 
@@ -585,28 +592,38 @@ def _radec_to_plot_(self, ra, dec):
 ##############################
 class FieldPlotter( object ):
     """ """
-    def __init__(self, ax=None, origin=180, inclcax=True, cax=None, **kwargs):
+    def __init__(self, ax=None, origin=180, inclcax=True, inclhist=False, cax=None, hcax=None, **kwargs):
         """ """
         self.origin = origin        
-        self.load_ax(ax, inclcax=inclcax, cax=cax, **kwargs)
+        self.load_ax(ax, inclcax=inclcax, cax=cax, inclhist=inclhist, **kwargs)
 
         
-    def load_ax(self, ax=None, update_ticks=True, cax=None, inclcax=True, figsize=None,
+    def load_ax(self, ax=None, update_ticks=True, cax=None, hcax=None, inclcax=True, inclhist=False, figsize=None,
                     **kwargs):
         """ """
         if ax is None or len(np.atleast_1d(ax))==4:
             self.fig = mpl.figure(figsize=(8,5) if figsize is None else figsize)
-            self.ax = self.fig.add_axes([0.15,0.15,0.75,0.75] if ax is None else ax, projection="hammer")
-            if inclcax:
-                if cax is None or len(np.atleast_1d(cax))==4:
-                    self.cax = self.fig.add_axes([0.15,0.12,0.75,0.02] if cax is None else cax)
-                else:
-                    self.cax = cax
+            self.ax = self.fig.add_axes([0.15,0.2,0.75,0.75] if ax is None else ax, projection="hammer")
         else:
             self.ax = ax
             self.fig = self.ax
-            if cax is not None and inclcax:
-                self.cax = cax
+            
+        if inclcax:
+            from .utils.tools import HistColorbar
+            if cax is None and hcax is None:
+                from .utils.tools import insert_ax
+                
+                cax = insert_ax(self.ax, "bottom",
+                                    shrunk=0.98, space=-0.15, axspace=0.13)
+            if inclhist and hcax is None:
+                bcax = cax.get_position()
+                hcax = cax.figure.add_axes([bcax.xmin, bcax.ymin+bcax.height+0.005, bcax.width, bcax.height*1.8])
+                    
+            
+            self.histcbar = HistColorbar(ax=hcax, cax=cax, fig=self.fig, draw=False)
+        else:
+            self.histcbar = None
+            
             
         if update_ticks:
             tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
@@ -654,40 +671,58 @@ class FieldPlotter( object ):
                                         edgecolor=edgecolor, lw=lw, **kwargs))
                      for p_ in fields_verts]
 
-    def show_fields(self, fields, cax=None, cmap="viridis",
+    def show_fields(self, fields, cmap=None,
                         colorbar=True, clabel=None, cfontsize=None,
-                        vmin=None, vmax=None, **kwargs):
+                        vmin=None, vmax=None, bins="auto", **kwargs):
         """ fields could be a list of field or a dictionary with single values """
         
         # For now, then will move to pandas.Series as native
         if type(fields) is pandas.Series:
             fields = fields.to_dict()
-
-        if cax is None and hasattr(self, "cax"):
-            cax = self.cax
             
         if type(fields)==dict:
             # popint out nans
             fields = {f:v for f,v in fields.items() if not np.isnan(v)} 
             values = list(fields.values())
             if len(values)==0 or not np.any(values):
-                if cax is not None:
-                    cax.set_visible(False)
+                if self.histcbar is not None:
+                    self.histcbar.set_visible(False)
                 return
-        
+            
             if vmin is None: vmin = "0"
-            if type(vmin) == str: vmin=np.percentile(values, float(vmin))
+            if type(vmin) == str:
+                vmin=np.percentile(values, float(vmin))
             if vmax is None: vmax = "100"
-            if type(vmax) == str: vmax=np.percentile(values, float(vmax))
-            if type(cmap) == str: cmap = mpl.get_cmap(cmap)
+            if type(vmax) == str:
+                vmax=np.percentile(values, float(vmax))
+
+            if self.histcbar is not None:
+                self.histcbar.build_histrogram(data=np.asarray(values), vmin=vmin, vmax=vmax, bins=bins)
+                
+            # - CBAR
+            if cmap is None and self.histcbar is not None:
+                cmap = self.histcbar.cmap
+                
+            elif type(cmap) == str:
+                if self.histcbar is not None:
+                    self.histcbar.load_cmap(cmap)
+                    cmap = self.histcbar.cmap
+                else:
+                    cmap = mpl.get_cmap(cmap)
+            else:
+                self.histcbar.load_cmap(cmap.name)
+                
+                
             _ = kwargs.pop("facecolor",None) #remove facecolor is any
             for f,v in fields.items():
                 self.add_fields(f, facecolor=cmap((v-vmin)/(vmax-vmin)) if vmax-vmin !=0 else cmap(0), **kwargs)
 
             # - Cbar
             if colorbar:
-                self.insert_colorbar(cmap, vmin, vmax, cax=cax, clabel=clabel, cfontsize=cfontsize)
-                    
+                self.show_colorbar(clabel=clabel, cfontsize=cfontsize)
+            elif self.histcbar is not None:
+                 self.histcbar.set_visible(False)
+                 
         else:
             self.add_fields(fields, **kwargs)
         
@@ -696,22 +731,14 @@ class FieldPlotter( object ):
         xy = self.radec_to_plot(*radec)
         self.ax.scatter(*xy, **kwargs)
 
-    def insert_colorbar(self, cmap, vmin, vmax, cax=None, clabel=None, cfontsize=None):
+    def show_colorbar(self, clabel=None, cfontsize=None):
         """ """
-        if cax is None and hasattr(self,"cax"):
-            cax = self.cax
-        if vmax-vmin !=0:
-            from .utils.tools import insert_ax, colorbar
-            self.cax = cax if cax is not None else \
-                              insert_ax(self.ax, "bottom",
-                                            shrunk=0.93, space=-0.05,
-                                            axspace=0.02)
-                
-            colorbar(self.cax, cmap, vmin=vmin, vmax=vmax, label=clabel, fontsize=cfontsize)
-                    
-        elif cax is not None:
-            self.cax = cax
-            self.cax.set_visible(False)
+        if self.histcbar is None:
+            return
+
+        self.histcbar.draw()
+        self.histcbar.set_label(clabel, fontsize=cfontsize)
+        
         
     def get_field_vertices(self, fields_):
         """ Get the field vertices in plotting coordinates. """

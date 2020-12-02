@@ -591,7 +591,6 @@ class FritzAccess( object ):
         """ get the values of currently loaded programs in the self.sources """
         return np.unique(self.sources.index.get_level_values(0))
 
-
     def get_source(self, name):
         """ """
         import ast

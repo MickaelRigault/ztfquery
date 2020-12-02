@@ -18,6 +18,9 @@ SKYVISIONSOURCE = os.path.join(io.LOCALSOURCE,"skyvision")
 if not os.path.exists( SKYVISIONSOURCE ):
     os.mkdir(SKYVISIONSOURCE)
 
+
+ZTFCOLOR = {"r":"C3","g":"C2","i":"C1"}
+
 #############################
 #                           #
 # Stand Alone Functions     # 
@@ -424,8 +427,30 @@ class CompletedLog( ZTFLog ):
         -------
         DataFrame
         """
-        
         return self.get_filtered(field=field, pid=pid, fid=fid, startdate=startdate, enddate=enddate, query=query, **kwargs)
+    
+
+    def get_cadence(self, pid=None, perfilter=True, fid=None, field=None, grid=None, statistic="nanmean", **kwargs):
+        """ 
+        **kwargs goes to get_filtered
+        """
+        data = self.get_filtered(field=field, fid=fid, pid=pid, grid=grid,  **kwargs)
+        if perfilter:
+            findices = data.groupby(["field","fid"]).indices
+        else:
+            findices = data.groupby("field").indices
+            
+        fseries = pandas.Series({f_:getattr(np,statistic)(data["obsjd"].iloc[findices[f_]].diff()) 
+                                      for f_ in findices.keys()}
+                                    )
+        if not perfilter:
+            return fseries
+        
+        return {"ztfg":fseries[fseries.index.get_level_values(1).isin([1])].reset_index(level=1, drop=True),
+                "ztfr":fseries[fseries.index.get_level_values(1).isin([2])].reset_index(level=1, drop=True),
+                "ztfi":fseries[fseries.index.get_level_values(1).isin([3])].reset_index(level=1, drop=True)
+                }
+        
 
     def get_filtered(self, field=None, fid=None, pid=None, startdate=None, enddate=None, grid=None, query=None):
         """  
@@ -500,6 +525,70 @@ class CompletedLog( ZTFLog ):
             fanim.show_milkyway()
         fanim.launch(interval=interval)
         return fanim
+
+    def show_msip_survey(self, axes=None, expectedpercent=0.25):
+        """ """
+        import matplotlib.pyplot as mpl
+        from matplotlib import dates as mdates
+    
+        total_exposure_time = self.data.groupby("date").sum()["exptime"]
+        # g band
+        def show_timeband(ax_, fid, pid=1, **prop):
+            timefields = self.get_filtered(pid=1, fid=fid).groupby("date").size()
+            this_exposure_time = self.get_filtered(pid=1, fid=fid).groupby("date").sum()["exptime"]
+            this_fact_time = this_exposure_time/total_exposure_time[this_exposure_time.index]
+            
+            ax_.bar([time.Time(i_).datetime for i_ in timefields.index.astype("str")], timefields.values,
+                zorder=2, **prop)
+            
+            ax_.scatter([time.Time(i_).datetime for i_ in timefields.index.astype("str")], 
+                        this_fact_time.values/expectedpercent*timefields.values, marker="o", 
+                        linewidths=1, edgecolors="w", facecolors=prop["color"], zorder=5)
+        
+
+            locator = mdates.AutoDateLocator()
+            formatter = mdates.ConciseDateFormatter(locator)
+            ax_.xaxis.set_major_locator(locator)
+            ax_.xaxis.set_major_formatter(formatter)
+            return timefields
+
+        if axes is None:
+            fig = mpl.figure(figsize=[8,4])
+            h, sh = 0.4,0.05
+            b = 0.1
+            axg = fig.add_axes([0.1,b +1*(h+sh),0.8,h])
+            tfieldg = show_timeband(axg, 1, color=ZTFCOLOR["g"])
+        
+            axr = fig.add_axes([0.1,b +0*(h+sh),0.8,h])
+            tfieldr = show_timeband(axr, 2, color=ZTFCOLOR["r"])
+        else:
+            axg,axr = axes
+            fig = axg.figure
+
+
+        axg.set_xlim(*axr.get_xlim())    
+        axg.set_xticklabels(["" for i in axg.get_xticklabels()])
+        proptext =  dict(va="bottom", ha="left", weight="bold")
+    
+        axr.text(0,1.01, "MSIP-II | ztf-r", transform=axr.transAxes, color=ZTFCOLOR["r"], **proptext)
+        axg.text(0,1.01, "MSIP-II | ztf-g", transform=axg.transAxes, color=ZTFCOLOR["g"], **proptext)
+    
+        [ax.set_ylim(bottom=0) for ax in [axr, axg]]
+        return fig
+
+    def show_cadence(self, pid=None, perfilter=True, statistics="nanmean", grid="main", filterprop={}, vmin=None, vmax=None, **kwargs):
+        """ """
+        cadences = self.get_cadence(pid=pid, perfilter=perfilter, statistic=statistics, grid=grid, **filterprop)
+        
+        clabel = f"{statistics.replace('nan','')} re-visit delay [in days]"
+        if perfilter:
+            from .fields import show_gri_fields
+            return fields.show_gri_fields(fieldsg=cadences["ztfg"], fieldsr=cadences["ztfr"], fieldsi=cadences["ztfi"],
+                                            clabel=clabel, vmin=vmin, vmax=vmax, **kwargs)
+
+        return fields.show_fields(cadences, clabel=clabel, vmin=vmin, vmax=vmax, **kwargs)
+            
+        
     
 # ============== #
 #                #
