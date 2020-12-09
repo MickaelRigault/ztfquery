@@ -489,34 +489,65 @@ def show_field_ccds(fieldid, ax=None, ccd=None, textcolor="k", facecolor="0.9", 
     return fig
 
 def show_gri_fields(fieldsg=None, fieldsr=None, fieldsi=None,
+                    fig=None,
                     title=" ", alignment="horizontal",
                     show_ztf_fields=True, colorbar=True,
                     show_mw=True, mw_b=None, mw_prop={},
-                    projection="hammer",moveup=0.05,
+                    projection="hammer", moveup=0.05, vscale=1, hscale=1,
                     **kwargs):
     """  """
-    ax, cax = _get_gri_axes_(alignment=alignment, title=title, projection=projection, moveup=moveup)
-    
     prop = {**dict(colorbar=colorbar, edgecolor="0.5", linewidth=0.5),**kwargs}
-    for i,ax_,cax_,fields_ in zip([1,2,3], ax, cax, [fieldsg, fieldsr, fieldsi]):
-        if fields_ is not None:
-            _ = show_fields(fields_, ax=ax_, cax=cax_, cmap=FIELD_CMAP[i],
+    
+    used_fields = {i+1:f for i,f in enumerate([fieldsg,fieldsr,fieldsi]) if f is not None and len(f)>0}
+    
+    # None
+    if len(used_fields) == 0:
+        raise ValueError("No fields given")
+    
+    # Only one
+    if len(used_fields) == 1:
+        warnings.warn("Only one color given, favor using show_fields() directly")
+        which = list(used_fields.keys())[0]
+        return show_fields(used_fields[which], cmap=FIELD_CMAP[which],
                             show_ztf_fields=show_ztf_fields,
                             show_mw=show_mw, mw_b=mw_b, mw_prop=mw_prop,
                             **prop)
+    
+    # 2 or More
+    onlytwo = len(used_fields)==2
+    ax, cax = _get_gri_axes_(alignment=alignment, title=title, projection=projection,
+                             moveup=moveup, onlytwo=onlytwo, fig=fig, vscale=vscale, hscale=hscale)
+    
+    fbands = list(used_fields.keys())
+    afields_ = list(used_fields.values())
+    for i,ax_,cax_,fields_ in zip(fbands, ax, cax, afields_):
+        
+        if fields_ is not None:
+            patch = {}
+            if len(np.unique(fields_))==1:
+                patch["inclhist"] = False
+                if np.unique(fields_)[0]==1:
+                    patch["colorbar"] = False
+                
+            _ = show_fields(fields_, ax=ax_, cax=cax_, cmap=FIELD_CMAP[i],
+                            show_ztf_fields=show_ztf_fields,
+                            show_mw=show_mw, mw_b=mw_b, mw_prop=mw_prop,
+                            **{**prop,**patch})
     return _
 
 def _get_gri_axes_(alignment="classic", title=None, titlefontsize="large", projection="hammer",
-                       labelsize="x-small", labelcolor="0.7",  clabelsize="x-small", clabelcolor="k",  moveup=None):
+                   labelsize="x-small", labelcolor="0.7",  clabelsize="x-small", clabelcolor="k",
+                   moveup=None, fig=None, vscale=1, hscale=1, onlytwo=False):
     """ """
-    if alignment is None:
-        alignment = "classic"
+    if alignment is None or onlytwo:
+        alignment = "flat"
 
     if moveup is None:
-        moveup=0
+        moveup=0        
         
     if alignment in ["classic"]:
-        fig = mpl.figure(figsize=[9,6])
+        if fig is None:
+            fig = mpl.figure(figsize=[9,6])
         # G
         axg   = fig.add_axes([0.03,0.52+moveup,0.43,0.48], projection=projection)
         caxg  = fig.add_axes([0.03,0.54+moveup,0.43,0.015])
@@ -529,12 +560,16 @@ def _get_gri_axes_(alignment="classic", title=None, titlefontsize="large", proje
         ax = [axg,axr,axi]
         cax = [caxg,caxr,caxi]
     elif alignment in ["flat","aligned", "horizontal"]:
-        fig = mpl.figure(figsize=[10,2.5])
+        naxes = 3 if not onlytwo else 2
+        if fig is None:
+            fig = mpl.figure(figsize=[3.2*naxes,2.5])
         # G
         spanx, spanm = 0.05,0.05
-        width = (1-(2*spanx+2*spanm))/3
-        ax = [fig.add_axes([spanm+i*(width+spanx),0.2+moveup,width,0.7], projection=projection) for i in range(3)]
-        cax = [fig.add_axes([spanm+i*(width+spanx),0.12+moveup,width,0.025]) for i in range(3)]
+        width = (1-(2*spanx+2*spanm))/naxes
+        ax  = [fig.add_axes([ spanm+(i*(width*hscale+spanx)), (0.20+moveup)*vscale, width*hscale, 0.700*vscale],
+                                projection=projection) for i in range(naxes)]
+        cax = [fig.add_axes([ spanm+(i*(width*hscale+spanx)), (0.12+moveup)*vscale, width*hscale, 0.025*vscale])
+                   for i in range(naxes)]
     else:
         raise ValueError(f"cannot parse the given show_gri alignment {alignment}, classic or horizontal")
 
@@ -612,18 +647,20 @@ class FieldPlotter( object ):
             from .utils.tools import HistColorbar
             if cax is None and hcax is None:
                 from .utils.tools import insert_ax
-                
                 cax = insert_ax(self.ax, "bottom",
                                     shrunk=0.98, space=-0.15, axspace=0.13)
             if inclhist and hcax is None:
-                bcax = cax.get_position()
-                hcax = cax.figure.add_axes([bcax.xmin, bcax.ymin+bcax.height+0.005, bcax.width, bcax.height*1.8])
+                if len(np.atleast_1d(cax)) == 4:
+                    xmin, ymin, width, height= cax
+                    hcax = [xmin, ymin+height+0.005, width, height*1.8]
+                else:    
+                    bcax = cax.get_position()
+                    xmin, ymin, width, height= bcax.xmin, bcax.ymin, bcax.width, bcax.height
+                    hcax = cax.figure.add_axes([xmin, ymin+height+0.005, width, height*1.8])
                     
-            
             self.histcbar = HistColorbar(ax=hcax, cax=cax, fig=self.fig, draw=False)
         else:
             self.histcbar = None
-            
             
         if update_ticks:
             tick_labels = np.array([150, 120, 90, 60, 30, 0, 330, 300, 270, 240, 210])
@@ -650,20 +687,21 @@ class FieldPlotter( object ):
         
         nbins=100
         if b is None:
-            gal = coordinates.Galactic(np.linspace(l_start,l_stop,nbins)*units.deg, np.zeros(nbins)*units.deg).transform_to(coordinates.ICRS)
+            gal = coordinates.Galactic(np.linspace(l_start,l_stop,nbins)*units.deg, np.zeros(nbins)*units.deg
+                                           ).transform_to(coordinates.ICRS)
             prop = dict(ls="-", color="0.7", alpha=0.5)
             self.ax.plot(*self.radec_to_plot(gal.ra, gal.dec), **{**prop, **kwargs})
         else:
-            gal_dw = coordinates.Galactic(np.linspace(l_start,l_stop,100)*units.deg, +b*np.ones(nbins)*units.deg).transform_to(coordinates.ICRS)
-            gal_up = coordinates.Galactic(np.linspace(l_start,l_stop,100)*units.deg, -b*np.ones(nbins)*units.deg).transform_to(coordinates.ICRS)
+            gal_dw = coordinates.Galactic(np.linspace(l_start,l_stop,100)*units.deg, +b*np.ones(nbins)*units.deg
+                                         ).transform_to(coordinates.ICRS)
+            gal_up = coordinates.Galactic(np.linspace(l_start,l_stop,100)*units.deg, -b*np.ones(nbins)*units.deg
+                                         ).transform_to(coordinates.ICRS)
             ra_dw,dec_dw = self.radec_to_plot(gal_dw.ra, gal_dw.dec)
             ra_up,dec_up = self.radec_to_plot(gal_up.ra, gal_up.dec)
 
             prop = dict(facecolor="0.7", alpha=0.2)
             self.ax.fill_between(ra_dw, dec_dw, dec_up, **{**prop, **kwargs})
         
-
-
     def add_fields(self, fields, facecolor="0.7", edgecolor="k", lw=0.5, **kwargs):
         """ """
         fields_verts = self.get_field_vertices(fields)
@@ -696,8 +734,13 @@ class FieldPlotter( object ):
             if type(vmax) == str:
                 vmax=np.percentile(values, float(vmax))
 
+            values = np.asarray(values)
             if self.histcbar is not None:
-                self.histcbar.build_histrogram(data=np.asarray(values), vmin=vmin, vmax=vmax, bins=bins)
+                if bins is None or bins in ['auto']:
+                    if values.dtype == int:
+                        bins = int((vmax-vmin))+1
+                        vmax +=1
+                self.histcbar.build_histrogram(data=values, vmin=vmin, vmax=vmax, bins=bins)
                 
             # - CBAR
             if cmap is None and self.histcbar is not None:
@@ -738,7 +781,6 @@ class FieldPlotter( object ):
 
         self.histcbar.draw()
         self.histcbar.set_label(clabel, fontsize=cfontsize)
-        
         
     def get_field_vertices(self, fields_):
         """ Get the field vertices in plotting coordinates. """
@@ -892,12 +934,12 @@ class PalomarPlanning( object):
     # --------- #
     #  SETTER   #
     # --------- #
-    def set_date(self, date, timerange=[-9,9], to_utc=True, **kwargs):
+    def set_date(self, date, timerange=[-7,7], to_utc=True, **kwargs):
         """ """
         self._date = date
-        self.set_night(date,timerange=[-9,9], to_utc=True, **kwargs)
+        self.set_night(date,timerange=[-7,7], to_utc=True, **kwargs)
         
-    def set_night(self, night, timerange=[-9,9], to_utc=True, **kwargs):
+    def set_night(self, night, timerange=[-7,7], to_utc=True, **kwargs):
         """ """    
         self._night = self.get_night(night, timerange=timerange, to_utc=to_utc, **kwargs)
         self._nightaltaz = self._get_night_altaz_(self.night)
@@ -905,7 +947,13 @@ class PalomarPlanning( object):
     # --------- #
     #  GETTER   #
     # --------- #
-    def get_night(self, date, timerange=[-9,9], to_utc=True, range_units=units.h, **kwargs):
+    @classmethod
+    def get_date_night_duration(cls, date, twilight=-12*units.deg, **kwargs):
+        """ ClassMethod to directly get the night duration at a given date or list of dates. """
+        return cls().get_night_duration(date, twilight=twilight, **kwargs)
+
+    
+    def get_night(self, date, timerange=[-7,7], to_utc=True, range_units=units.h, bins=100, **kwargs):
         """ """
         if type(date) is not time.Time:
             date = time.Time(date, **kwargs)
@@ -914,41 +962,40 @@ class PalomarPlanning( object):
             
         if timerange is None:
             return date
+        if len(np.atleast_1d(date))==1:
+            return date + np.linspace(*timerange, bins)*range_units
+        return date + np.linspace(*timerange, bins)[:,None]*range_units
+
+    def get_night_duration(self, date=None, twilight=-12*units.deg, bins=500):
+        """ in hours """
+        if date is None:
+            date =self.date
         
-        return date + np.linspace(*timerange, 100)*range_units
+        time_, sunaltaz = self.get_body_altaz("sun",  date, bins=bins)
+        flagnight = sunaltaz.alt<twilight
         
-    def _get_night_altaz_(self, night, **kwargs):
-        """ 
-        **kwargs goes to astropy.time.Time if date is not one already.
-        """
-        return coordinates.AltAz(obstime=night, location=self.site)
-    
-    def _read_date_input_(self, date, **kwargs):
-        """ """
-        if date is not None:
-            if type(date) is not time.Time:
-                date = self.get_night(date, **kwargs)
-            datealtaz = self._get_night_altaz_(date)
-        elif self.has_night():
-            date      = self.night
-            datealtaz = self.nightaltaz
-        else:
-            raise ValueError("No night set (self.set_night), no date given (see date option).")
-            
-        return date, datealtaz
-    
+        if len(np.atleast_1d(date))==1:
+            nigh_time = time_[flagnight][[0,-1]].jd
+            return np.diff(nigh_time)[0]*units.day.to("h")*units.h
+        
+        length = []
+        for i,d_ in enumerate(date):
+            nigh_time_ = time_[:,i][flagnight[:,i]][[0,-1]].jd
+            night_length = np.diff(nigh_time_)[0]*units.day.to("h")*units.h
+            length.append(night_length)
+        return length
+
     def get_fields_altaz(self, fieldid, date=None, **kwargs):
         """ """
         radec = get_field_centroid(fieldid)
         return self.get_coord_altaz(radec, date=date, **kwargs)
 
-    
     def get_coord_altaz(self, radec, date=None, **kwargs):
         """ """
         if type(radec) is not coordinates.SkyCoord:
             radec = coordinates.SkyCoord(radec, unit="deg")
             
-        date, datealtaz = self._read_date_input_(date)
+        date, datealtaz = self._read_date_input_(date, **kwargs)
             
         return date, radec.transform_to( datealtaz[:,None] )
     
@@ -956,9 +1003,9 @@ class PalomarPlanning( object):
         """ 
         'sun', 'moon', 'mercury', 'venus', 'earth-moon-barycenter', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'
         """
-        date, datealtaz = self._read_date_input_(date)
-        body = coordinates.get_body(bodyname, date)            
-        return date, body.transform_to( self._get_night_altaz_(date) )
+        date, datealtaz = self._read_date_input_(date, **kwargs)
+        body = coordinates.get_body(bodyname, date)
+        return date, body.transform_to( datealtaz )
         
         
     def get_fields_observability(self, fieldid, date=None, airmasslimit=[1,1.5], minobservability=90*units.min,
@@ -996,9 +1043,13 @@ class PalomarPlanning( object):
                 pandas.Series(np.sum(flag_good, axis=0)/len(nighttime[~flagtwilight]), index=fieldid)]
     
         
-    def get_observable_fields(self, fieldids, date=None, airmasslimit=[1,1.5], minobservability=90*units.min, twilight=-18*units.deg, **kwargs):
+    def get_observable_fields(self, fieldids, date=None, airmasslimit=[1,1.5],
+                                minobservability=90*units.min, twilight=-18*units.deg,
+                                **kwargs):
         """ """
-        stime, ffrac = self.get_fields_observability(fieldids, date=date, airmasslimit=airmasslimit, twilight=twilight, minobservability=minobservability, **kwargs)
+        stime, ffrac = self.get_fields_observability(fieldids, date=date, airmasslimit=airmasslimit,
+                                                     twilight=twilight, minobservability=minobservability,
+                                                     **kwargs)
         return ffrac[ffrac>0].index
     
         
@@ -1016,7 +1067,26 @@ class PalomarPlanning( object):
     def is_day(self, date, sunlimit=0*units.deg, squeeze=True, **kwargs):
         """ """
         return self.is_twilight(sunlimit=0*units.deg, squeeze=squeeze, **kwargs)
+
+    def _get_night_altaz_(self, night, **kwargs):
+        """ 
+        **kwargs goes to astropy.time.Time if date is not one already.
+        """
+        return coordinates.AltAz(obstime=night, location=self.site)
     
+    def _read_date_input_(self, date, **kwargs):
+        """ """
+        if date is not None:
+            if type(date) is not time.Time:
+                date = self.get_night(date, **kwargs)
+            datealtaz = self._get_night_altaz_(date)
+        elif self.has_night():
+            date      = self.night
+            datealtaz = self.nightaltaz
+        else:
+            raise ValueError("No night set (self.set_night), no date given (see date option).")
+            
+        return date, datealtaz
     # -------- #
     #  PLOTTER #
     # -------- #

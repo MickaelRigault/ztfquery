@@ -136,7 +136,7 @@ def _load_id_(which, askit=True):
         
     if which not in config.sections():
         if not askit:
-            raise AttributeError(f"No {which} account setup. Add then in .ztfquery or run ztfquery.io.set_account({which})"%(which,which))
+            raise AttributeError(f"No {which} account setup. Add then in .ztfquery or run ztfquery.io.set_account({which})")
         else:
             warnings.warn(f"No {which} account setup, please provide it")
             set_account(which)
@@ -240,7 +240,7 @@ def get_localfiles(extension="*", startpath=None):
     if extension.startswith("."):
         extension = extension[1:]
         
-    return [f for f in glob(startpath + "**/*.%s"%extension, recursive=True)]
+    return [f for f in glob(startpath + f"**/*.{extension}", recursive=True)]
 
 def run_full_filecheck(extension="*", startpath=None,
                         erasebad=True, redownload=False, 
@@ -286,7 +286,7 @@ def run_full_filecheck(extension="*", startpath=None,
 
     """
     all_ztffiles = get_localfiles(extension=extension, startpath=startpath)
-    print("%d files to check"%len(all_ztffiles))
+    print(f"{len(all_ztffiles)} files to check")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         badfiles = test_files(all_ztffiles, erasebad=erasebad, nprocess=nprocess,
@@ -360,7 +360,7 @@ def test_files(filename, erasebad=True, nprocess=1, show_progress=True, notebook
                 bar.update( len(filename) )
                 
     if len(fileissue) >0:
-        warnings.warn("%d file failed"%len(fileissue))
+        warnings.warn(f"{len(fileissue)} file failed")
         if redownload:
             from .buildurl import _localsource_to_source_
             to_download_urls, locations = np.asarray([_localsource_to_source_(filename)
@@ -368,14 +368,14 @@ def test_files(filename, erasebad=True, nprocess=1, show_progress=True, notebook
             source_to_dl = ["irsa"]
             for source in source_to_dl:
                 source_dl = np.in1d(locations, [source])
-                print("Downloading %d files from %s"%(len(source_dl[source_dl]), source))
+                print(f"Downloading {len(source_dl[source_dl])} files from {source}")
                 download_url(np.asarray(to_download_urls)[source_dl], np.asarray(fileissue)[source_dl],
                                  show_progress=show_progress, notebook=notebook, verbose=True,
                                  overwrite=True, nprocess=nprocess, cookies=get_cookie(*_load_id_(source)),
                          **kwargs)
             for source_ in np.unique(locations):
                 if source_ is not None and source_ not in source_to_dl:
-                    warnings.warn("files from %s have not downloaded (not implemented)."%source_)
+                    warnings.warn(f"files from {source_} have not downloaded (not implemented).")
                 
         return fileissue
         
@@ -397,7 +397,7 @@ def _test_file_(filename, erasebad=True, fromdl=False,
                 _ = fits.getdata(filename)
                 calculate_and_write_hash(filename)
             except FileNotFoundError:
-                warnings.warn("[Errno 2] No such file or directory: %s"%filename)
+                warnings.warn(f"[Errno 2] No such file or directory: {filename}")
             except:
                 _fileissue_(filename, **propissue)
                 return False
@@ -409,7 +409,7 @@ def _test_file_(filename, erasebad=True, fromdl=False,
                 _ = open(filename).read().splitlines()
                 calculate_and_write_hash(filename)
             except FileNotFoundError:
-                warnings.warn("[Errno 2] No such file or directory: %s"%filename)
+                warnings.warn(f"[Errno 2] No such file or directory: {filename}")
             except:
                 _fileissue_(filename, **propissue)
                 return False
@@ -423,15 +423,15 @@ def _test_file_(filename, erasebad=True, fromdl=False,
 def _fileissue_(filename, erasebad=True, fromdl=False, redownload=False, verbose=True):
     """ """
     if fromdl:
-        warnings.warn("Download failed %s seems corrupted (cannot open)"%filename)
+        warnings.warn(f"Download failed {filename} seems corrupted (cannot open)")
     else:
-        warnings.warn("cannot open file %s"%filename)
+        warnings.warn(f"cannot open file {filename}")
         
     if erasebad:
-        warnings.warn("removing %s")
+        warnings.warn(f"removing {filename}")
         os.remove(filename)
     else:
-        warnings.warn("%s NOT ERASED")
+        warnings.warn(f"{filename} NOT ERASED")
 
     if redownload:
         from .buildurl import _localsource_to_source_

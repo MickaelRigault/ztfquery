@@ -202,7 +202,7 @@ class HistColorbar():
             if len(np.atleast_1d(ax))==4:
                 if fig is None:
                     fig  = mpl.figure(figsize=[8,1])
-                self._ax = self.fig.add_axes(ax)
+                self._ax = fig.add_axes(ax)
             else:
                 self._ax = ax
                 
@@ -210,7 +210,7 @@ class HistColorbar():
             if len(np.atleast_1d(cax))==4:
                 if fig is None:
                     fig   = mpl.figure(figsize=[8,1])
-                self._cax = self.fig.add_axes(cax)
+                self._cax = fig.add_axes(cax)
             else:
                 self._cax = cax
                 

@@ -211,26 +211,54 @@ def download_completed_log(date, auth=None, store=True,
     if returns:
         return df
 
-def download_qa_log(date, auth=None, summary_values=None, store=True,
-                        where_statement="", groupby_values=False, returns=True):
+def download_qa_log(date, auth=None, summary_values=None,
+                    where_statement="default", groupby_values="same",
+                    store=True, returns=True):
     """ 
     Parameters
     ----------
     where_statement: [string]
         additional SQL query, e.g.:
-        ' AND programid in (1,2)' for limiting yourself to MSIP+Parners
+        ' AND programid in (1,2)' for limiting yourself to MSIP+Partners
 
     """
+    if where_statement in ["default"]:
+        where_statement = "AND programid in (1,2,3)"
+        
+        
     if summary_values is None:
-        summary_values = ['obsdatetime', 'nightdate','obsjd',
+        qam = download_qa_log(date, summary_values="minimal", groupby_values="same",
+                                  where_statement= where_statement, store=False)
+        qab = download_qa_log(date, summary_values="*", groupby_values=False,
+                                  where_statement= where_statement, store=False)
+        df = qam.merge(qab)
+        
+    else:
+        #
+        # -- What to DL
+        if summary_values in ["detailed"]:
+            summary_values = ['obsdatetime', 'nightdate','obsjd',
                           'exptime', 'ccdid','qid', "rcid","fid",
                           'scibckgnd','sciinpseeing','scisat','nsexcat',
                           'refbckgnd','refinpseeing','refsat',
                           'programid','maglimit', 'field', 'fwhm','status','statusdif', 
                           'qcomment']
             
-    url = "http://skyvision.caltech.edu/ztf/status/summary_table"
-    payload = {'summary_values': summary_values,
+        elif summary_values in ["minimal","fast"]:
+            summary_values = ['obsdatetime','nightdate','programid', 'field', 'qcomment']
+        elif summary_values in ["all","*"]:
+            summary_values= None
+        elif type(summary_values) is str:
+            raise ValueError("cannot parse the input values")
+        
+        if groupby_values is None or groupby_values in ["same"]:
+            groupby_values = summary_values
+
+        # -- What to DL
+        #
+    
+        url = "http://skyvision.caltech.edu/ztf/status/summary_table"
+        payload = {'summary_values': summary_values,
                'obsdate': date,
                'where_statement': where_statement,
                'groupby_values': groupby_values,
@@ -239,20 +267,25 @@ def download_qa_log(date, auth=None, summary_values=None, store=True,
                'add_summary_map': False,
                }
 
-    headers = {'content-type': 'application/json'}
-    json_data = json.dumps(payload)
-    response = requests.post(url,
+        headers = {'content-type': 'application/json'}
+        json_data = json.dumps(payload)
+        response = requests.post(url,
                              data=json_data,
                              auth= io._load_id_("skyvision") if auth is None else auth,
                              headers=headers)
     
+        try:
+            y = json.loads(response.text)
+        except:
+            print(response.text)
+            raise ValueError("Cannot read the downloaded file.")
     
-    y = json.loads(response.text)
-    
-    df = pandas.read_csv(StringIO(y['obstable']), header=0,
-                     low_memory=False, index_col=0)
-
-    df['obsdatetime'] = pandas.to_datetime(df['obsdatetime'])
+        df = pandas.read_csv(StringIO(y['obstable']), header=0,
+                        low_memory=False, index_col=0)
+        df['obsdatetime'] = pandas.to_datetime(df['obsdatetime'])
+        if "qcomment" in df.columns:
+            df.loc[:,"qcomment"] = df["qcomment"].str.strip()
+            
     
     if store:
         df.to_csv( get_log_filepath(date, which="qa"), index=False)
@@ -360,14 +393,26 @@ class CompletedLog( ZTFLog ):
                 "totalexptime":lm["Setup Time"].astype(float),
                 "fid":lm["Filter"].apply(lambda x: 1 if x=="FILTER_ZTF_G" else 2 if x=="FILTER_ZTF_R" else 3),
                 "field":lm["Field ID"].astype(int),
-                "pid":lm["Program ID"], # 0: inge ; 1: MSIP ; 2: Parners ; 3: Caltech
+                "pid":lm["Program ID"], # 0: inge ; 1: MSIP ; 2: Partners ; 3: Caltech
                 "ra": lm["RA"],
                 "dec": lm["DEC"],
-                "totaltime":lm["Setup Time"]
+                "totaltime":lm["Setup Time"],
+                "base_name":lm.get('Base Image Name','None')
                 }
         self._data = pandas.DataFrame(dict_)
         self.data.loc[:, "obsjd"] = pandas.DatetimeIndex(self.data["datetime"]).to_julian_date()
-    
+
+    def merge_with_qa(self, qalog=None, how="left", **kwargs):
+        """ 
+        **kwargs goes to pandas.merge()
+        """
+        if qalog is None:
+            dates = self.get_loaded_dates()
+            qalog = get_log(dates, which="qa")
+            
+        self._data = self.data.merge(qalog, how=how, **kwargs)
+            
+            
     # -------- #
     #  GETTER  #
     # -------- #
@@ -382,7 +427,7 @@ class CompletedLog( ZTFLog ):
         
         pid: [int or list of] -optional-
             Selection only cases observed as part as the given program id.s
-            (0: engineering ; 1: MSIP ; 2:Parners ; 3:CalTech )
+            (0: engineering ; 1: MSIP ; 2:Partners ; 3:CalTech )
             None means no selection.
         
         fid: [int or list of] -optional-
@@ -412,7 +457,7 @@ class CompletedLog( ZTFLog ):
         
         pid: [int or list of] -optional-
             Selection only cases observed as part as the given program id.s
-            (0: engineering ; 1: MSIP ; 2:Parners ; 3:CalTech )
+            (0: engineering ; 1: MSIP ; 2:Partners ; 3:CalTech )
             None means no selection.
         
         fid: [int or list of] -optional-
@@ -451,7 +496,13 @@ class CompletedLog( ZTFLog ):
                 "ztfi":fseries[fseries.index.get_level_values(1).isin([3])].reset_index(level=1, drop=True)
                 }
         
-
+    def get_programs(self):
+        """ """
+        if "qcomment" not in self.data.columns:
+            self.merge_with_qa()
+        
+        return self.data[~self.data["qcomment"].isna()].groupby("pid")["qcomment"].unique()
+        
     def get_filtered(self, field=None, fid=None, pid=None, startdate=None, enddate=None, grid=None, query=None):
         """  
         Parameters
@@ -464,7 +515,7 @@ class CompletedLog( ZTFLog ):
         
         pid: [int or list of] -optional-
             Selection only cases observed as part as the given program id.s
-            (0: engineering ; 1: MSIP ; 2:Parners ; 3:CalTech )
+            (0: engineering ; 1: MSIP ; 2:Partners ; 3:CalTech )
             None means no selection.
         
         fid: [int or list of] -optional-
@@ -500,7 +551,7 @@ class CompletedLog( ZTFLog ):
         """ """
         return self.data[self.data["date"].isin(np.atleast_1d(date))]
 
-    def get_loaded_dates(self, which="data"):
+    def get_loaded_dates(self):
         """ """
         return np.unique(self.data["date"])
         
@@ -511,7 +562,7 @@ class CompletedLog( ZTFLog ):
     # -------- #
     # PLOTTER  #
     # -------- #
-    def show_survey(self, grid="main", show_mw=True, interval=5):
+    def show_survey_animation(self, grid="main", show_mw=True, interval=5):
         """ """
         from ztfquery import fields
         
@@ -526,6 +577,122 @@ class CompletedLog( ZTFLog ):
         fanim.launch(interval=interval)
         return fanim
 
+    def show_pie(self, daterange=None, ax=None,
+             cmsip="C0", cpartners="C1", ccaltech="0.7", edgecolor="w", 
+             show_programs=True, label=True, timekey="totaltime",
+             r_main=1, w_main=0.3, span=0.01, w_second=0.15,
+             title=None, titleprop={},
+             filterprop={}, **kwargs):
+        """ """
+        import matplotlib.pyplot as mpl
+        if show_programs and "qcomment" not in self.data.columns:
+            self.merge_with_qa()
+
+        r_second = r_main-w_main-span
+        
+        # - Main
+        if daterange is None:
+            data = self.get_filtered(filterprop)
+        else:
+
+            daterange = np.atleast_1d(daterange)
+            
+            if len(daterange)==1:
+                data = self.get_filtered(**{**filterprop,**dict(startdate=daterange[0], enddate=daterange[0])})
+            elif len(daterange)==2:
+                data = self.get_filtered(**{**filterprop,**dict(startdate=daterange[0], enddate=daterange[1])})
+            else:
+                raise ValueError(f"Cannot parse the given daterange, should be size 1 or 2, {daterange} given")
+        date = np.asarray(data["date"].unique(), dtype="str")
+        if len(date)==1:
+            nigh_duration = fields.PalomarPlanning.get_date_night_duration(date).to("s").value
+        else:
+            nights = fields.PalomarPlanning.get_date_night_duration(date)
+            nigh_duration = np.sum([night.to('s').value for night in nights])
+        
+        programs = data.groupby(["pid","qcomment"])[timekey].sum()
+        program_observed = programs.index.get_level_values(1)
+        # main
+        msip        = programs.xs(1).sum()
+        partners    = programs.xs(2).sum()
+        caltech     = programs.xs(3).sum()
+        times_main  = [msip,partners,caltech]
+        # second
+        iband       = programs.xs("i_band", level=1).sum() if 'i_band' in program_observed else 0
+        hc          = programs.xs("high_cadence", level=1).sum() if 'high_cadence' in program_observed else 0
+        times_sec   = [msip, iband, partners-(hc+iband), hc]
+        # all
+        total_time = programs.sum()
+
+        # 
+        obsratio        = (times_main/total_time)*100
+        leftover_main   = nigh_duration - total_time
+        leftover_second = nigh_duration - np.sum(times_sec)
+        if leftover_main < 0: 
+            leftover_main = 0
+        if leftover_second < 0: 
+            leftover_second = 0
+    
+        #
+        # - Figure
+        if ax is None:
+            fig = mpl.figure(figsize=[5,3])
+            ax = fig.add_subplot(111)
+        else:
+            fig = ax.figure
+        # - Figure
+        #
+
+        # = Main 
+        pie, texts,*_  = ax.pie(times_main+[leftover_main], 
+                         wedgeprops=dict(width=w_main),
+                         counterclock = False,
+                         colors  = [cmsip,cpartners,ccaltech,"0.95"],
+                         explode = [0.,0.,0.,0.1],
+                         radius  = r_main, startangle=90, 
+                         labels  = [f"MSIP \n{obsratio[0]:.1f}%", 
+                                    f"Partners \n{obsratio[1]:.1f}%",
+                                    f"Caltech \n{obsratio[2]:.1f}%", 
+                                    ""],
+                        **kwargs
+                        )
+    
+    
+        # = Secondary
+        leftover_second = nigh_duration- np.sum(times_sec)
+        colors = ['w',"goldenrod","w","mediumpurple","w"]
+        labels = ["", f"\ni-b\n{iband/total_time*100:.1f}%" if iband >0 else "", 
+                  "", f"h.c.\n{hc/total_time*100:.1f}%"  if hc >0 else "",
+                      ""]
+        pie2, texts2,*_ = ax.pie(times_sec+[leftover_second],
+                         wedgeprops=dict(width=w_second),counterclock = False,
+                         colors  = colors, labels=labels,
+                         radius  = r_second, startangle=90,
+                         labeldistance=r_second-w_second*1.6,
+                        **kwargs)
+        #
+        # - Fancy
+        if label:
+            prop = dict(fontsize="small", weight="bold")
+            mpl.setp(texts[0],color=cmsip, **prop)
+            mpl.setp(texts[1],color=cpartners, **prop)
+            mpl.setp(texts[2],color=ccaltech, **prop)
+            for i,c in enumerate(colors):
+                mpl.setp(texts2[i],color=c, fontsize="x-small", ha="right",weight="bold")
+            mpl.setp(texts2[1], ha="left", va="center") # I band
+            mpl.setp(texts2[3], ha="right", va="center")# H.C
+        if edgecolor is not "None":
+            mpl.setp(pie, edgecolor=edgecolor)
+            mpl.setp(pie2, edgecolor=edgecolor, alpha=0.4)
+
+        if title is not None:
+            ax.set_title(title, **{ **dict(color="0.7", fontsize="medium"), **titleprop})
+            
+        # - Fancy
+        #
+        return [[pie,texts],[pie2, texts2]]
+
+    
     def show_msip_survey(self, axes=None, expectedpercent=0.25):
         """ """
         import matplotlib.pyplot as mpl
@@ -576,7 +743,8 @@ class CompletedLog( ZTFLog ):
         [ax.set_ylim(bottom=0) for ax in [axr, axg]]
         return fig
 
-    def show_cadence(self, pid=None, perfilter=True, statistics="nanmean", grid="main", filterprop={}, vmin=None, vmax=None, **kwargs):
+    def show_cadence(self, pid=None, perfilter=True, statistics="nanmean", grid="main", filterprop={},
+                         vmin=None, vmax=None, **kwargs):
         """ """
         cadences = self.get_cadence(pid=pid, perfilter=perfilter, statistic=statistics, grid=grid, **filterprop)
         
@@ -588,8 +756,6 @@ class CompletedLog( ZTFLog ):
 
         return fields.show_fields(cadences, clabel=clabel, vmin=vmin, vmax=vmax, **kwargs)
             
-        
-    
 # ============== #
 #                #
 #  QA            #
