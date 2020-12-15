@@ -425,7 +425,7 @@ def show_reference_map(band, **kwargs):
 # ===================== #
 def show_fields(fields, vmin=None, vmax=None,
                 ax=None, cmap="viridis", title=None,
-                colorbar=True, cax=None, clabel=" ", inclhist=True, 
+                colorbar=True, cax=None, hcax=None, clabel=" ", inclhist=True, 
                 show_ztf_fields=True, grid="main", grid_prop={},
                 bkgd_fields=None, bkgd_prop={},
                 show_mw=True, mw_b=None, mw_prop={},
@@ -437,7 +437,7 @@ def show_fields(fields, vmin=None, vmax=None,
     ----------
     colored_by: 
     """
-    fplot = FieldPlotter(ax=ax, cax=cax, figsize=figsize, inclhist=inclhist, **axparam)
+    fplot = FieldPlotter(ax=ax, cax=cax, hcax=hcax, figsize=figsize, inclhist=inclhist, **axparam)
     # - Plotting
     if show_ztf_fields:
         fplot.show_ztf_grid(which=grid, **grid_prop)
@@ -644,19 +644,19 @@ class FieldPlotter( object ):
             self.fig = self.ax
             
         if inclcax:
-            from .utils.tools import HistColorbar
+            from .utils.plots import HistColorbar
             if cax is None and hcax is None:
-                from .utils.tools import insert_ax
+                from .utils.plots import insert_ax
                 cax = insert_ax(self.ax, "bottom",
                                     shrunk=0.98, space=-0.15, axspace=0.13)
             if inclhist and hcax is None:
                 if len(np.atleast_1d(cax)) == 4:
                     xmin, ymin, width, height= cax
-                    hcax = [xmin, ymin+height+0.005, width, height*1.8]
+                    hcax = [xmin, ymin+np.min([height*1.5,height+0.005]), width, height*1.8]
                 else:    
                     bcax = cax.get_position()
                     xmin, ymin, width, height= bcax.xmin, bcax.ymin, bcax.width, bcax.height
-                    hcax = cax.figure.add_axes([xmin, ymin+height+0.005, width, height*1.8])
+                    hcax = cax.figure.add_axes([xmin, ymin+np.min([height*1.5,height+0.005]) , width, height*1.8])
                     
             self.histcbar = HistColorbar(ax=hcax, cax=cax, fig=self.fig, draw=False)
         else:
@@ -756,9 +756,9 @@ class FieldPlotter( object ):
                 self.histcbar.load_cmap(cmap.name)
                 
                 
-            _ = kwargs.pop("facecolor",None) #remove facecolor is any
+#            _ = kwargs.pop("facecolor",None) #remove facecolor is any
             for f,v in fields.items():
-                self.add_fields(f, facecolor=cmap((v-vmin)/(vmax-vmin)) if vmax-vmin !=0 else cmap(0), **kwargs)
+                self.add_fields(f, **{**dict(facecolor=cmap((v-vmin)/(vmax-vmin)) if vmax-vmin !=0 else cmap(0)), **kwargs})
 
             # - Cbar
             if colorbar:

@@ -124,13 +124,13 @@ def _parse_filename_(filename, builddir=False, squeeze=True, exists=False):
 #  Crypting         #
 # ================= #
 
-def _load_id_(which, askit=True):
+def _load_id_(which, askit=True,  token_based=False):
     """ returns login information for the requested enty"""
     import base64
     config = ConfigParser()
     config.read( _ENCRYPT_FILE )
     
-    token_based = False
+
     if which in ["fritz"]:
         token_based = True
         
@@ -139,16 +139,17 @@ def _load_id_(which, askit=True):
             raise AttributeError(f"No {which} account setup. Add then in .ztfquery or run ztfquery.io.set_account({which})")
         else:
             warnings.warn(f"No {which} account setup, please provide it")
-            set_account(which)
+            set_account(which, token_based=token_based)
             config = ConfigParser()
             config.read( _ENCRYPT_FILE )
 
     if not token_based:
         return config[which.lower()]["username"], base64.b64decode(config[which.lower()]["password"][2:-1]).decode("utf-8")
+    
     return base64.b64decode(config[which.lower()]["token"][2:-1]).decode("utf-8")
 
     
-def set_account(which, username=None, password=None, token=None, test=True, force=False):
+def set_account(which, username=None, password=None, token=None, test=True, force=False, token_based=False):
     """ Setup the username and password (simply encrypted!) for the given `which` account. 
     Saved in ~/.ztfquery
     """
@@ -157,10 +158,11 @@ def set_account(which, username=None, password=None, token=None, test=True, forc
     config = ConfigParser()
     config.read( _ENCRYPT_FILE )
     
-    token_based = False
     
     if which in ["fritz"]:
         token_based = True
+
+    if token_based:
         if token is None:
             token = input(f"Enter your {which} token:")
     else:

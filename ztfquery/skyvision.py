@@ -10,7 +10,8 @@ import numpy as np
 import pandas
 
 from astropy import time
-
+import matplotlib.pyplot as mpl
+        
 from io import StringIO
 from . import io, fields, ztftable
 
@@ -211,7 +212,7 @@ def download_completed_log(date, auth=None, store=True,
     if returns:
         return df
 
-def download_qa_log(date, auth=None, summary_values=None,
+def download_qa_log(date, auth=None, summary_values=None, inclcal=True,
                     where_statement="default", groupby_values="same",
                     store=True, returns=True):
     """ 
@@ -231,7 +232,14 @@ def download_qa_log(date, auth=None, summary_values=None,
                                   where_statement= where_statement, store=False)
         qab = download_qa_log(date, summary_values="*", groupby_values=False,
                                   where_statement= where_statement, store=False)
-        df = qam.merge(qab)
+        qa = qam.merge(qab)
+        if inclcal:
+            _ = qa.pop("fwhm") # because useless doublon that create problems.
+            qacal = download_qa_log(date, summary_values="cal", store=False,
+                                                  where_statement= where_statement)
+            df    = qa.merge(qacal, on="obsdatetime")
+        else:
+            df    = qa
         
     else:
         #
@@ -246,6 +254,11 @@ def download_qa_log(date, auth=None, summary_values=None,
             
         elif summary_values in ["minimal","fast"]:
             summary_values = ['obsdatetime','nightdate','programid', 'field', 'qcomment']
+            
+        elif summary_values in ["cal","calib","calibration"]:
+            summary_values = ['obsdatetime',"obsjd","maglimit", "maxmag", "minmag",
+                            " fwhm", "rcid","nsexcat","pnmatches", "pabszp"]
+                
         elif summary_values in ["all","*"]:
             summary_values= None
         elif type(summary_values) is str:
@@ -384,7 +397,7 @@ class CompletedLog( ZTFLog ):
     # -------- #
     #  LOADER  #
     # -------- #        
-    def load_data(self, load_obsjd=False):
+    def load_data(self, load_obsjd=False, merge_qa=False):
         """ """
         lm = self.get_completed_logs()
         dict_= {"datetime": np.asarray(lm["UT Date"] +"T"+ lm["UT Time"], dtype=str),
@@ -401,17 +414,21 @@ class CompletedLog( ZTFLog ):
                 }
         self._data = pandas.DataFrame(dict_)
         self.data.loc[:, "obsjd"] = pandas.DatetimeIndex(self.data["datetime"]).to_julian_date()
-
+        if merge_qa:
+            self.merge_with_qa()
+        
     def merge_with_qa(self, qalog=None, how="left", **kwargs):
         """ 
         **kwargs goes to pandas.merge()
         """
         if qalog is None:
             dates = self.get_loaded_dates()
-            qalog = get_log(dates, which="qa")
+            qalog = get_log(dates, which="qa").groupby(["obsdatetime","nightdate",
+                                                        "qcomment","base_name"]
+                                                      ).mean().reset_index(inplace=False)
+            qalog["obsjd_start"] = qalog.pop("obsjd")
             
         self._data = self.data.merge(qalog, how=how, **kwargs)
-            
             
     # -------- #
     #  GETTER  #
@@ -475,35 +492,72 @@ class CompletedLog( ZTFLog ):
         return self.get_filtered(field=field, pid=pid, fid=fid, startdate=startdate, enddate=enddate, query=query, **kwargs)
     
 
-    def get_cadence(self, pid=None, perfilter=True, fid=None, field=None, grid=None, statistic="nanmean", **kwargs):
+    def get_fields_stat(self, what="size", perfilter=False, statistic="mean", asdict=False, **kwargs):
+        """ 
+    
+        Parameters
+        ----------
+        what: [string] -optional-
+            keywork or any data columns.
+            - 'size': returns the number of field observations
+            - 'cadence': retuns the `statistic` delta time between observations 
+            -  column name: return the `statistic` value grouped by fields
+
+        perfilter: [bool] -optional-
+            should the grouping be split by filter too ?
+           
+        statistic: [string] -optional-
+            what pandas statistics should by applied
+            = ignored if what='size' =
+            
+        asdict: [bool] -optional-
+            if perfilter, the returned value should it be {pid:serie} or multiindex.
+            
+        Returns
+        -------
+        dict or serie. (see asdict)
+        """
+        data = self.get_filtered(**kwargs)
+        fgroup = data.groupby("field" if not perfilter else ["fid","field"])
+        if what in ["size","counts"]:
+            serieout =  fgroup.size()
+    
+        elif what in ["cadence"]:
+            findices = fgroup.indices
+            serieout =  pandas.Series({f_:getattr(np,statistic)(data["obsjd"].iloc[findices[f_]].diff()) 
+                                      for f_ in findices.keys()})
+            
+        else:
+            serieout =  getattr(fgroup[what],statistic)()
+            
+        if perfilter and asdict:
+            return {i:serieout.xs(i) for i in range(1,4)}
+        
+        return serieout
+        
+    def get_cadence(self, perfilter=True, statistic="mean", pid=None, fid=None,
+                    field=None, grid=None, asdict=True, **kwargs):
         """ 
         **kwargs goes to get_filtered
         """
-        data = self.get_filtered(field=field, fid=fid, pid=pid, grid=grid,  **kwargs)
-        if perfilter:
-            findices = data.groupby(["field","fid"]).indices
-        else:
-            findices = data.groupby("field").indices
-            
-        fseries = pandas.Series({f_:getattr(np,statistic)(data["obsjd"].iloc[findices[f_]].diff()) 
-                                      for f_ in findices.keys()}
-                                    )
-        if not perfilter:
-            return fseries
+        return self.get_fields_stat(what="cadence", perfilter=perfilter, statistic=statistic,
+                                    field=field, fid=fid, pid=pid, grid=grid, 
+                                    asdict=asdict, **kwargs)
+    
         
-        return {"ztfg":fseries[fseries.index.get_level_values(1).isin([1])].reset_index(level=1, drop=True),
-                "ztfr":fseries[fseries.index.get_level_values(1).isin([2])].reset_index(level=1, drop=True),
-                "ztfi":fseries[fseries.index.get_level_values(1).isin([3])].reset_index(level=1, drop=True)
-                }
-        
-    def get_programs(self):
+    def get_programs(self, flatten=False):
         """ """
-        if "qcomment" not in self.data.columns:
+        if not self.was_qa_merged():
             self.merge_with_qa()
         
-        return self.data[~self.data["qcomment"].isna()].groupby("pid")["qcomment"].unique()
+        programserie = self.data[~self.data["qcomment"].isna()].groupby("pid")["qcomment"].unique()
+        if not flatten:
+            return programserie
         
-    def get_filtered(self, field=None, fid=None, pid=None, startdate=None, enddate=None, grid=None, query=None):
+        return np.asarray(np.concatenate(programserie.values), dtype="str")
+        
+    def get_filtered(self, field=None, fid=None, pid=None, startdate=None, enddate=None,
+                         grid=None, programs=None, query=None):
         """  
         Parameters
         ----------
@@ -530,9 +584,19 @@ class CompletedLog( ZTFLog ):
         -------
         pandas.Serie of bool
         """
-        queried = super().get_filtered(field=field, fid=fid, grid=grid, query=query)
+        if programs is not None:
+            if not self.was_qa_merged():
+                self.merge_with_qa()
+            programs = np.atleast_1d(programs)
+            if query is None:
+                query = f"qcomment in @programs"
+            else:
+                query+=f" AND qcomment in @programs"
+            
+                
+        queried = super().get_filtered(field=field, fid=fid, grid=grid)
         if pid is None and (startdate is None and enddate is None):
-            return queried
+            return queried if query is None else queried.query(query)
         
         pidflag = True if pid is None else queried["pid"].isin(np.atleast_1d(pid))
         # DateRange Selection
@@ -545,11 +609,20 @@ class CompletedLog( ZTFLog ):
         else:
             dateflag = queried["date"].between(startdate,enddate)
 
-        return queried[pidflag & dateflag]
+        return queried[pidflag & dateflag].query(query)
             
-    def get_date(self, date):
+    def get_date(self, date, asobject=False):
         """ """
-        return self.data[self.data["date"].isin(np.atleast_1d(date))]
+        # twice faster than: self.data.groupby("date").get_group(date)
+        if not asobject:
+            return self.data[self.data["date"].isin(np.atleast_1d(date))]
+
+        df = self.logs[self.logs["UT Date"].isin(np.atleast_1d(date))]
+        dateobj = self.__class__(df)
+        if self.was_qa_merged():
+            dateobj.merge_with_qa()
+            
+        return dateobj
 
     def get_loaded_dates(self):
         """ """
@@ -559,6 +632,62 @@ class CompletedLog( ZTFLog ):
         """ """
         return self.logs[self.logs["Observation Status"]=="COMPLETE"]
 
+    def get_night_duration(self, dates=None, unit="s"):
+        """ """
+        if dates is None:
+            dates = self.get_loaded_dates()
+        else:
+            dates = np.atleast_1d(dates)
+
+        dates = np.asarray(np.atleast_1d(dates), dtype="str")
+
+        if len(dates)==1:
+            nigh_duration = np.asarray([fields.PalomarPlanning.get_date_night_duration(dates).to(unit).value])
+        else:
+            nights = fields.PalomarPlanning.get_date_night_duration(dates)
+            nigh_duration = np.asarray([night.to(unit).value for night in nights])
+
+        return nigh_duration
+
+    def get_observing_fraction(self, timekey="totaltime", filterprop={}):
+        """  """
+        return self.get_filtered(**filterprop).groupby("date")[timekey].sum()/self.get_night_duration()
+    
+    
+    def get_program_data(self, what="size", key=None, programs=None, filterprop={},
+                             fill_value=np.NaN):
+        """ """
+        knownprogram = np.unique(self.get_programs(flatten=True))
+        if programs is None or programs in ["*","all"]:
+            programs = knownprogram
+        else:
+            programs = np.atleast_1d(programs)
+        
+        datagroupby = self.get_filtered(**filterprop).groupby(["date","qcomment"])
+        if what in ["size","field","fields","density"]:
+            groupbys = datagroupby.size()
+            fill_value=0
+            
+        elif what in ["timefrac","fraction","percentalloc", "timealloc"]:
+            groupbys = datagroupby.sum()["totaltime"]/self.data.groupby("date")["totaltime"].sum()*100
+            fill_value=0
+            
+        else:
+            groupbys = getattr(datagroupby,what)()
+            if key is not None:
+                groupbys= groupbys[key]#[programs]
+            else:
+                return groupbys
+
+        if fill_value is None:
+            fill_value = np.NaN
+
+        # get list 
+        baseindex = np.unique(groupbys.index.get_level_values(0))
+        return pandas.concat([groupbys.xs(k,level=1).reindex(baseindex, fill_value=fill_value) if k in knownprogram else
+                                pandas.Series(data=fill_value, index=baseindex)
+                                  for k in programs],
+                                 axis=1, keys=programs)
     # -------- #
     # PLOTTER  #
     # -------- #
@@ -577,14 +706,103 @@ class CompletedLog( ZTFLog ):
         fanim.launch(interval=interval)
         return fanim
 
-    def show_pie(self, daterange=None, ax=None,
-             cmsip="C0", cpartners="C1", ccaltech="0.7", edgecolor="w", 
-             show_programs=True, label=True, timekey="totaltime",
-             r_main=1, w_main=0.3, span=0.01, w_second=0.15,
-             title=None, titleprop={},
-             filterprop={}, **kwargs):
+    def show_histogram(self, key, filterprop={}, ax=None, **kwargs):
         """ """
-        import matplotlib.pyplot as mpl
+        if ax is None:
+            fig = mpl.figure(figsize=[7,4])
+            ax = fig.add_subplot(111)
+        else:
+            fig = ax.figure
+        
+        data = self.get_filtered(**filterprop)[key].values
+    
+        defaultprop = dict(histtype="step", bins='auto')
+        h = ax.hist(data[data==data], **{**defaultprop, **kwargs})
+        return ax, h
+
+    def show_scatter(self, xkey, ykey, ckey=None, skey=None, filterprop={}, ax=None, 
+                        cmap=None, inclcbar=True, incllabel=True, textprop={}, **kwargs):
+        """ """
+        if ax is None:
+            fig = mpl.figure(figsize=[7,4])
+            ax = fig.add_subplot(111)
+        else:
+            fig = ax.figure
+        
+        data = self.get_filtered(**filterprop)
+    
+        xval = data[xkey].values
+        yval = data[ykey].values
+        cval = data[ckey].values if ckey is not None else None
+        sval = data[skey].values if skey is not None else 80
+    
+        defaultprop = dict(edgecolor="0.9")
+        sc = ax.scatter(xval, yval, s=sval, c=cval, cmap=cmap, **{**defaultprop,**kwargs})
+    
+        if inclcbar:
+            cbar= fig.colorbar(sc)
+            out= [sc, cbar]
+        else:
+            cbar = None
+            out = sc
+        
+        if incllabel:
+            ax.set_xlabel(xkey, **textprop)
+            ax.set_ylabel(ykey, **textprop)
+            if cbar is not None:
+                cbar.set_label(ckey, **textprop)
+            
+        return ax, out
+
+    def show_histogram_report(self, key, range=None, bins=None, 
+                     ax=None, clearaxis=True, show_legend=True, lw=2):
+        """ """
+        if ax is None:
+            fig = mpl.figure(figsize=[7,4])
+            ax = fig.add_subplot(111)
+        else:
+            fig = ax.figure
+        
+        prop = dict(range=range, bins=bins)
+        self.show_histogram(key, ax=ax,
+                            filterprop={"programs":"all_sky"}, lw=0, fill=True,
+                            color="0.7", alpha=0.2, label="msip | allsky", **prop)
+
+        self.show_histogram(key, ax=ax, filterprop={"programs":"i_band"}, 
+                                lw=lw, color="goldenrod", 
+                                label="i-band", **prop)
+        self.show_histogram(key, ax=ax, 
+                                filterprop={"programs":"high_cadence"}, 
+                                lw=lw, color="tab:purple",
+                                label="high-cadence", **prop)
+    
+        self.show_histogram(key, ax=ax, 
+                                filterprop={"programs":"high_cadence", "fid":1}, 
+                                fill=True, edgecolor="tab:purple", facecolor="tab:green", alpha=0.1,
+                                **{**prop,**dict(lw=lw/2)})
+        if show_legend:
+            ax.legend(loc="upper right")
+        
+        if clearaxis:
+            ax.axhline(0, color="k", zorder=4)
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['left'].set_visible(False)
+            ax.spines['bottom'].set_visible(False)
+            #ax.spines['bottom'].set_position(["data", 0])
+            ax.tick_params()
+            ax.set_yticks([])
+            
+        return fig
+
+        
+    def show_pie(self, daterange=None, ax=None,
+                     cmsip="C0", cpartners="C1", ccaltech="0.7", edgecolor="w", 
+                     show_programs=True, label=True, timekey="totaltime",
+                     r_main=1, w_main=0.3, span=0.01, w_second=0.15,
+                     title=None, titleprop={},
+                     filterprop={}, **kwargs):
+        """ """
         if show_programs and "qcomment" not in self.data.columns:
             self.merge_with_qa()
 
@@ -592,9 +810,9 @@ class CompletedLog( ZTFLog ):
         
         # - Main
         if daterange is None:
-            data = self.get_filtered(filterprop)
+            daterange = np.asarray(self.get_filtered(filterprop), dtype="str")
+            data = self.data
         else:
-
             daterange = np.atleast_1d(daterange)
             
             if len(daterange)==1:
@@ -603,6 +821,7 @@ class CompletedLog( ZTFLog ):
                 data = self.get_filtered(**{**filterprop,**dict(startdate=daterange[0], enddate=daterange[1])})
             else:
                 raise ValueError(f"Cannot parse the given daterange, should be size 1 or 2, {daterange} given")
+            
         date = np.asarray(data["date"].unique(), dtype="str")
         if len(date)==1:
             nigh_duration = fields.PalomarPlanning.get_date_night_duration(date).to("s").value
@@ -620,7 +839,8 @@ class CompletedLog( ZTFLog ):
         # second
         iband       = programs.xs("i_band", level=1).sum() if 'i_band' in program_observed else 0
         hc          = programs.xs("high_cadence", level=1).sum() if 'high_cadence' in program_observed else 0
-        times_sec   = [msip, iband, partners-(hc+iband), hc]
+        allsky      = programs.xs("all_sky", level=1).sum() if 'all_sky' in program_observed else 0        
+        times_sec   = [allsky, msip-allsky, iband, partners-(hc+iband), hc]
         # all
         total_time = programs.sum()
 
@@ -660,10 +880,13 @@ class CompletedLog( ZTFLog ):
     
         # = Secondary
         leftover_second = nigh_duration- np.sum(times_sec)
-        colors = ['w',"goldenrod","w","mediumpurple","w"]
-        labels = ["", f"\ni-b\n{iband/total_time*100:.1f}%" if iband >0 else "", 
-                  "", f"h.c.\n{hc/total_time*100:.1f}%"  if hc >0 else "",
-                      ""]
+        colors = ["0.8",'w',"goldenrod","w","mediumpurple","w"]
+        labels = [f"all-sky\n{allsky/total_time*100:.1f}%" if allsky>0 else "",
+                  "",
+                  f"\ni-b\n{iband/total_time*100:.1f}%" if iband >0 else "", 
+                  "",
+                  f"h.c.\n{hc/total_time*100:.1f}%"  if hc >0 else "",
+                    ""]
         pie2, texts2,*_ = ax.pie(times_sec+[leftover_second],
                          wedgeprops=dict(width=w_second),counterclock = False,
                          colors  = colors, labels=labels,
@@ -693,9 +916,93 @@ class CompletedLog( ZTFLog ):
         return [[pie,texts],[pie2, texts2]]
 
     
+    def show_date_evolution(self, what="size", key=None, ax=None, programs=None, 
+                                filterprop={}, allocation=None, fill_value=None,
+                                textbar=True, textloc="auto", fontsize=10,
+                                textincolor="auto", textprop={}, textformat=None,
+                                clearaxis=True, clearwhich=["left","right","top"], **kwargs):
+        """ """
+        from .utils.plots import evolbar
+
+        if programs is not None and "rest" in programs:
+            programs.remove("rest")
+            add_rest=True
+        else:
+            add_rest=False
+            
+        to_show = self.get_program_data(what=what, programs=programs, key=key, 
+                                        fill_value=fill_value, filterprop=filterprop)
+        if add_rest:
+            all_ = self.get_program_data(what=what, programs=None, key=key, 
+                                        fill_value=fill_value, filterprop=filterprop).sum(axis=1)
+            to_show.loc[:,"rest"] = all_ - to_show.sum(axis=1)
+            
+        timearray = pandas.DatetimeIndex(to_show.index)
+        data = to_show.values.T
+        return evolbar(timearray, data, ax=ax,
+                           textbar=textbar, textloc=textloc, fontsize=fontsize,
+                           textincolor=textincolor, textprop=textprop,
+                           textformat=textformat,
+                           clearaxis=clearaxis, clearwhich=clearwhich, **kwargs)
+
+    def show_dateevol_report(self, what = "size", ax=None, axs=None, 
+                                 show_summary=True, show_labels=True, summary_stat="mean",
+                                 programs = ["i_band", "high_cadence", "all_sky", "rest"],
+                                 labels   = ["i-band", "high-cadence", "MSIP  allsky", "rest"],
+                                 colors   = ["goldenrod","purple", "0.8", "w"],
+                                 textmin=10,
+                                 proplabel={}, **kwargs
+                                 ):
+        """ """
+        from .utils.plots import evolbar
+
+        if ax is None:
+            fig = mpl.figure(figsize=[8,3])
+            ax = fig.add_axes([0.05,0.2,0.7,0.7])
+        else:
+            fig = ax.figure        
+
+        if what in ["size"]:
+            textformat = "d"
+            textadd = ""
+        else:
+            textformat = ".1f"
+            textadd = "%"
+
+        showprop = {**dict(facecolors = colors, textformat = textformat, 
+                            textadd=textadd,fontsize=8, edgecolor="w"),
+                    **kwargs}
+
+        fig,_ = self.show_date_evolution(what=what,textmin=textmin, ax=ax,
+                                         programs = programs, **showprop)
+        if show_summary:
+            if axs is None:
+                axs = fig.add_axes([0.8,0.2,0.06,0.7])
+
+            to_show = self.get_program_data(what=what, programs=programs)
+            data = getattr(to_show,summary_stat)().values
+            time = to_show.index[0]
+
+            evolbar([time], data[:,None], ax=axs, clearaxis=True, formatxaxis=False,
+                        **{**showprop,**{"textformat":".1f"}})
+        
+            axs.set_ylim(*ax.get_ylim())
+            axs.set_xticklabels([summary_stat])
+        
+        if show_labels:
+            proptext = {**dict(va="bottom", ha="center", transform=ax.transAxes,
+                                weight="bold"),**proplabel}
+            for i, xpos in enumerate( np.linspace(0,1,len(programs)) ):
+                prop = {}
+                if i==0:
+                    prop["ha"] = "left"
+                elif i==len(programs)-1:
+                    prop["ha"] = "right"
+                    
+                ax.text(xpos, 1, labels[i], color=colors[i], **{**proptext,**prop})
+
     def show_msip_survey(self, axes=None, expectedpercent=0.25):
         """ """
-        import matplotlib.pyplot as mpl
         from matplotlib import dates as mdates
     
         total_exposure_time = self.data.groupby("date").sum()["exptime"]
@@ -705,7 +1012,8 @@ class CompletedLog( ZTFLog ):
             this_exposure_time = self.get_filtered(pid=1, fid=fid).groupby("date").sum()["exptime"]
             this_fact_time = this_exposure_time/total_exposure_time[this_exposure_time.index]
             
-            ax_.bar([time.Time(i_).datetime for i_ in timefields.index.astype("str")], timefields.values,
+            ax_.bar([time.Time(i_).datetime for i_ in timefields.index.astype("str")],
+                    timefields.values,
                 zorder=2, **prop)
             
             ax_.scatter([time.Time(i_).datetime for i_ in timefields.index.astype("str")], 
@@ -737,25 +1045,433 @@ class CompletedLog( ZTFLog ):
         axg.set_xticklabels(["" for i in axg.get_xticklabels()])
         proptext =  dict(va="bottom", ha="left", weight="bold")
     
-        axr.text(0,1.01, "MSIP-II | ztf-r", transform=axr.transAxes, color=ZTFCOLOR["r"], **proptext)
-        axg.text(0,1.01, "MSIP-II | ztf-g", transform=axg.transAxes, color=ZTFCOLOR["g"], **proptext)
+        axr.text(0,1.01, "MSIP-II | ztf-r", transform=axr.transAxes, color=ZTFCOLOR["r"],
+                     **proptext)
+        axg.text(0,1.01, "MSIP-II | ztf-g", transform=axg.transAxes, color=ZTFCOLOR["g"],
+                     **proptext)
     
         [ax.set_ylim(bottom=0) for ax in [axr, axg]]
         return fig
 
-    def show_cadence(self, pid=None, perfilter=True, statistics="nanmean", grid="main", filterprop={},
+    def show_cadence(self, pid=None, perfilter=True, statistics="nanmean", grid="main",
+                         filterprop={},
                          vmin=None, vmax=None, **kwargs):
         """ """
-        cadences = self.get_cadence(pid=pid, perfilter=perfilter, statistic=statistics, grid=grid, **filterprop)
+        cadences = self.get_cadence(pid=pid, perfilter=perfilter, statistic=statistics,
+                                    grid=grid, **filterprop)
         
         clabel = f"{statistics.replace('nan','')} re-visit delay [in days]"
         if perfilter:
             from .fields import show_gri_fields
-            return fields.show_gri_fields(fieldsg=cadences["ztfg"], fieldsr=cadences["ztfr"], fieldsi=cadences["ztfi"],
-                                            clabel=clabel, vmin=vmin, vmax=vmax, **kwargs)
-
+            return fields.show_gri_fields(fieldsg=cadences[1],
+                                          fieldsr=cadences[2],
+                                          fieldsi=cadences[3],
+                                          clabel=clabel, vmin=vmin, vmax=vmax, **kwargs)
+        
         return fields.show_fields(cadences, clabel=clabel, vmin=vmin, vmax=vmax, **kwargs)
+
+    def show_program_fields(self, program, what="size", expectedfields=None,
+                            ax=None, cax=None, cmap=None, 
+                            show_ztf_fields=False, bkgd_prop={}, filterprop={}, statistic="mean",
+                            labelsize="x-small", labelcolor="0.7", clabelsize="x-small",
+                            clabelcolor="k",
+                            **kwargs):
+        """ """
+        default_prop = dict(lw=0, zorder=5, 
+                                bkgd_prop={**dict(facecolor="0.8", lw=0, alpha=1,
+                                                  edgecolor="None",zorder=1),**bkgd_prop}
+                           )
+    
+        pfields = self.get_fields_stat(what=what, query=f"qcomment in ({program})",
+                                        statistic=statistic, **filterprop)
+    
+        if expectedfields is not None:
+            bkgd_fields = expectedfields[~np.in1d(expectedfields, pfields.index)]
+            not_wanted  = pfields[~pfields.index.isin(expectedfields)]
+        else:
+            bkgd_fields, not_wanted = None, None
+
+        if len(pfields.unique())==1:
+            # kwargs["colorbar"] = False # handled in histcolorbar
+            kwargs["facecolor"] = kwargs.get("facecolor",mpl.cm.get_cmap(cmap)(0.5))
+        
+        fplot   = fields.show_fields(pfields, 
+                                     ax=ax, cax=cax, get_fplot=True, cmap=cmap, 
+                                     show_ztf_fields=show_ztf_fields,
+                                     bkgd_fields=bkgd_fields,
+                                         **{**default_prop,**kwargs}
+                                    )
+    
+        if not_wanted is not None and len(not_wanted)>0:
+            _ = fields.show_fields(not_wanted, ax=fplot.ax, cax=None,colorbar=False, 
+                                           show_ztf_fields=False, 
+                                           facecolor="None",edgecolor="k", lw=0.5, zorder=8)
+
+        # - Fancy
+        fplot.ax.tick_params(labelsize=labelsize, labelcolor=labelcolor)
+        fplot.histcbar.cax.tick_params(labelsize=clabelsize, labelcolor=clabelcolor)
+        return fplot
+
+    def show_hists(self, ax=None, filterprop={}, range=[15.5,22.5], bins=50, key="maglimit",
+                       clearaxis=True,
+                       **kwargs):
+        """ """
+        if ax is None:
+            fig = mpl.figure(figsize=[7,4])
+            ax = fig.add_subplot(111)
+        else:
+            fig = ax.figure
+        
+        prop = {**dict(range=range, bins=bins, histtype="step", lw=2, density=False, zorder=1),
+                **kwargs
+                }
+    
+        fgrou = self.get_filtered(**filterprop).groupby("fid")
+        ibandgroup = self.get_filtered(query="qcomment in ('i_band')",
+                                           **filterprop).groupby("fid")
+        hcgroup = self.get_filtered(query="qcomment in ('high_cadence')",
+                                        **filterprop).groupby("fid")
+
+        for s_,col_ in zip([fgrou.get_group(1)[key],
+                            fgrou.get_group(2)[key],
+                            fgrou.get_group(3)[key]],
+                            ["tab:green","tab:red","goldenrod"]):
+            ax.hist(s_.values, weights=1*np.ones(s_.size),edgecolor=col_, 
+                    fill=False,
+                    #facecolor=mpl.matplotlib.colors.to_rgba(col_, 0.01), 
+                    **prop)
+
+        #
+        for s_,col_ in zip([hcgroup.get_group(1)[key],
+                            hcgroup.get_group(2)[key],
+                            ibandgroup.get_group(3)[key]],
+                            ["tab:green","tab:red","goldenrod"]):
+            ax.hist(s_.values, weights=-1*np.ones(s_.size),edgecolor=col_, **prop)
             
+        if clearaxis:
+            ax.axhline(0, color="k", zorder=4)
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['left'].set_visible(False)
+            ax.spines['bottom'].set_visible(False)
+            #ax.spines['bottom'].set_position(["data", 0])
+            ax.tick_params()
+            ax.set_yticks([])
+    
+        return fig
+
+    def show_report(self, fig=None, savefile=None, statistic= "mean", labelsize="x-small",
+                        ibandfields=None, hcfields=None, show_signature=True):
+        """ """
+        if fig is None:
+            fig = mpl.figure(figsize=[10,10])
+
+        left   = 0.1
+        width  = 0.25
+        height = 0.18
+        vspan, hspan  = 0.05,0.05
+        bottom = 0.1
+        vcbar  = 0.01
+        hcbar  = 0.005
+
+        filter_name = {1:"ztf-g", 2:"ztf-r",3:"ztf-i"}
+        labels   = {"i_band":"i-band",
+                    "high_cadence":"high-cadence",
+                    "all_sky":"MSIP  allsky"}
+
+        programs = ["i_band", "high_cadence", "all_sky", "rest"]
+        label_prop = dict(fontsize=labelsize, color="k")
+        
+        # - Partnership Programs
+        for i, (fid, program_, cmap_) in enumerate(zip([None, 1,2],
+                                                     ["i_band","high_cadence", "high_cadence"],
+                                                     ["Oranges","Greens","Reds"])):
+            #
+            if program_ in ["i_band"]:
+                expectedfields  = ibandfields
+            elif program_ in ["high_cadence"]:
+                expectedfields  = hcfields
+            #
+            eff_bottom = bottom+(vspan+height)*i
+            lax   = fig.add_axes([left,eff_bottom,width,height], projection="hammer")
+            lcax  = fig.add_axes([left,eff_bottom-vcbar,width,hcbar])
+
+            lax.set_ylabel(f"{labels[program_] if program_ in labels else program_}"+\
+                          (f"  |  {filter_name[fid]}" if fid is not None else ""),
+                          **label_prop)
+    
+            filterprop = dict(fid=fid) if fid is not None else {}
+
+            # = Plotting
+            self.show_program_fields(f"'{program_}'",  ax=lax, cax=lcax, what="size",
+                                    expectedfields=expectedfields, cmap=cmap_,
+                                    filterprop=filterprop,
+                                )
+    
+            if i == 0:
+                lcax.set_xlabel("number of observations", **label_prop)
+        
+    
+            rax   = fig.add_axes([left+(hspan+width),eff_bottom,width,height], projection="hammer")
+            rcax  = fig.add_axes([left+(hspan+width),eff_bottom-vcbar,width,hcbar])
+
+            self.show_program_fields(f"'{program_}'",  ax=rax, cax=rcax, 
+                                     what="cadence",statistic=statistic,
+                                     expectedfields=expectedfields, cmap=cmap_+"_r",
+                                     filterprop=filterprop)
+            if i == 0:
+                rcax.set_xlabel(f"{statistic} re-visit delay [in days]", **label_prop)
+
+
+
+        # - Summary plot
+        pad=-0.01
+        ax = fig.add_axes([left+pad, 0.8, width*2+hspan-pad, 0.15])
+
+        self.show_dateevol_report(ax=ax, fontsize=7,
+                                 summary_stat=statistic, show_summary=False,
+                                 programs=programs,
+                                 labels=[labels[k] if k in labels else k for k in  programs],
+                                 colors   = ["goldenrod","purple", "0.8", "w"],
+                                 textincolor="auto",
+                                edgecolor="0.7", lw=0.5, proplabel=dict(fontsize="x-small"))
+
+        ax.tick_params(labelsize=labelsize)
+
+        # - Pie Plot
+        axpie = fig.add_axes([left+pad + (width*2+hspan-pad)+hspan*2, 0.78, 0.18, 0.18])
+        # -> plot
+        self.show_pie(ax=axpie)
+
+        # - hist maglim
+        axhmag = fig.add_axes([left+pad + (width*2+hspan-pad)+hspan*2, bottom-0.02, 0.18, 0.12])
+        # -> plot
+        _ = self.show_hists(ax=axhmag, range=[16.5,21.5], key="maglimit", lw=1)
+        
+        axhmag.tick_params(labelsize=labelsize)
+        axhmag.set_xlabel("Limiting magnitude", fontsize="x-small")
+
+        # - hist fwhm
+        axfwhm = fig.add_axes([left+pad + (width*2+hspan-pad)+hspan*2, bottom+0.15, 0.18, 0.12])
+        # - plot
+        _ = self.show_hists(ax=axfwhm,range=[1,6], key="fwhm", lw=1)
+        axfwhm.tick_params(labelsize=labelsize)
+        axfwhm.set_xlabel("fwhm", fontsize="x-small")
+
+
+        # - MSIP
+        axmsip_g= fig.add_axes([left+pad + (width*2+hspan-pad)+hspan*2, bottom+0.32, 0.18, 0.15],
+                                projection="hammer")
+        caxmsip_g= fig.add_axes([left+pad + (width*2+hspan-pad)+hspan*2,
+                                  bottom+0.32-vcbar/4., 0.18, hcbar])
+        # -> plot
+        self.show_program_fields(f"'all_sky'",  ax=axmsip_g, cax=caxmsip_g, what="size",
+                                 expectedfields=None, cmap="Greens",
+                                filterprop=dict(fid=1),
+                                )
+        axmsip_g.set_yticks([])
+        axmsip_g.set_xticks([])
+        axmsip_g.set_ylabel("msip | ztf-g",**label_prop)
+
+        axmsip_r  = fig.add_axes([left+pad + (width*2+hspan-pad)+hspan*2, bottom+0.49,
+                                  0.18, 0.15], projection="hammer")
+        caxmsip_r = fig.add_axes([left+pad + (width*2+hspan-pad)+hspan*2,
+                                  bottom+0.49-vcbar/4., 0.18, hcbar])
+        # -> plot        
+        self.show_program_fields(f"'all_sky'",  ax=axmsip_r, cax=caxmsip_r, what="size",
+                                     expectedfields=None, cmap="Reds", filterprop=dict(fid=2),
+                                )
+        axmsip_r.set_yticks([])
+        axmsip_r.set_xticks([])
+        axmsip_r.set_ylabel("msip | ztf-r",**label_prop)
+
+        if show_signature:
+            from . import __version__
+            import datetime
+            now = datetime.datetime.now()
+            fig.text(0.5,0.01, 
+                         f"— Weekly report figure made using ztfquery {__version__}   "+\
+                         f"|   made the {now.year}-{now.month:02d}-{now.day:02d} at {now.hour:02d}:{now.minute:02d}   "+\
+                         f"|   if useful, please cite ztfquery —",
+                         va="bottom", ha="center", color="0.8", fontsize="small")
+
+        if savefile is not None:
+            [fig.savefig(savefile_) for savefile_ in np.atleast_1d(savefile)]
+            
+        return fig
+
+    def show_daily_report(self, date=None, labelsize = "x-small", ibandfields=None, hcfields=None,
+                            statistic="mean", savefile=None, show_signature=True, **kwargs):
+        """ """
+        if date is not None:
+            singledate = self.get_date(date, asobject=True)
+            return singledate.show_daily_report(labelsize = labelsize,
+                                                ibandfields=ibandfields,
+                                                hcfields=hcfields, statistic=statistic,
+                                                show_signature=show_signature,
+                                                savefile=savefile,
+                                                **kwargs)
+        
+        if len(self.get_loaded_dates())!=1:
+            raise NotImplementedError("only single dates logs can use this report. Provide the date you want.")
+        
+        date = self.get_loaded_dates()[0]
+        
+        fig = mpl.figure(figsize=[10,10])
+        left   = 0.1
+        width  = 0.25
+        height = 0.18
+        vspan, hspan  = 0.05,0.05
+        bottom = 0.1
+        vcbar  = 0.01
+        hcbar  = 0.005
+
+        pad=-0.01
+
+        axpie  = fig.add_axes([left+pad + (width*2+hspan-pad)+hspan*2, 0.78, 0.18, 0.18])
+        axbar  = fig.add_axes([left+pad + (width*2+hspan-pad)+hspan*2+0.065, bottom+0.031, 0.04, 0.25])
+        axhmag = fig.add_axes([left                     , 0.8, width, 0.1])
+        axfwhm = fig.add_axes([left + (width+hspan-pad) , 0.8,  width, 0.1])
+
+        axmsip_g= fig.add_axes([left+pad + (width*2+hspan-pad)+hspan*2, bottom+0.32, 0.18, 0.15],
+                                   projection="hammer")
+        caxmsip_g= fig.add_axes([left+pad + (width*2+hspan-pad)+hspan*2,
+                                     bottom+0.32-vcbar/4., 0.18, hcbar])
+
+        axmsip_r  = fig.add_axes([left+pad + (width*2+hspan-pad)+hspan*2, bottom+0.49,
+                                      0.18, 0.15], projection="hammer")
+        caxmsip_r = fig.add_axes([left+pad + (width*2+hspan-pad)+hspan*2,
+                                      bottom+0.49-vcbar/4., 0.18, hcbar])
+
+
+
+        label_prop = dict(fontsize=labelsize, color="k")
+
+
+
+        filter_name = {1:"ztf-g", 2:"ztf-r",3:"ztf-i"}
+        labels   = {"i_band":"i-band",
+                        "high_cadence":"high-cadence",
+                        "all_sky":"MSIP  allsky"}
+
+        programs = ["i_band", "high_cadence", "all_sky", "rest"]
+        label_prop = dict(fontsize=labelsize, color="k")
+
+        # - Partnership Programs
+        for i, (fid, program_, cmap_) in enumerate(zip([None, 1,2],
+                                                 ["i_band","high_cadence", "high_cadence"],
+                                                 ["Oranges","Greens","Reds"])):
+            #
+            if program_ in ["i_band"]:
+                expectedfields  = ibandfields
+            elif program_ in ["high_cadence"]:
+                    expectedfields  = hcfields
+        #
+            eff_bottom = bottom+(vspan+height)*i
+            lax   = fig.add_axes([left,eff_bottom,width,height], projection="hammer")
+            lcax  = fig.add_axes([left,eff_bottom-vcbar,width,hcbar])
+
+            lax.set_ylabel(f"{labels[program_] if program_ in labels else program_}"+\
+                               (f"  |  {filter_name[fid]}" if fid is not None else ""),
+                               **label_prop)
+
+            filterprop = dict(fid=fid) if fid is not None else {}
+
+            # = Plotting
+            self.show_program_fields(f"'{program_}'",  ax=lax, cax=lcax, what="size",
+                                         expectedfields=expectedfields, cmap=cmap_,
+                                         filterprop=filterprop,
+                                         )
+
+            if i == 0:
+                fig.text(0.5, -0.01, f"number of observations",
+                            transform=lcax.transAxes, va="top", ha="center", **label_prop)
+
+            rax   = fig.add_axes([left+(hspan+width),eff_bottom,width,height], projection="hammer")
+            rcax  = fig.add_axes([left+(hspan+width),eff_bottom-vcbar,width,hcbar])
+                
+            self.show_program_fields(f"'{program_}'",  ax=rax, cax=rcax, 
+                                             what="cadence",statistic=statistic,
+                                             expectedfields=expectedfields, cmap=cmap_+"_r",
+                                             filterprop=filterprop)
+            if i == 0:
+                fig.text(0.5, -0.01, f"{statistic} re-visit delay [in days]",
+                            transform=rcax.transAxes, va="top", ha="center", **label_prop)
+
+        # PIE
+        _ = self.show_pie(ax=axpie)
+
+        # HISTOGRAMS
+        _ = self.show_histogram_report( "maglimit", range=[17,22], bins=20, ax=axhmag, show_legend=False, lw=1)
+        axhmag.set_xlabel("limiting magnitude",**label_prop)
+        
+        _ = self.show_histogram_report( "fwhm", range=[1,6], bins=20, ax=axfwhm, show_legend=False, lw=1)
+        axfwhm.set_xlabel("fwhm", **label_prop)
+
+        # MSIP PLOTS
+        # -> plot
+        self.show_program_fields(f"'all_sky'",  ax=axmsip_g, cax=caxmsip_g, what="size",
+                                     expectedfields=None, cmap="Greens", filterprop=dict(fid=1),
+                                    )
+        axmsip_g.set_ylabel("msip | ztf-g", **label_prop)
+
+        self.show_program_fields(f"'all_sky'",  ax=axmsip_r, cax=caxmsip_r, what="size",
+                                     expectedfields=None, cmap="Reds", filterprop=dict(fid=2),
+                                     )
+        axmsip_r.set_ylabel("msip | ztf-r", **label_prop)
+
+    
+        #
+        self.show_dateevol_report(ax=axbar, fontsize=7,
+                                 summary_stat=statistic, show_summary=False,
+                                 programs=programs,show_labels=False,
+                                 labels=[labels[k] if k in labels else k for k in  programs],
+                                 colors   = ["goldenrod","purple", "0.8", "w"],
+                                 textincolor="auto",formatxaxis=False,
+                                 edgecolor="0.7", lw=0.5, proplabel=dict(fontsize="x-small"))
+
+        axbar.set_ylim(0, len(self.data["field"])/self.get_observing_fraction().values*1.1)
+        axbar.set_xticks([])
+        axbar.set_xlabel("Fields Obs.", **label_prop)
+        #
+    
+        #
+        #
+        for ax_ in [axmsip_g,axmsip_r]:
+            ax_.set_yticks([])
+            ax_.set_xticks([])
+
+        for ax_ in fig.axes:
+            ax_.tick_params(labelsize=labelsize)
+
+        #
+        #
+        fig.text(left + (width+hspan-pad), 0.99, f"Daily Report {date}", 
+                    va="top",ha="center", fontsize="large", weight="bold")
+
+        if show_signature:
+            from . import __version__
+            import datetime
+            now = datetime.datetime.now()
+            fig.text(0.5,0.01, 
+                         f"— Daily report figure made using ztfquery {__version__}   "+\
+                         f"|   made the {now.year}-{now.month:02d}-{now.day:02d} at {now.hour:02d}:{now.minute:02d}   "+\
+                         f"|   if useful, please cite ztfquery —",
+                         va="bottom", ha="center", color="0.8", fontsize="small")
+            
+        if savefile is not None:
+            [fig.savefig(savefile_) for savefile_ in np.atleast_1d(savefile)]
+
+        return fig
+    
+            
+    # ================= #
+    #   Properties      #
+    # ================= #
+    def was_qa_merged(self):
+        """ """
+        return "qcomment" in self.data.columns
+    
 # ============== #
 #                #
 #  QA            #
