@@ -417,7 +417,7 @@ class CompletedLog( ZTFLog ):
         if merge_qa:
             self.merge_with_qa()
         
-    def merge_with_qa(self, qalog=None, how="left", **kwargs):
+    def merge_with_qa(self, qalog=None, how="left", run_checks=True, **kwargs):
         """ 
         **kwargs goes to pandas.merge()
         """
@@ -429,7 +429,68 @@ class CompletedLog( ZTFLog ):
             qalog["obsjd_start"] = qalog.pop("obsjd")
             
         self._data = self.data.merge(qalog, how=how, **kwargs)
+        if run_checks:
+            self.run_checks()
+        
+    def run_checks(self, qcomment=True, iband=True):
+        """ """
+        if qcomment:
+            self._run_qcomment_checks_()
+
+        if iband:
+            self._run_iband_checks_()
+        
             
+    def _run_qcomment_checks_(self, update_qcomment="unknown"):
+        """ """
+        bad_qcomment = self.data[self.data["qcomment"].isna()]
+        if len(bad_qcomment) == 0:
+            badcomment_warning = None
+        else:
+            badcomment_warning = f"{len(bad_qcomment)} NaN qcomment entries. (nights: {bad_qcomment['date'].unique()})"
+            
+        self.warnings["qcomment"] = {"bad":badcomment_warning}
+        
+        if len(bad_qcomment) >=0 :
+            self.data.loc[bad_qcomment.index,"qcomment"] = update_qcomment
+
+    def _run_iband_checks_(self, expected_fields=None, update_qcomment="not_i_band"):
+        """ """
+        # - I-band
+        data_iband =  self.get_filtered(programs="i_band")
+        #
+        # wrong band
+        #
+        not_iband = data_iband.query("fid != 3")
+        
+        if len(not_iband) == 0:
+            filters_warning = None
+        else:
+            filters_warning = f"{len(not_iband)} entries with program 'i_band' were not observed with I-band (nights: {not_iband['date'].unique()})"
+
+        #
+        # wrong Filter
+        #
+        if expected_fields is None:
+            field_warning = None
+            wrong_fields  = None
+        else:
+            wrong_fields  = data_iband.query("field not in @expected_fields")
+            if len(wrong_fields) == 0:
+                field_warning = None
+            else:
+                field_warning = f"{len(wrong_fields)} entries with program 'i_band' were not observing the expected fields (nights: {wrong_fields['date'].unique()})"
+            
+        self.warnings["i_band"] = {"filter":filters_warning,
+                                   "fields":field_warning}
+            
+        if not_iband is not None and len(not_iband)>0:
+            self.data.loc[not_iband.index,"qcomment"] = update_qcomment
+        if  wrong_fields is not None and len(wrong_fields)>0:
+            self.data.loc[wrong_fields.index,"qcomment"] = update_qcomment
+        
+            
+        
     # -------- #
     #  GETTER  #
     # -------- #
@@ -545,12 +606,13 @@ class CompletedLog( ZTFLog ):
                                     asdict=asdict, **kwargs)
     
         
-    def get_programs(self, flatten=False):
+    def get_programs(self, flatten=False, cleannan=True):
         """ """
         if not self.was_qa_merged():
             self.merge_with_qa()
-        
-        programserie = self.data[~self.data["qcomment"].isna()].groupby("pid")["qcomment"].unique()
+
+        d_ = self.data[~self.data["qcomment"].isna()] if cleannan else self.data
+        programserie = d_.groupby("pid")["qcomment"].unique()
         if not flatten:
             return programserie
         
@@ -653,11 +715,28 @@ class CompletedLog( ZTFLog ):
         """  """
         return self.get_filtered(**filterprop).groupby("date")[timekey].sum()/self.get_night_duration()
     
-    
     def get_program_data(self, what="size", key=None, programs=None, filterprop={},
                              fill_value=np.NaN):
-        """ """
-        knownprogram = np.unique(self.get_programs(flatten=True))
+        """
+
+        Parameters
+        ----------
+        what: [string] -optional-
+            - size/density/field: number of fields observed per group
+            - timefrac/timealloc: fraction if time (totaltime) spent per group.
+            - any other: groupby method (indices, mean, sum etc.)
+
+        key: [string/None] -optional-
+            = ignored if what is not a groupby method. =
+            the result of grouby.{what}()[key]
+
+        programs: [string, list of or None] -optional-
+            the program you want (could be a list). If None, all will be considered.
+
+        filterprop: [dict] -optional-
+            filter the data. This is used as kwarg for self.get_filtered(**filterprop)
+        """
+        knownprogram = np.unique(self.get_programs(flatten=True, cleannan=True))
         if programs is None or programs in ["*","all"]:
             programs = knownprogram
         else:
@@ -933,8 +1012,7 @@ class CompletedLog( ZTFLog ):
         to_show = self.get_program_data(what=what, programs=programs, key=key, 
                                         fill_value=fill_value, filterprop=filterprop)
         if add_rest:
-            all_ = self.get_program_data(what=what, programs=None, key=key, 
-                                        fill_value=fill_value, filterprop=filterprop).sum(axis=1)
+            all_ = self.get_program_data(what=what, programs=None, key=key,fill_value=fill_value, filterprop=filterprop).sum(axis=1)
             to_show.loc[:,"rest"] = all_ - to_show.sum(axis=1)
             
         timearray = pandas.DatetimeIndex(to_show.index)
@@ -1471,7 +1549,13 @@ class CompletedLog( ZTFLog ):
     def was_qa_merged(self):
         """ """
         return "qcomment" in self.data.columns
-    
+
+    @property
+    def warnings(self):
+        """ """
+        if not hasattr(self, "_warnings"):
+            self._warnings = {}
+        return self._warnings
 # ============== #
 #                #
 #  QA            #
