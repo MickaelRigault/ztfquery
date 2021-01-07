@@ -12,6 +12,7 @@ import base64
 
 from configparser import ConfigParser
 
+from .utils.tools import is_running_from_notebook
     
 _SOURCEDIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -21,31 +22,40 @@ _ENCRYPTING_FILE = os.path.expanduser("~")+"/.queryirsa"
 
 
 LOCALSOURCE   = os.getenv('ZTFDATA',"./Data/")
-
+CCIN2P3_SOURCE = "/sps/ztf/data/"
 
 
 # ================= #
 #  High level tools #
 # ================= #
 def download_from_filename(filename, suffix=None, verbose=False, overwrite=False,
-                               auth=None, nodl=False,
-                               show_progress=True, notebook=True, **kwargs):
+                               auth=None, nodl=False, host="irsa",
+                               show_progress=True, check_suffix=True,  **kwargs):
     """ Download the file associated to the given filename """
+    if host not in ["irsa", "ccin2p3"]:
+        raise ValueError(f"Only 'irsa' and 'ccin2p3' host implemented: {host} given")
+    
     from .buildurl import filename_to_scienceurl
     if auth is None:
-        auth = _load_id_("irsa")
-    cookies = get_cookie(*auth)
+        auth = _load_id_(host)
         
-    irsa_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose, source="irsa")
-    local_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose, source="local")
+    remote_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose,
+                                               source=host, check_suffix=check_suffix)
+    local_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose,
+                                                source="local", check_suffix=check_suffix)
     if nodl:
-        return [irsa_filename,local_filename]
-    download_url(np.atleast_1d(irsa_filename),
-                 np.atleast_1d(local_filename),
-                 overwrite=overwrite,verbose=verbose,
-                 cookies = cookies,
-                  show_progress=show_progress, notebook=notebook,
-                  **kwargs)
+        return [remote_filename,local_filename]
+
+    if host == "ccin2p3":
+        return CCIN2P3.scp(remote_filename, local_filename, auth=auth)
+        
+    else:
+        return download_url(np.atleast_1d(remote_filename),
+                            np.atleast_1d(local_filename),
+                            overwrite=overwrite,verbose=verbose,
+                            cookies = get_cookie(*auth),
+                            show_progress=show_progress, 
+                            **kwargs)
 
 def get_file(filename, suffix=None, downloadit=True, verbose=False, **kwargs):
     """ Get full path associate to the filename. 
@@ -84,19 +94,6 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, **kwargs):
         
     return local_filename
 
-
-def isnotebook():
-    """ Test if currently ran in notebook """
-    try:
-        shell = get_ipython().__class__.__name__
-        if shell == 'ZMQInteractiveShell':
-            return True   # Jupyter notebook or qtconsole
-        elif shell == 'TerminalInteractiveShell':
-            return False  # Terminal running IPython
-        else:
-            return False  # Other type (?)
-    except NameError:
-        return False 
 
 def _parse_filename_(filename, builddir=False, squeeze=True, exists=False):
     """ """
@@ -246,7 +243,7 @@ def get_localfiles(extension="*", startpath=None):
 
 def run_full_filecheck(extension="*", startpath=None,
                         erasebad=True, redownload=False, 
-                        nprocess=4, show_progress=True, notebook=False,
+                        nprocess=4, show_progress=True,
                         **kwargs ):
     """ Look for all file with the given extension recursively starting from `startpath` and checks if the file 
     is usable ok not. This returns the bad files.
@@ -278,10 +275,6 @@ def run_full_filecheck(extension="*", startpath=None,
     show_progress: [bool] -optional-
         Do you want to show the progress bar ?
         
-    notebook: [bool]
-        Are you running from a notebook. 
-        Ignored if show_progress=False
-
     Returns
     -------
     list of corrupted/bad files (might already be removed, see erasebad)
@@ -292,12 +285,12 @@ def run_full_filecheck(extension="*", startpath=None,
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         badfiles = test_files(all_ztffiles, erasebad=erasebad, nprocess=nprocess,
-                             show_progress=show_progress, notebook=notebook,
+                             show_progress=show_progress, 
                              redownload=redownload, **kwargs)
         
     return badfiles
     
-def test_files(filename, erasebad=True, nprocess=1, show_progress=True, notebook=False,
+def test_files(filename, erasebad=True, nprocess=1, show_progress=True,
                    redownload=False, **kwargs ):
     """ 
     
@@ -318,11 +311,7 @@ def test_files(filename, erasebad=True, nprocess=1, show_progress=True, notebook
 
     show_progress: [bool] -optional-
         Do you want to show the progress bar ?
-        
-    notebook: [bool]
-        Are you running from a notebook. 
-        Ignored if show_progress=False
-       
+               
     Returns
     -------
     list of corrupted/bad files (might already be removed, see erasebad)
@@ -343,7 +332,7 @@ def test_files(filename, erasebad=True, nprocess=1, show_progress=True, notebook
         import multiprocessing
         if show_progress:
             from astropy.utils.console import ProgressBar
-            bar = ProgressBar( len(filename), ipython_widget=notebook)
+            bar = ProgressBar( len(filename), ipython_widget=is_running_from_notebook())
         else:
             bar = None
 
@@ -372,7 +361,7 @@ def test_files(filename, erasebad=True, nprocess=1, show_progress=True, notebook
                 source_dl = np.in1d(locations, [source])
                 print(f"Downloading {len(source_dl[source_dl])} files from {source}")
                 download_url(np.asarray(to_download_urls)[source_dl], np.asarray(fileissue)[source_dl],
-                                 show_progress=show_progress, notebook=notebook, verbose=True,
+                                 show_progress=show_progress, verbose=True,
                                  overwrite=True, nprocess=nprocess, cookies=get_cookie(*_load_id_(source)),
                          **kwargs)
             for source_ in np.unique(locations):
@@ -470,7 +459,7 @@ def _download_(args):
     download_single_url(url, fileout=fileout, overwrite=overwrite, verbose=verbose)
     
 def download_url(to_download_urls, download_location,
-                show_progress = True, notebook=False, verbose=True,
+                show_progress = True,  verbose=True,
                 overwrite=False, nprocess=None, cookies=None,
                 **kwargs):
     """ """
@@ -485,14 +474,13 @@ def download_url(to_download_urls, download_location,
             warnings.warn("No parallel downloading")
         for url, fileout in zip(to_download_urls, download_location):
             download_single_url(url,fileout=fileout, show_progress=show_progress,
-                                    notebook=notebook, 
                                     overwrite=overwrite, verbose=verbose, cookies=cookies, **kwargs)
     else:
         # Multi processing
         import multiprocessing
         if show_progress:
             from astropy.utils.console import ProgressBar
-            bar = ProgressBar( len(to_download_urls), ipython_widget=notebook)
+            bar = ProgressBar( len(to_download_urls), ipython_widget=is_running_from_notebook())
         else:
             bar = None
                 
@@ -516,7 +504,7 @@ def download_url(to_download_urls, download_location,
             
 def download_single_url(url, fileout=None, 
                         overwrite=False, verbose=True, cookies=None,
-                        show_progress=True, notebook=False, chunk=1024,
+                        show_progress=True, chunk=1024,
                         filecheck=True, erasebad=True,
                         **kwargs):
     """ Download the url target using requests.get.
@@ -569,7 +557,7 @@ def download_single_url(url, fileout=None,
             chunk_barstep = 500
             f = open(fileout, 'wb')
             with ProgressBar(int(response.headers.get('content-length'))/(chunk_barstep*chunk),
-                             ipython_widget=notebook) as bar:
+                             ipython_widget=is_running_from_notebook()) as bar:
                 for i,data in enumerate(response.iter_content(chunk_size=chunk)):
                     if i%chunk_barstep==0:
                         bar.update()
@@ -580,6 +568,87 @@ def download_single_url(url, fileout=None,
     if filecheck:
         _test_file_(fileout, erasebad=erasebad, fromdl=True)
 
+
+# ============== #
+#                #
+#  CC-IN2P3      #
+#                #
+# ============== #
+class CCIN2P3( object ):
+    """ """
+    def __init__(self, auth=None, connect=True):
+        """ """
+        from paramiko import SSHClient
+        self._auth = auth
+        self._ssh = SSHClient()
+        self._ssh.load_system_host_keys()
+        self._connected = False
+        if connect:
+            self.connect(auth=auth)
+
+    def connect(self, auth=None):
+        """ """
+        if auth is None:
+            auth = _load_id_("ccin2p3")
+
+        username, password= auth
+        try:
+            self._ssh.connect('cca.in2p3.fr', username=username, password=password)
+        except:
+            raise IOError("Cannot connect to cca.in2p3.fr with given authentification")
+        
+        self._connected = True
+
+    @classmethod
+    def scp(cls, fromfile, tofile, auth=None):
+        """ """
+        if fromfile.startswith(CCIN2P3_SOURCE):
+            method = "scp_get"
+        elif tofile.startswith(CCIN2P3_SOURCE):
+            method = "scp_put"
+        else:
+            raise ValueError(f"None of fromfile or tofile stars with {CCIN2P3_SOURCE}. Cannot use scp(), see scp_get or scp_put")
+
+        this = cls(auth=auth, connect=True)
+        return getattr(this, method)(fromfile, tofile)
+    
+    
+    def scp_get(self, remotefile, localfile, auth=None):
+        """ """
+        from scp import SCPClient
+        if not self._connected:
+            self.connect(auth)
+
+        with SCPClient(self.ssh.get_transport()) as scp:
+            scp.get(remotefile, localfile)
+
+    def scp_put(self, localfile, remotefile, auth=None):
+        """ """
+        from scp import SCPClient        
+        if not self._connected:
+            self.connect(auth)
+
+        with SCPClient(self.ssh.get_transport()) as scp:
+            scp.put(localfile,remotefile)
+    # ============= #
+    #  Properties   #
+    # ============= #
+    @property
+    def ssh(self):
+        """ """
+        return self._ssh
+    
+        
+
+
+# =============== #
+#                 #
+#  HASH tools     #
+#                 #
+# =============== #
+
+
+        
 def calculate_hash(fname):
     """ """
     f = open(fname, 'rb')

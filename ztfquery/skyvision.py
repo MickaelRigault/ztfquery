@@ -100,7 +100,7 @@ def download_log(date, which="completed", auth=None, store=True, **kwargs):
 
 def download_timerange_log(start="2018-03-01", end=None, which="completed",
                             nprocess=1, auth=None,
-                            show_progress=True, notebook=True, verbose=True):
+                            show_progress=True,  verbose=True):
     """ Storing and not return forced. See download_completed_log() for individual date downloading. """
     if nprocess is None:
         nprocess = 1
@@ -131,7 +131,7 @@ def download_timerange_log(start="2018-03-01", end=None, which="completed",
         import multiprocessing
         if show_progress:
             from astropy.utils.console import ProgressBar
-            bar = ProgressBar( len(dates[1:]), ipython_widget=notebook)
+            bar = ProgressBar( len(dates[1:]), ipython_widget=io.is_running_from_notebook())
         else:
             bar = None
                 

@@ -5,7 +5,22 @@ import numpy as np
 _DEG2RA = np.pi / 180
 
 
+def is_running_from_notebook():
+    """ Test if currently ran in notebook """
+    return running_from() == "notebook"
 
+def running_from():
+    """  Where is the code running from ?"""
+    try:
+        shell = get_ipython().__class__.__name__
+        if shell == 'ZMQInteractiveShell':
+            return "notebook"   # Jupyter notebook or qtconsole
+        elif shell == 'TerminalInteractiveShell':
+            return "terminal"  # Terminal running IPython
+        else:
+            return "other"  # Other type (?)
+    except NameError:
+        return None 
 
     
 

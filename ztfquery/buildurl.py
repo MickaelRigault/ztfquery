@@ -14,7 +14,8 @@ import numpy as np
 #                            #
 # ========================== #
 
-KNOWN_SCIENCE_SUFFIXES = {    "sciimg.fits":"(primary science image)",
+KNOWN_SCIENCE_SUFFIXES = {
+                      "sciimg.fits":"(primary science image)",
                       "mskimg.fits":"(bit-mask image)",
                       "psfcat.fits":"(PSF-fit photometry catalog)",
                       "sexcat.fits":"(nested-aperture photometry catalog)",
@@ -30,7 +31,8 @@ KNOWN_SCIENCE_SUFFIXES = {    "sciimg.fits":"(primary science image)",
 DATA_BASEURL   = "https://irsa.ipac.caltech.edu/ibe/data/ztf/products/"
 ZTFIRSA_BASE = ["/ref/","/sci/","/raw/","/cal/"]
 
-from .io import LOCALSOURCE
+
+from .io import LOCALSOURCE, CCIN2P3_SOURCE
 DEFAULT_SOURCE = DATA_BASEURL
 
 
@@ -66,6 +68,9 @@ def _source_to_location_(source):
     if source in ["local", "cmp", "computer"]:
         return LOCALSOURCE
     
+    if source in ["cc", "ccin2p3"]:
+        return CCIN2P3_SOURCE
+    
     if source in ['nersc']:
         raise ValueError("NERCS sourcing not ready yet.")
     
@@ -79,7 +84,7 @@ def science_path(year, month, day, fracday,
                 paddedfield,
                 filtercode, paddedccdid, qid,
                 imgtypecode="o", suffix="sciimg.fits",
-                source="", verbose=False):
+                source="", verbose=False, check_suffix=True):
     """ 
     suffix: [string]
         What kind of data do you want?
@@ -110,8 +115,8 @@ def science_path(year, month, day, fracday,
     source = _source_to_location_(source)
     if suffix is None:
         suffix="sciimg.fits"
-    elif suffix not in KNOWN_SCIENCE_SUFFIXES.keys():
-        raise ValueError("Unkwown suffix %s for 'sci' exposures"%suffix, "\n known suffixes: \n", KNOWN_SCIENCE_SUFFIXES)
+    elif suffix not in KNOWN_SCIENCE_SUFFIXES.keys() and check_suffix:
+        raise ValueError(f"Unkwown suffix {suffix} for 'sci' exposures", "\n known suffixes: \n", KNOWN_SCIENCE_SUFFIXES)
     
     filefracday = "".join([year+month+day+fracday])
     file_ = 'sci/'+year+'/'+month+day+'/'+fracday+'/ztf_'+filefracday+'_'+paddedfield+'_'+filtercode+'_c'+paddedccdid+'_'+imgtypecode+'_q'+qid+'_'+suffix
@@ -240,7 +245,7 @@ def reference_path(paddedfield,
 # ============= #
 #   TOOLS       #
 # ============= #
-def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=False):
+def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=False, check_suffix=True):
     """ 
     """
     _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, suffix_ = os.path.basename(filename).split("_")
@@ -255,7 +260,8 @@ def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=False):
                         paddedfield, filtercode,
                         paddedccdid, qid, # added in input
                         imgtypecode=imgtypecode, suffix=suffix,
-                        source=source, verbose=verbose)
+                        source=source, verbose=verbose,
+                        check_suffix=check_suffix)
     
 
 def filename_to_refurl(filename, suffix, source="irsa", verbose=False):
@@ -292,22 +298,19 @@ def filefrac_to_year_monthday_fracday(filefracday):
 
 def fileroot_to_science_url(fileroot, paddedccdid, qid,
                             imgtypecode="o", suffix="sciimg.fits", source="",
-                            verbose=False):
+                            verbose=False, check_suffix=True):
     """ 
     Parameters
     ----------
 
     """
-    if suffix not in KNOWN_SCIENCE_SUFFIXES.keys():
-        raise ValueError("Unkwown suffix %s for 'sci' exposures"%suffix , "\n known suffixes: \n", KNOWN_SCIENCE_SUFFIXES)
-    
     _, filefracday, paddedfield, filtercode = fileroot.split("_")
     year,month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
     return science_path(year, month, day, fracday,
                 paddedfield, filtercode,
                 paddedccdid, qid, # added in input
                 imgtypecode=imgtypecode, suffix=suffix,
-                source=source, verbose=verbose)
+                source=source, verbose=verbose, check_suffix=check_suffix)
 
 
 def fileroot_to_raw_url(fileroot, paddedccdid,

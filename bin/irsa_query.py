@@ -42,10 +42,6 @@ def _get_time_(default, input_, refdate=None, format=None):
 
     return  time.Time(default if input_ is None else input_, format=format) 
         
-    
-    
-    
-
 def build_query(inputargs):
     """ Builds the SQL Query based on the input args """
     #
@@ -62,8 +58,10 @@ def build_query(inputargs):
             # Overwriting
             inputargs.radec  = list(m.get_target_coordinates(inputargs.target).values[0])
             tcreation, tlast = m.get_target_jdrange(inputargs.target, format="time")
-            starting_date    =  _get_time_(tcreation-30*units.day, inputargs.startdate, refdate=tcreation, format=inputargs.dateformat)
-            ending_date      =  _get_time_(tlast+30*units.day, inputargs.enddate, refdate=tlast, format=inputargs.dateformat)
+            starting_date    =  _get_time_(tcreation-30*units.day, inputargs.startdate,
+                                            refdate=tcreation, format=inputargs.dateformat)
+            ending_date      =  _get_time_(tlast+30*units.day, inputargs.enddate, refdate=tlast,
+                                            format=inputargs.dateformat)
         else:
             raise NotImplementedError("Only targetsource marshal implemented")
 
@@ -73,9 +71,11 @@ def build_query(inputargs):
         inputargs.enddate = "+1"
         
     if starting_date is None:
-        starting_date = _get_time_(None, inputargs.startdate, refdate=None, format=inputargs.dateformat)
+        starting_date = _get_time_(None, inputargs.startdate, refdate=None,
+                                    format=inputargs.dateformat)
     if ending_date is None:
-        ending_date   = _get_time_(None, inputargs.enddate, refdate=inputargs.startdate, format=inputargs.dateformat)
+        ending_date   = _get_time_(None, inputargs.enddate, refdate=inputargs.startdate,
+                                    format=inputargs.dateformat)
         
     # - Query
     if starting_date is not None and ending_date is not None:
@@ -88,7 +88,8 @@ def build_query(inputargs):
         timequery = None
                 
     # - Queries
-    queries = [build_singlequery(k, getattr(inputargs,k), k in STRINGTYPEKEYS) for k in ["ccdid","qid","rcid","fid","field"] if getattr(inputargs,k) is not None]
+    queries = [build_singlequery(k, getattr(inputargs,k), k in STRINGTYPEKEYS)
+                for k in ["ccdid","qid","rcid","fid","field"] if getattr(inputargs,k) is not None]
     if timequery is not None:
         queries += [timequery]
     if inputargs.sqlquery is not None:
@@ -242,12 +243,12 @@ if  __name__ == "__main__":
         if args.verbose:
             print(f"Query from file {args.fromname}")
 
-        
         for filename in args.fromname.split(","):
             if args.suffix in None:
                 download_from_filename(filename, **download_prop)
             else:
-                [download_from_filename(filename, suffix=s, **download_prop) for s in args.suffix.split(',')]
+                [download_from_filename(filename, suffix=s, **download_prop)
+                  for s in args.suffix.split(',')]
                 
         sys.exit(0)
         # STOP            
@@ -263,7 +264,8 @@ if  __name__ == "__main__":
         zquery = query.ZTFQuery.from_metafile(args.frommetafile)
     else:
         sql_query = build_query(args)
-        metaquery = dict(kind=args.kind, radec=args.radec, size=args.size, caltype=args.caltype, sql_query=sql_query)
+        metaquery = dict(kind=args.kind, radec=args.radec, size=args.size,
+                             caltype=args.caltype, sql_query=sql_query)
         if args.verbose:
             print(metaquery)
         zquery = query.ZTFQuery.from_metaquery(**metaquery)

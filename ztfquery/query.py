@@ -16,7 +16,7 @@ from . import io
 
 
 # Combining metadata with buildurl
-def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
+def metatable_to_url(metatable, datakind='sci', suffix=None, source=None, **kwargs):
     """generic method to build the url/fullpath or the requested data.
         This method is based on the `builurl.py` module of ztfquery.
         
@@ -75,7 +75,7 @@ def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
                 # LIST of URL to download [SCIENCE]
             return  [buildurl.science_path(year_, month_, day_, fracday_, paddedfield_,
                                 filtercode_, paddedccdid_, qid_,
-                                imgtypecode=imgtypecode_, suffix=suffix, source=source)
+                                imgtypecode=imgtypecode_, suffix=suffix, source=source, **kwargs)
                         for year_, month_, day_, fracday_, paddedfield_, filtercode_,
                         paddedccdid_, qid_, imgtypecode_
                         in zip(year, month, day, fracday, paddedfield, filtercode,
@@ -85,7 +85,7 @@ def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
             return  [buildurl.raw_path(year_, month_, day_, fracday_,
                                            paddedfield_ if imgtypecode_ != "f" else '000000',  # because sometime they do have a field, why is that ?,
                               filtercode_, paddedccdid_, 
-                              imgtypecode=imgtypecode_, source=source)
+                              imgtypecode=imgtypecode_, source=source, **kwargs)
                         for year_, month_, day_, fracday_, paddedfield_, filtercode_,
                         paddedccdid_,  imgtypecode_
                         in zip(year, month, day, fracday, paddedfield, filtercode,
@@ -104,7 +104,7 @@ def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
         return  [buildurl.calibration_path(caltype_,
                                             year_, month_, day_,
                                             filtercode_, paddedccdid_, qid_,
-                                            suffix=suffix, source=source)
+                                            suffix=suffix, source=source, **kwargs)
                             for caltype_, year_, month_, day_, filtercode_, paddedccdid_, qid_
                      in zip(caltype,year, month, day,filtercode, paddedccdid, qid) ]
     # PIXELS
@@ -117,7 +117,7 @@ def metatable_to_url(metatable, datakind='sci', suffix=None, source=None):
                                 filtercode_, paddedccdid_, qid_,
                                 suffix=suffix,
                                 fieldprefix=paddedfield_[:3], # This is how it is defined in IRSA
-                                source=source)
+                                source=source, **kwargs)
                         for  paddedfield_, filtercode_, paddedccdid_, qid_
                     in zip(paddedfield, filtercode, paddedccdid, qid)]
         
@@ -610,7 +610,7 @@ class ZTFQuery( ztftable._ZTFTable_, _ZTFDownloader_ ):
             self.metaquery = download_metadata(kind=kind, sql_query=sql_query, **kwargs)
             
     
-    def get_data_path(self, suffix=None, source=None, indexes=None):
+    def get_data_path(self, suffix=None, source=None, indexes=None, **kwargs):
         """ generic method to build the url/fullpath or the requested data.
         This method is based on the `builurl.py` module of ztfquery.
         
@@ -656,7 +656,7 @@ class ZTFQuery( ztftable._ZTFTable_, _ZTFDownloader_ ):
             warnings.warn("No entry associated to the query you made: metatable is empty")
             return []
         return metatable_to_url(self.metatable if indexes is None else self.metatable.loc[np.atleast_1d(indexes)],
-                                    datakind=self.datakind, suffix=suffix, source=source)
+                                    datakind=self.datakind, suffix=suffix, source=source, **kwargs)
 
     def get_local_metatable(self, suffix=None, which="any", invert=False):
         """ 
