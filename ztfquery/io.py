@@ -536,7 +536,7 @@ def download_single_url(url, fileout=None,
     if fileout is not None:
         directory = os.path.dirname(fileout)
         if not os.path.exists(directory):
-            os.makedirs(directory)
+            os.makedirs(directory, exist_ok=True)
 
     else:
         download_prop["stream"] = False

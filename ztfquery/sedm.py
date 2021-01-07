@@ -16,9 +16,9 @@ from . import io
 SEDMLOCAL_BASESOURCE = os.path.join(io.LOCALSOURCE,"SEDM")
 SEDMLOCALSOURCE = os.path.join(SEDMLOCAL_BASESOURCE,"redux")
 if not os.path.exists(SEDMLOCAL_BASESOURCE):
-    os.makedirs(SEDMLOCAL_BASESOURCE)
+    os.makedirs(SEDMLOCAL_BASESOURCE, exist_ok=True)
 if not os.path.exists(SEDMLOCALSOURCE):
-    os.makedirs(SEDMLOCALSOURCE)
+    os.makedirs(SEDMLOCALSOURCE, exist_ok=True)
     
 
 #######################

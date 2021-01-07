@@ -394,7 +394,7 @@ def download_spectra(name, dirout="default", auth=None, verbose=False, **kwargs)
 
     if verbose: print("Data will be stored here: %s"%dirout)
     if not os.path.exists(dirout):
-        os.makedirs(dirout)
+        os.makedirs(dirout, exist_ok=True)
 
     tar.extractall(dirout)
 
@@ -475,7 +475,7 @@ def download_lightcurve(name, dirout="default",
         # Directory given, then dump data there:
         if verbose: print("Data will be stored here: %s"%fileout_full)
         if not os.path.exists(dirout):
-            os.makedirs(dirout)
+            os.makedirs(dirout, exist_ok=True)
 
         dataframe.to_csv(fileout_full, index=False)
     else:
@@ -543,7 +543,7 @@ def download_alerts(name, dirout="default",
         # Directory given, then dump data there:
         if verbose: print("Alerts will be stored here: %s"%fileout_full)
         if not os.path.exists(dirout):
-            os.makedirs(dirout)
+            os.makedirs(dirout, exist_ok=True)
 
         dataframe.to_csv(fileout_full, index=False)
     else:
