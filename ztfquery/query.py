@@ -278,7 +278,7 @@ class _ZTFDownloader_( object ):
     # --------- #
     def get_local_data(self, suffix=None, exists=True, filecheck=True, indexes=None,
                            badfiles=False, source="local",
-                           ignore_warnings=False, **kwargs):
+                           ignore_warnings=False, fileout=None, **kwargs):
         """ the lists of files stored in your local copy of the ztf database.
         [This methods uses the get_data_path() method assuming source='local']
 
@@ -348,7 +348,11 @@ class _ZTFDownloader_( object ):
                 return badfiles_
             elif badfiles_ is not None and len(badfiles_)>1:
                 return [f for f in localfile if f not in badfiles_]
-            
+
+        if fileout is not None:
+            with open(fileout, "w") as f_:
+                [f_.write(l+"\n") for l in localfile]
+                
         return localfile
 
     def get_missing_data_index(self, suffix=None, which="any"):
