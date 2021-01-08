@@ -57,7 +57,8 @@ def download_from_filename(filename, suffix=None, verbose=False, overwrite=False
                             show_progress=show_progress, 
                             **kwargs)
 
-def get_file(filename, suffix=None, downloadit=True, verbose=False, **kwargs):
+def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix=True,
+                dlfrom="irsa", **kwargs):
     """ Get full path associate to the filename. 
     If you don't have it on your computer, this downloads it for you.
 
@@ -85,11 +86,11 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, **kwargs):
     """
     from .buildurl import filename_to_scienceurl
     local_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose,
-                                                source="local")
+                                                source="local", check_suffix=check_suffix)
     if not os.path.isfile(local_filename):
         local_filename = None
         if downloadit:
-            download_from_filename(filename, suffix=suffix, verbose=verbose, **kwargs)
+            download_from_filename(filename, suffix=suffix, verbose=verbose, host=dlfrom, **kwargs)
             return get_file(filename, suffix=suffix, downloadit=False, verbose=verbose)
         
     return local_filename
