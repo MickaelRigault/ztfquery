@@ -90,8 +90,10 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
     if not os.path.isfile(local_filename):
         local_filename = None
         if downloadit:
-            download_from_filename(filename, suffix=suffix, verbose=verbose, host=dlfrom, **kwargs)
-            return get_file(filename, suffix=suffix, downloadit=False, verbose=verbose)
+            download_from_filename(filename, suffix=suffix, verbose=verbose, host=dlfrom,
+                                       check_suffix=check_suffix, **kwargs)
+            return get_file(filename, suffix=suffix, downloadit=False, verbose=verbose,
+                                check_suffix=check_suffix)
         
     return local_filename
 
@@ -614,14 +616,22 @@ class CCIN2P3( object ):
         return getattr(this, method)(fromfile, tofile)
     
     
-    def scp_get(self, remotefile, localfile, auth=None):
+    def scp_get(self, remotefile, localfile, auth=None, overwrite=False):
         """ """
         from scp import SCPClient
         if not self._connected:
             self.connect(auth)
 
+        directory = os.path.dirname(localfile)
+        if not os.path.exists(directory):
+            warnings.warn(f"scp_get(): creating {directory}")
+            os.makedirs(directory, exist_ok=True)
+
+
         with SCPClient(self.ssh.get_transport()) as scp:
             scp.get(remotefile, localfile)
+
+            
 
     def scp_put(self, localfile, remotefile, auth=None):
         """ """

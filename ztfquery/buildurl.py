@@ -245,6 +245,13 @@ def reference_path(paddedfield,
 # ============= #
 #   TOOLS       #
 # ============= #
+def parse_filename(filename):
+    """ """
+    _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, suffix_ = os.path.basename(filename).split("_")
+    return {"filefracday":filefracday, "paddedfield":paddedfield,
+            "filtercode":filtercode, "ccdid":ccd_, "imgtypecode":imgtypecode,
+            "qid":qid_, "suffix":suffix_}
+
 def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=False, check_suffix=True):
     """ 
     """
