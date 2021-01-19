@@ -983,7 +983,7 @@ class CompletedLog( ZTFLog ):
                 mpl.setp(texts2[i],color=c, fontsize="x-small", ha="right",weight="bold")
             mpl.setp(texts2[1], ha="left", va="center") # I band
             mpl.setp(texts2[3], ha="right", va="center")# H.C
-        if edgecolor is not "None":
+        if edgecolor != "None":
             mpl.setp(pie, edgecolor=edgecolor)
             mpl.setp(pie2, edgecolor=edgecolor, alpha=0.4)
 

@@ -140,9 +140,9 @@ class _ZTFTable_( object ):
             else:
                 raise ValueError(f"cannot automatially find the time key, none of obsjd/datetime/date in data.comluns")
         
-        if timekey is "index":
+        if timekey == "index":
             timearray = pandas.to_datetime(data.index)
-        elif timekey is "obsjd":
+        elif timekey == "obsjd":
             from astropy import time
             timearray = time.Time(np.asarray(data[timekey], format="jd").datetime)
         elif timekey in data.columns:

@@ -111,7 +111,7 @@ def science_path(year, month, day, fracday,
     
     """
     if verbose:
-        print(locals())
+        print(f"science_path: {locals()}")
     source = _source_to_location_(source)
     if suffix is None:
         suffix="sciimg.fits"
@@ -234,7 +234,7 @@ def reference_path(paddedfield,
 
     """
     if verbose:
-        print(locals())
+        print(f"reference_path: {locals()}")
 
     if suffix is None:
         suffix = "refimg.fits"

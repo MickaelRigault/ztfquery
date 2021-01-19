@@ -28,37 +28,8 @@ CCIN2P3_SOURCE = "/sps/ztf/data/"
 # ================= #
 #  High level tools #
 # ================= #
-def download_from_filename(filename, suffix=None, verbose=False, overwrite=False,
-                               auth=None, nodl=False, host="irsa",
-                               show_progress=True, check_suffix=True,  **kwargs):
-    """ Download the file associated to the given filename """
-    if host not in ["irsa", "ccin2p3"]:
-        raise ValueError(f"Only 'irsa' and 'ccin2p3' host implemented: {host} given")
-    
-    from .buildurl import filename_to_scienceurl
-    if auth is None:
-        auth = _load_id_(host)
-        
-    remote_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose,
-                                               source=host, check_suffix=check_suffix)
-    local_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose,
-                                                source="local", check_suffix=check_suffix)
-    if nodl:
-        return [remote_filename,local_filename]
-
-    if host == "ccin2p3":
-        return CCIN2P3.scp(remote_filename, local_filename, auth=auth)
-        
-    else:
-        return download_url(np.atleast_1d(remote_filename),
-                            np.atleast_1d(local_filename),
-                            overwrite=overwrite,verbose=verbose,
-                            cookies = get_cookie(*auth),
-                            show_progress=show_progress, 
-                            **kwargs)
-
 def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix=True,
-                dlfrom="irsa", **kwargs):
+                dlfrom="irsa", overwrite=False, **kwargs):
     """ Get full path associate to the filename. 
     If you don't have it on your computer, this downloads it for you.
 
@@ -87,15 +58,44 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
     from .buildurl import filename_to_scienceurl
     local_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose,
                                                 source="local", check_suffix=check_suffix)
-    if not os.path.isfile(local_filename):
+    if not os.path.isfile(local_filename) or overwrite:
         local_filename = None
         if downloadit:
             download_from_filename(filename, suffix=suffix, verbose=verbose, host=dlfrom,
-                                       check_suffix=check_suffix, **kwargs)
+                                       check_suffix=check_suffix, overwrite=overwrite, **kwargs)
             return get_file(filename, suffix=suffix, downloadit=False, verbose=verbose,
                                 check_suffix=check_suffix)
         
     return local_filename
+
+def download_from_filename(filename, suffix=None, verbose=False, overwrite=False,
+                               auth=None, nodl=False, host="irsa",
+                               show_progress=True, check_suffix=True,  **kwargs):
+    """ Download the file associated to the given filename """
+    if host not in ["irsa", "ccin2p3"]:
+        raise ValueError(f"Only 'irsa' and 'ccin2p3' host implemented: {host} given")
+    
+    from .buildurl import filename_to_scienceurl
+    if auth is None:
+        auth = _load_id_(host)
+        
+    remote_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose,
+                                               source=host, check_suffix=check_suffix)
+    local_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose,
+                                                source="local", check_suffix=check_suffix)
+    if nodl:
+        return [remote_filename,local_filename]
+
+    if host == "ccin2p3":
+        return CCIN2P3.scp(remote_filename, local_filename, auth=auth)
+        
+    else:
+        return download_url(np.atleast_1d(remote_filename),
+                            np.atleast_1d(local_filename),
+                            overwrite=overwrite,verbose=verbose,
+                            cookies = get_cookie(*auth),
+                            show_progress=show_progress, 
+                            **kwargs)
 
 
 def _parse_filename_(filename, builddir=False, squeeze=True, exists=False):
@@ -294,7 +294,7 @@ def run_full_filecheck(extension="*", startpath=None,
     return badfiles
     
 def test_files(filename, erasebad=True, nprocess=1, show_progress=True,
-                   redownload=False, **kwargs ):
+                   redownload=False, verbose=False, **kwargs ):
     """ 
     
     Parameters
@@ -364,7 +364,7 @@ def test_files(filename, erasebad=True, nprocess=1, show_progress=True,
                 source_dl = np.in1d(locations, [source])
                 print(f"Downloading {len(source_dl[source_dl])} files from {source}")
                 download_url(np.asarray(to_download_urls)[source_dl], np.asarray(fileissue)[source_dl],
-                                 show_progress=show_progress, verbose=True,
+                                 show_progress=show_progress, verbose=verbose,
                                  overwrite=True, nprocess=nprocess, cookies=get_cookie(*_load_id_(source)),
                          **kwargs)
             for source_ in np.unique(locations):

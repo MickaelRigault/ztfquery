@@ -447,7 +447,7 @@ class HistColorbar():
             
     def load_cmap(self, cmap=None, sequence=None):
         """ """
-        if sequence is "None":
+        if sequence == "None":
             sequence = None # No sequence
         elif sequence is None and self.has_bins():
             sequence = self.bins["size"]
