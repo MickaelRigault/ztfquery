@@ -263,7 +263,7 @@ class SEDMQuery( object ):
     # Downloader  #
     # ----------- #
     def download_night_fluxcal(self, night, nodl=False, auth=None, download_dir="default",
-                                 show_progress=False, notebook=False, verbose=True,
+                                 show_progress=False,  verbose=True,
                                  overwrite=False, nprocess=None):
         """ download SEDM fluxcalibration file for the given night
         
@@ -295,13 +295,13 @@ class SEDMQuery( object ):
         """
         relative_path = [l for l in self.get_night_data(night, source='pharos') if l.split("/")[-1].startswith("fluxcal")]
         return self._download_from_relative_path_(relative_path, nodl=nodl, auth=auth, download_dir=download_dir,
-                                          show_progress=show_progress, notebook=notebook, verbose=verbose,
+                                          show_progress=show_progress,  verbose=verbose,
                                           overwrite=overwrite, nprocess=nprocess)
 
     def download_target_data(self, target, which="cube", extension="fits",
                                  timerange=["2018-08-01", None],
                                  nodl=False, auth=None, download_dir="default",
-                                 show_progress=False, notebook=False, verbose=True,
+                                 show_progress=False,  verbose=True,
                                  overwrite=False, nprocess=None ):
         """ 
         download SEDM data associated to the given target. 
@@ -356,13 +356,13 @@ class SEDMQuery( object ):
             relative_path = self.get_data_path(target, which=which,extension=extension, timerange=timerange, source="pharos")
             
         return self._download_from_relative_path_(relative_path, nodl=nodl, auth=auth, download_dir=download_dir,
-                                          show_progress=show_progress, notebook=notebook, verbose=verbose,
+                                          show_progress=show_progress,  verbose=verbose,
                                           overwrite=overwrite, nprocess=nprocess)
                                                
     # - Internal method
     def _download_from_relative_path_(self, relative_path,
                                           nodl=False, auth=None, download_dir="default",
-                                          show_progress=False, notebook=False, verbose=True,
+                                          show_progress=False,  verbose=True,
                                           overwrite=False, nprocess=None):
         """ Given a relative path, this builds the data to download and where to.
 
@@ -400,7 +400,7 @@ class SEDMQuery( object ):
             
         if not nodl:
             io.download_url(self.to_download_urls, self.download_location,
-                        show_progress = show_progress, notebook=notebook, verbose=verbose,
+                        show_progress = show_progress,  verbose=verbose,
                         overwrite=overwrite, nprocess=nprocess,
                         auth=self._properties["auth"] if auth is None else auth)
         
