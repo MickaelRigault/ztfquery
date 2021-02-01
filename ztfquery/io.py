@@ -29,7 +29,7 @@ CCIN2P3_SOURCE = "/sps/ztf/data/"
 #  High level tools #
 # ================= #
 def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix=True,
-                dlfrom="irsa", overwrite=False, **kwargs):
+                dlfrom="irsa", overwrite=False, maxnprocess=4, **kwargs):
     """ Get full path associate to the filename. 
     If you don't have it on your computer, this downloads it for you.
 
@@ -68,8 +68,34 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
         
     return local_filename
 
+
+def get_files(filename, suffix=None, downloadit=True, verbose=False, check_suffix=True,
+                dlfrom="irsa", overwrite=False, **kwargs):
+    """ """
+    from .buildurl import filename_to_scienceurl
+    local_filenames = np.asarray([filename_to_scienceurl(filename_, suffix=suffix_, verbose=verbose,
+                                                source="local", check_suffix=check_suffix)
+                   for filename_ in np.atleast_1d(filename)
+                   for suffix_ in np.atleast_1d(suffix)])
+    #local_filenames
+    if overwrite:
+        flag_todl = np.asarray(np.ones(len(local_filenames)), dtype="bool")
+    else:
+        flag_todl = np.asarray([not os.path.isfile(f_) for f_ in local_filenames])
+
+    # No DL needed
+    if not np.any(flag_todl):
+        return local_filenames
+
+    local_filenames[flag_todl] = download_from_filename(local_filenames[flag_todl],
+                                                        host=dlfrom, overwrite=overwrite,
+                                                        maxnprocess=maxnprocess)
+    return local_filenames
+                                                            
+                                                        
+
 def download_from_filename(filename, suffix=None, verbose=False, overwrite=False,
-                               auth=None, nodl=False, host="irsa",
+                               auth=None, nodl=False, host="irsa",maxnprocess=4,
                                show_progress=True, check_suffix=True,  **kwargs):
     """ Download the file associated to the given filename """
     if host not in ["irsa", "ccin2p3"]:
@@ -78,20 +104,27 @@ def download_from_filename(filename, suffix=None, verbose=False, overwrite=False
     from .buildurl import filename_to_scienceurl
     if auth is None:
         auth = _load_id_(host)
+
+    remote_filename = []
+    local_filename  = []
+    for file_ in np.atleast_1d(filename):
+        remote_filename.append(filename_to_scienceurl(filename, suffix=suffix, verbose=verbose,
+                                               source=host, check_suffix=check_suffix))
+        local_filename.append(filename_to_scienceurl(filename, suffix=suffix, verbose=verbose,
+                                                source="local", check_suffix=check_suffix))
         
-    remote_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose,
-                                               source=host, check_suffix=check_suffix)
-    local_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose,
-                                                source="local", check_suffix=check_suffix)
     if nodl:
-        return [remote_filename,local_filename]
+        return [remote_filename, local_filename]
 
     if host == "ccin2p3":
-        return CCIN2P3.scp(remote_filename, local_filename, auth=auth)
+        for remote_filename_, local_filename_ in zip(remote_filename,local_filename):
+            return CCIN2P3.scp(remote_filename, local_filename, auth=auth)
         
     else:
-        return download_url(np.atleast_1d(remote_filename),
-                            np.atleast_1d(local_filename),
+        nprocess = np.min([maxnprocess, local_filename])
+        return download_url(remote_filename,
+                            local_filename,
+                            nprocess=nprocess,
                             overwrite=overwrite,verbose=verbose,
                             cookies = get_cookie(*auth),
                             show_progress=show_progress, 

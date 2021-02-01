@@ -233,7 +233,7 @@ if  __name__ == "__main__":
     #   The Scripts     #
     # ================= #
     download_prop = dict(auth=args.auth, overwrite=args.overwrite,
-                         show_progress=args.progress, notebook=False,
+                         show_progress=args.progress, 
                          nprocess=args.nprocess,verbose=args.verbose)
     #
     # From Name
