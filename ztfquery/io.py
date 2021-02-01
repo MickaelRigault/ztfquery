@@ -29,7 +29,8 @@ CCIN2P3_SOURCE = "/sps/ztf/data/"
 #  High level tools #
 # ================= #
 def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix=True,
-                dlfrom="irsa", overwrite=False, maxnprocess=4, **kwargs):
+                dlfrom="irsa", overwrite=False, maxnprocess=4,
+                 squeeze=True, show_progress=True, **kwargs):
     """ Get full path associate to the filename. 
     If you don't have it on your computer, this downloads it for you.
 
@@ -56,23 +57,6 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
         
     """
     from .buildurl import filename_to_scienceurl
-    local_filename = filename_to_scienceurl(filename, suffix=suffix, verbose=verbose,
-                                                source="local", check_suffix=check_suffix)
-    if not os.path.isfile(local_filename) or overwrite:
-        local_filename = None
-        if downloadit:
-            download_from_filename(filename, suffix=suffix, verbose=verbose, host=dlfrom,
-                                       check_suffix=check_suffix, overwrite=overwrite, **kwargs)
-            return get_file(filename, suffix=suffix, downloadit=False, verbose=verbose,
-                                check_suffix=check_suffix)
-        
-    return local_filename
-
-
-def get_files(filename, suffix=None, downloadit=True, verbose=False, check_suffix=True,
-                dlfrom="irsa", overwrite=False, **kwargs):
-    """ """
-    from .buildurl import filename_to_scienceurl
     local_filenames = np.asarray([filename_to_scienceurl(filename_, suffix=suffix_, verbose=verbose,
                                                 source="local", check_suffix=check_suffix)
                    for filename_ in np.atleast_1d(filename)
@@ -83,17 +67,16 @@ def get_files(filename, suffix=None, downloadit=True, verbose=False, check_suffi
     else:
         flag_todl = np.asarray([not os.path.isfile(f_) for f_ in local_filenames])
 
-    # No DL needed
-    if not np.any(flag_todl):
-        return local_filenames
-
-    local_filenames[flag_todl] = download_from_filename(local_filenames[flag_todl],
-                                                        host=dlfrom, overwrite=overwrite,
-                                                        maxnprocess=maxnprocess)
+    # DL if needed (and wanted)
+    if np.any(flag_todl) and downloadit:
+        _ = download_from_filename(local_filenames[flag_todl],show_progress=show_progress,
+                                    host=dlfrom, overwrite=overwrite, maxnprocess=maxnprocess)
+    # - Output
+    if len(local_filenames)==1 and squeeze:
+        return local_filenames[0]
+    
     return local_filenames
-                                                            
                                                         
-
 def download_from_filename(filename, suffix=None, verbose=False, overwrite=False,
                                auth=None, nodl=False, host="irsa",maxnprocess=4,
                                show_progress=True, check_suffix=True,  **kwargs):
@@ -108,9 +91,9 @@ def download_from_filename(filename, suffix=None, verbose=False, overwrite=False
     remote_filename = []
     local_filename  = []
     for file_ in np.atleast_1d(filename):
-        remote_filename.append(filename_to_scienceurl(filename, suffix=suffix, verbose=verbose,
+        remote_filename.append(filename_to_scienceurl(file_, suffix=suffix, verbose=verbose,
                                                source=host, check_suffix=check_suffix))
-        local_filename.append(filename_to_scienceurl(filename, suffix=suffix, verbose=verbose,
+        local_filename.append(filename_to_scienceurl(file_, suffix=suffix, verbose=verbose,
                                                 source="local", check_suffix=check_suffix))
         
     if nodl:
@@ -121,7 +104,8 @@ def download_from_filename(filename, suffix=None, verbose=False, overwrite=False
             return CCIN2P3.scp(remote_filename, local_filename, auth=auth)
         
     else:
-        nprocess = np.min([maxnprocess, local_filename])
+        nprocess = np.min([maxnprocess, len(local_filename)])
+
         return download_url(remote_filename,
                             local_filename,
                             nprocess=nprocess,
