@@ -632,7 +632,6 @@ class CCIN2P3( object ):
         this = cls(auth=auth, connect=True)
         return getattr(this, method)(fromfile, tofile)
     
-    
     def scp_get(self, remotefile, localfile, auth=None, overwrite=False):
         """ """
         from scp import SCPClient
@@ -647,9 +646,7 @@ class CCIN2P3( object ):
 
         with SCPClient(self.ssh.get_transport()) as scp:
             scp.get(remotefile, localfile)
-
             
-
     def scp_put(self, localfile, remotefile, auth=None):
         """ """
         from scp import SCPClient        
@@ -658,6 +655,30 @@ class CCIN2P3( object ):
 
         with SCPClient(self.ssh.get_transport()) as scp:
             scp.put(localfile,remotefile)
+
+    def query_catalog(self, ra, dec, radius, catname="gaia", depth=7, **kwargs):
+        """ query catalog ; works only when logged at the CCIN2P3"""
+        import os
+        from htmcatalog import htmquery
+        LSST_REFCAT_DIR = "/sps/lsst/datasets/refcats/htm/v1"
+        KNOW_REFCAT = {"gaiadr1":"gaia_DR1_v1",
+                       "gaiadr2":"gaia_dr2_20190808",
+                       "ps1dr1":"ps1_pv3_3pi_20170110",
+                       "sdssdr9":"sdss-dr9-fink-v5b",
+                      }
+        KNOW_REFCAT["gaia"] = KNOW_REFCAT["gaiadr2"]
+        KNOW_REFCAT["ps1"] = KNOW_REFCAT["ps1dr1"]
+        if catname not in KNOW_REFCAT:
+            raise ValueError(f"unknown catalog {catname}. Aviability: "+", ".join(list(KNOW_REFCAT.keys())))
+
+
+        hq = htmquery.HTMQuery(depth, os.path.join(LSST_REFCAT_DIR, KNOW_REFCAT[catname]))
+        return hq.fetch_cat(ra, dec, radius, **kwargs)
+                                   
+        
+
+        
+         
     # ============= #
     #  Properties   #
     # ============= #
