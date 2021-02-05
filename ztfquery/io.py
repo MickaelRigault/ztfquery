@@ -598,13 +598,19 @@ class CCIN2P3( object ):
     """ """
     def __init__(self, auth=None, connect=True):
         """ """
+        if self.running_at_cc:
+            self._connected = True
+        else:
+            self.load_ssh()
+            self._connected = False
+            if connect:
+                self.connect(auth=auth)
+
+    def load_ssh(self):
         from paramiko import SSHClient
         self._auth = auth
         self._ssh = SSHClient()
         self._ssh.load_system_host_keys()
-        self._connected = False
-        if connect:
-            self.connect(auth=auth)
 
     def connect(self, auth=None):
         """ """
@@ -658,6 +664,9 @@ class CCIN2P3( object ):
 
     def query_catalog(self, ra, dec, radius, catname="gaia", depth=7, **kwargs):
         """ query catalog ; works only when logged at the CCIN2P3"""
+        if not self.running_at_cc:
+            raise IOError("Only works if running from the ccin2p3")
+        
         import os
         from htmcatalog import htmquery
         LSST_REFCAT_DIR = "/sps/lsst/datasets/refcats/htm/v1"
@@ -675,10 +684,7 @@ class CCIN2P3( object ):
         hq = htmquery.HTMQuery(depth, os.path.join(LSST_REFCAT_DIR, KNOW_REFCAT[catname]))
         return hq.fetch_cat(ra, dec, radius, **kwargs)
                                    
-        
 
-        
-         
     # ============= #
     #  Properties   #
     # ============= #
@@ -687,7 +693,11 @@ class CCIN2P3( object ):
         """ """
         return self._ssh
     
-        
+    @property
+    def running_at_cc(self):
+        """ """
+        hostname = os.uname()[1]
+        return "cca" in hostname or "ccwige" in hostname
 
 
 # =============== #
