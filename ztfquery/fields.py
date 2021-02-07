@@ -152,9 +152,6 @@ def get_fieldid(grid=None, decrange=None, rarange=None,
     return FIELD_DATAFRAME.query( " & ".join(queries) ).index
 
 
-    
-
-
 def get_field_ccd_qid(ra, dec):
     """ """
     d_ = {}
@@ -360,6 +357,29 @@ def get_grid_field(which):
         return FIELDSNAMES
         
     raise ValueError(f"Cannot parse which field grid you want {which}")
+
+
+def get_rcid_centroid(rcid, fieldid):
+    """ """
+    ccdid, q1d = rcid_to_ccdid_qid(rcid)
+    return get_qids_centroid(fieldid, ccdid)[f"q{q1d}"]
+
+def get_qids_centroid(fieldid=None, ccdid=None, ccd_vertices=None):
+    if ccd_vertices is None:
+        if fieldid is None or ccdid is None:
+            raise ValueError("either fieldid and ccdid or ccd_vertices should be given")
+        
+        ccd_vertices = get_field_vertices(fieldid=fieldid, inclccd=True, ccd=ccdid)
+        
+    min_,mean_,max_ = np.percentile(ccd_vertices, [0,50,100], axis=0)
+    return {"q1":np.mean([mean_, max_], axis=0),
+            "q2":[np.mean([mean_[0], min_[0]]),np.mean([mean_[1], max_[1]])],
+            "q3":np.mean([mean_, min_], axis=0),
+            "q4":[np.mean([mean_[0], max_[0]]),np.mean([mean_[1], min_[1]])]
+            }
+                
+
+
 
 def ccdpos_to_qid(ccdx, ccdy):
     """ returns the qid for the given ccd position """

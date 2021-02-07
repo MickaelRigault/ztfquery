@@ -601,12 +601,12 @@ class CCIN2P3( object ):
         if self.running_at_cc:
             self._connected = True
         else:
-            self.load_ssh()
+            self.load_ssh(auth=auth)
             self._connected = False
             if connect:
                 self.connect(auth=auth)
 
-    def load_ssh(self):
+    def load_ssh(self, auth=None):
         from paramiko import SSHClient
         self._auth = auth
         self._ssh = SSHClient()
@@ -648,7 +648,6 @@ class CCIN2P3( object ):
         if not os.path.exists(directory):
             warnings.warn(f"scp_get(): creating {directory}")
             os.makedirs(directory, exist_ok=True)
-
 
         with SCPClient(self.ssh.get_transport()) as scp:
             scp.get(remotefile, localfile)
