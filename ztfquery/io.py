@@ -29,7 +29,7 @@ CCIN2P3_SOURCE = "/sps/ztf/data/"
 #  High level tools #
 # ================= #
 def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix=True,
-                dlfrom="irsa", overwrite=False, maxnprocess=4,
+                 dlfrom="irsa", overwrite=False, maxnprocess=4,
                  squeeze=True, show_progress=True, **kwargs):
     """ Get full path associate to the filename. 
     If you don't have it on your computer, this downloads it for you.

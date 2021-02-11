@@ -278,7 +278,7 @@ class _ZTFDownloader_( object ):
     # --------- #
     def get_local_data(self, suffix=None, exists=True, filecheck=True, indexes=None,
                            badfiles=False, source="local",
-                           ignore_warnings=False, fileout=None, **kwargs):
+                           ignore_warnings=False, fileout=None, check_suffix=True, **kwargs):
         """ the lists of files stored in your local copy of the ztf database.
         [This methods uses the get_data_path() method assuming source='local']
 
@@ -332,7 +332,7 @@ class _ZTFDownloader_( object ):
         -------
         list
         """
-        files = self.get_data_path(suffix=suffix, source=source, indexes=indexes)
+        files = self.get_data_path(suffix=suffix, source=source, indexes=indexes, check_suffix=check_suffix)
         if not exists:
             return files
 

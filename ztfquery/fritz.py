@@ -59,6 +59,7 @@ def api(method, endpoint, data=None, load=True, token=None, **kwargs):
 def download_lightcurve(name, asdataframe=True,
                             get_object=False, saveonly=False,
                             token=None, dirout="default",
+                            clean_groupcolumn=True,
                             format=None, magsys=None):
     """ 
     Parameters
@@ -85,21 +86,20 @@ def download_lightcurve(name, asdataframe=True,
     #
         
     lcdata = api('get', _BASE_FRITZ_URL+f'api/sources/{name}/photometry{addon}', load=True, token=token)
+    lcdata = pandas.DataFrame(lcdata)
+    
+    if clean_groupcolumn:
+        lcdata["groups"] = [[i_["id"] for i_ in lcdata["groups"].iloc[i]] for i in range(len(lcdata))]
 
+        
     if dirout is not None:
-        FritzPhotometry( pandas.DataFrame(lcdata) ).store(dirout=dirout)
+        FritzPhotometry(lcdata).store(dirout=dirout)
         if saveonly:
             return
         
     if get_object:
-        return FritzPhotometry( pandas.DataFrame(lcdata) )
+        return FritzPhotometry( lcdata )
     
-    if asdataframe:
-        lcdata = pandas.DataFrame(lcdata)
-        
-    elif asobject:
-        lcdata = FritzPhotometry
-        
     return lcdata
 
 #
