@@ -1,5 +1,5 @@
 
-__version__ = "1.12.8"
+__version__ = "1.12.9"
 
 # - First time you call the script, it'll ask for your login info
 

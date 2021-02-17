@@ -29,7 +29,7 @@ CCIN2P3_SOURCE = "/sps/ztf/data/"
 #  High level tools #
 # ================= #
 def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix=True,
-                 dlfrom="irsa", overwrite=False, maxnprocess=4,
+                 dlfrom="irsa", overwrite=False, maxnprocess=4, exist=True,
                  squeeze=True, show_progress=True, **kwargs):
     """ Get full path associate to the filename. 
     If you don't have it on your computer, this downloads it for you.
@@ -61,6 +61,9 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
                                                 source="local", check_suffix=check_suffix)
                    for filename_ in np.atleast_1d(filename)
                    for suffix_ in np.atleast_1d(suffix)])
+    if not exist:
+        return local_filenames
+    
     #local_filenames
     if overwrite:
         flag_todl = np.asarray(np.ones(len(local_filenames)), dtype="bool")
@@ -70,7 +73,8 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
     # DL if needed (and wanted)
     if np.any(flag_todl) and downloadit:
         _ = download_from_filename(local_filenames[flag_todl],show_progress=show_progress,
-                                    host=dlfrom, overwrite=overwrite, maxnprocess=maxnprocess)
+                                    host=dlfrom, overwrite=overwrite, maxnprocess=maxnprocess,
+                                    check_suffix=check_suffix)
     # - Output
     if len(local_filenames)==1 and squeeze:
         return local_filenames[0]
@@ -100,8 +104,8 @@ def download_from_filename(filename, suffix=None, verbose=False, overwrite=False
         return [remote_filename, local_filename]
 
     if host == "ccin2p3":
-        for remote_filename_, local_filename_ in zip(remote_filename,local_filename):
-            return CCIN2P3.scp(remote_filename, local_filename, auth=auth)
+        return [CCIN2P3.scp(remote_filename_, local_filename_, auth=auth)
+                    for remote_filename_, local_filename_ in zip(remote_filename,local_filename)]
         
     else:
         nprocess = np.min([maxnprocess, len(local_filename)])

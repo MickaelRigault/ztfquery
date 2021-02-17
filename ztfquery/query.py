@@ -276,6 +276,27 @@ class _ZTFDownloader_( object ):
     # --------- #
     #  GETTER   #
     # --------- #
+    def get_data(self, suffix=None, indexes=None, downloadit=True, check_suffix=True,
+                     dlfrom="irsa", overwrite=False, maxnprocess=4, exist=True,
+                     show_progress=True, **kwargs):
+        """ high-level method to get the data you want.
+        It will look for the data locally and download the one that are missing.
+        Set exist = False to have the expected list of data.
+
+        suffix could be a list of suffix, e.g. ["sciimg.fits", "mskimg.fits"]
+        
+        Parameters
+        ----------
+
+        Returns
+        -------
+        list of path.
+        """
+        return io.get_file(self.get_data_path(indexes=indexes), suffix=suffix, exist=exist,
+                               downloadit=downloadit, show_progress=show_progress, dlfrom=dlfrom,
+                               maxnprocess=maxnprocess, check_suffix=check_suffix, **kwargs)
+    
+    
     def get_local_data(self, suffix=None, exists=True, filecheck=True, indexes=None,
                            badfiles=False, source="local",
                            ignore_warnings=False, fileout=None, check_suffix=True, **kwargs):
