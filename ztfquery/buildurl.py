@@ -252,6 +252,34 @@ def parse_filename(filename):
             "filtercode":filtercode, "ccdid":ccd_, "imgtypecode":imgtypecode,
             "qid":qid_, "suffix":suffix_}
 
+def obsjd_to_filefrac(obsjd):
+    """ """
+    from astropy import time
+    import pandas
+    if type(obsjd) != pandas.Series:
+        obsjd = pandas.Series(obsjd)
+        
+    fracday = ( (obsjd - obsjd.astype("int")-0.5)*1000000 ).astype("int")
+    day     = pandas.Series(time.Time(obsjd.astype(float), format="jd").iso, index=obsjd.index
+                       ).str.split(" ", expand=True)[0].str.replace("-","")
+    return day.astype(str)+fracday.astype(str)
+
+def build_filename_from_dataframe(dataframe, suffix="sciimg.fits"):
+    """ The dataframe must contains:
+    obsjd, fieldid, ccdid, qid and filterid
+
+    Returns
+    ------
+    pandas.Series (name of the files (not fullpath))
+    """
+    filefrac = obsjd_to_filefrac(dataframe["obsjd"])
+    paddedfield = dataframe["fieldid"].astype("int").astype("str").str.pad(6, fillchar="0")
+    paddedccd = "c"+dataframe["ccdid"].astype("int").astype("str").str.pad(2, fillchar="0")
+    paddedqid = "q"+dataframe["qid"].astype("int").astype("str")
+    filtername = dataframe["filterid"].apply(lambda x: "zg" if x==1 else "zr" if x==2 else "zi")
+    return "ztf"+"_"+filefrac+"_"+paddedfield+"_"+filtername+"_"+paddedccd+"_"+"o"+"_"+paddedqid+"_"+suffix
+
+
 def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=False, check_suffix=True):
     """ 
     """
