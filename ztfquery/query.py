@@ -294,7 +294,7 @@ class _ZTFDownloader_( object ):
         """
         return io.get_file(self.get_data_path(indexes=indexes), suffix=suffix, exist=exist,
                                downloadit=downloadit, show_progress=show_progress, dlfrom=dlfrom,
-                               maxnprocess=maxnprocess, check_suffix=check_suffix, **kwargs)
+                               maxnprocess=maxnprocess, check_suffix=check_suffix, overwrite=overwrite, **kwargs)
     
     
     def get_local_data(self, suffix=None, exists=True, filecheck=True, indexes=None,

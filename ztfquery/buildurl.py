@@ -271,7 +271,9 @@ def build_filename_from_dataframe(dataframe, suffix="sciimg.fits"):
 def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=False, check_suffix=True):
     """ 
     """
-    _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, suffix_ = os.path.basename(filename).split("_")
+    _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, *suffix_ = os.path.basename(filename).split("_")
+    suffix_ = "_".join(suffix_)
+    
     year,month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
     paddedccdid = ccd_.replace("c","")
     qid = qid_.replace("q","")
