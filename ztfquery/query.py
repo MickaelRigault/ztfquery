@@ -292,6 +292,9 @@ class _ZTFDownloader_( object ):
         -------
         list of path.
         """
+        if self.datakind != "sci":
+            raise NotImplementedError("get_data shortcut implemented only for 'sci' data. See get_local_data() or download_data().")
+        
         return io.get_file(self.get_data_path(indexes=indexes), suffix=suffix, exist=exist,
                                downloadit=downloadit, show_progress=show_progress, dlfrom=dlfrom,
                                maxnprocess=maxnprocess, check_suffix=check_suffix, overwrite=overwrite, **kwargs)
@@ -528,8 +531,8 @@ class ZTFQuery( ztftable._ZTFTable_, _ZTFDownloader_ ):
     def set_metatable(self, metatable, kind):
         """ directly provide the metatable of interest"""
         self._metatable = metatable
-        if kind not in ["sci","raw","calib","ref"]:
-            raise ValueError(f"The given metatable should be of kind sci/raw/calib/ref, {kind} given")
+        if kind not in ["sci","raw","cal","ref"]:
+            raise ValueError(f"The given metatable should be of kind sci/raw/cal/ref, {kind} given")
         
         self._datakind = kind
         
@@ -680,6 +683,9 @@ class ZTFQuery( ztftable._ZTFTable_, _ZTFDownloader_ ):
         if len(self.metatable) == 0:
             warnings.warn("No entry associated to the query you made: metatable is empty")
             return []
+        if "check_suffix" in kwargs and self.datakind not in ["cal","sci"]:
+            _ = kwargs.pop("check_suffix")
+            
         return metatable_to_url(self.metatable if indexes is None else self.metatable.loc[np.atleast_1d(indexes)],
                                     datakind=self.datakind, suffix=suffix, source=source, **kwargs)
 

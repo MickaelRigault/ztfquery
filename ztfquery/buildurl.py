@@ -156,7 +156,7 @@ def calibration_path(caltype,
                     year, month, day,
                     filtercode,
                     paddedccdid, qid, suffix=None,
-                    source=""):
+                    source="", check_suffix=True):
     """ 
     Parameters:
     -----------
@@ -183,8 +183,8 @@ def calibration_path(caltype,
     # ================ #
     source = _source_to_location_(source)
     caltype = caltype.lower() # case insensitive
-    if caltype.lower() not in ["bias", "hifreqflat"]:
-        raise ValueError("Unknown `caltype` %s"%caltype+" caltype must be  'bias' or 'hifreqflat'")
+    if caltype.lower() not in ["bias", "hifreqflat"] and check_suffix:
+        raise ValueError(f"Unknown `caltype` {caltype}, caltype must be  'bias' or 'hifreqflat'")
 
     if suffix is None or suffix in ["basic",".fits","fits"]:
         suffix = caltype+".fits"
