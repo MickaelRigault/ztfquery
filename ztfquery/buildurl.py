@@ -288,6 +288,39 @@ def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=False, 
                         source=source, verbose=verbose,
                         check_suffix=check_suffix)
     
+def filename_to_calurl(filename, suffix=None, source="irsa", verbose=False, check_suffix=True):
+    """ 
+    """
+    _, date, filtercode, ccd_, qid_, *suffix_ = os.path.basename(filename).split("_")
+    year,month,day = date[:4],date[4:6],date[6:]
+    suffix_ = "_".join(suffix_)
+    caltype = suffix_.split(".")[0]
+    paddedccdid = ccd_[1:]
+    qid = qid_[1:]
+    if suffix is None:
+        suffix = suffix_
+    
+    return calibration_path(caltype,
+                                year, month, day,
+                                filtercode,
+                                paddedccdid, qid, suffix=suffix,
+                                source=source, check_suffix=True)
+
+
+def filename_to_rawurl(filename, imgtypecode=None, source="irsa", verbose=False, check_suffix=True):
+    """ 
+    """
+    _, filefracday, paddedfield ,filtercode, ccd_, suffix_ =  os.path.basename(filename).split("_")
+    year, month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
+    imgtypecode_ = suffix_.split(".")[0]
+    paddedccdid = ccd_[1:]
+    if imgtypecode is None:
+        imgtypecode = imgtypecode_
+        
+    return raw_path(year, month, day, fracday,
+                             paddedfield, filtercode, paddedccdid, imgtypecode=imgtypecode,
+                             source=source)
+
 
 def filename_to_refurl(filename, suffix, source="irsa", verbose=False):
     """ 
