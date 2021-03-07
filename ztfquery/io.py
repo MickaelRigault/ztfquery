@@ -411,7 +411,7 @@ def _are_fitsfiles_bad_(filenames, test_exist=True):
 def _is_fitsfile_bad_(filename, test_exist=True):
     """ """
     if not os.path.isfile(filename):
-        return not test_exist
+        return test_exist
     
     try:
         _ = fits.getdata(filename)
@@ -426,8 +426,6 @@ def _is_textfile_bad_(filename):
         return False
     except:
         return True
-
-
     
 def _test_file_(filename, erasebad=True, fromdl=False,
                 redownload=False, verbose=True):

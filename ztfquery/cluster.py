@@ -47,6 +47,7 @@ class ClusterQuery( object ):
         chunked_files = np.array_split(files, chunks)
         d_test = [dask.delayed(_are_fitsfiles_bad_)(files_, test_exist=test_exist)
                       for files_ in chunked_files]
+        
         client_ = self.get_client(client)
         if client_ is None:
             return d_test
@@ -54,7 +55,25 @@ class ClusterQuery( object ):
         futures = client_.compute(d_test)
         bools = client_.gather(futures)
         return np.asarray([chunked_files[i][b] for i,b in enumerate(bools) if np.any(b)])
-    
+
+    def cget_files(self, files, client=None, chunks=300, **kwargs):
+        """ """
+        def get_files(files_, **kwargs):
+            return [io.get_file(f_, show_progress=False, maxnprocess=1, **kwargs)
+                        for f_ in files_]
+        
+        if len(files)<chunks:
+            raise ValueError(f"more chunks then files: {len(files)} files of {chunks} chunks")
+        
+        chunked_files = np.array_split(files, chunks)
+        d_get = [dask.delayed(get_files)(files_) for files_ in chunked_files]
+        
+        client_ = self.get_client(client)
+        if client_ is None:
+            return d_get
+
+        return client_.compute(d_test)
+        
     # ============= #
     #  Properties   #
     # ============= #
