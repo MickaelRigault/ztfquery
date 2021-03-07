@@ -29,7 +29,7 @@ CCIN2P3_SOURCE = "/sps/ztf/data/"
 #  High level tools #
 # ================= #
 def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix=True,
-                 dlfrom="irsa", overwrite=False, maxnprocess=4, exist=True,
+                 dlfrom="irsa", overwrite=False, maxnprocess=4, exist=True, test_file=False,
                  squeeze=True, show_progress=True, **kwargs):
     """ Get full path associate to the filename. 
     If you don't have it on your computer, this downloads it for you.
@@ -68,7 +68,9 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
     if overwrite:
         flag_todl = np.asarray(np.ones(len(local_filenames)), dtype="bool")
     else:
-        flag_todl = np.asarray([not os.path.isfile(f_) for f_ in local_filenames])
+        flag_todl = np.asarray([not os.path.isfile(f_) or
+                                    (test_file and ".fits" in f_ and _is_fitsfile_bad_(f_))
+                                for f_ in local_filenames])
 
     # DL if needed (and wanted)
     if np.any(flag_todl) and downloadit:
@@ -400,6 +402,17 @@ def _test_file_multiprocess_(args):
     filename, erasebad = args
     return _test_file_(filename, erasebad=erasebad, fromdl=False, redownload=False)
 
+
+def _is_fitsfile_bad_(filename):
+    """ """
+    try:
+        _ = fits.getdata(filename)
+        return False
+    except:
+        return True
+    
+
+    
 def _test_file_(filename, erasebad=True, fromdl=False,
                 redownload=False, verbose=True):
     """ """
