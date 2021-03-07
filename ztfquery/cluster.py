@@ -49,7 +49,10 @@ class ClusterQuery( object ):
         client_ = self.get_client(client)
         if client_ is None:
             return d_test
-        return client_.compute(d_test)
+        
+        futures = client_.compute(d_test)
+        bools = client.gather(futures)
+        return np.asarray([chunked_files[i][b] for i,b in enumerate(bools) if np.any(b)])
     
     # ============= #
     #  Properties   #
