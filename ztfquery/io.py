@@ -11,7 +11,8 @@ LOGIN_URL = "https://irsa.ipac.caltech.edu/account/signon/login.do"
 import base64
 
 from configparser import ConfigParser
-
+from astropy.io import fits
+        
 from .utils.tools import is_running_from_notebook
     
 _SOURCEDIR = os.path.dirname(os.path.realpath(__file__))
@@ -419,7 +420,6 @@ def _test_file_(filename, erasebad=True, fromdl=False,
     propissue = dict(erasebad=erasebad, fromdl=fromdl, redownload=redownload, verbose=verbose)
     # Fits file
     if ".fits" in filename:
-        from astropy.io import fits
         if not hash_for_file_exists(filename):
             try:
                 _ = fits.getdata(filename)
