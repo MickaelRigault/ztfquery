@@ -404,12 +404,14 @@ def _test_file_multiprocess_(args):
     filename, erasebad = args
     return _test_file_(filename, erasebad=erasebad, fromdl=False, redownload=False)
 
-def _are_fitsfiles_bad_(filenames):
+def _are_fitsfiles_bad_(filenames, test_exist=True):
     """ """
-    return [_is_fitsfile_bad_(f_) for f_ in filenames]
+    return [_is_fitsfile_bad_(f_, test_exist=test_exist) for f_ in filenames]
 
-def _is_fitsfile_bad_(filename):
+def _is_fitsfile_bad_(filename, test_exist=True):
     """ """
+    if not test_exist and not os.path.isfile(filename):
+        return True
     try:
         _ = fits.getdata(filename)
         return False

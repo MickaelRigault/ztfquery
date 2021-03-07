@@ -38,14 +38,15 @@ class ClusterQuery( object ):
     # ---------- #
     #  Tools     #
     # ---------- #
-    def ctest_fits_files(self, files, client=None, chunks=300):
+    def ctest_fits_files(self, files, client=None, chunks=300, test_exist=False):
         """ """
         from .io import _are_fitsfiles_bad_
         if len(files)<chunks:
             raise ValueError(f"more chunks then files: {len(files)} files of {chunks} chunks")
         
         chunked_files = np.array_split(files, chunks)
-        d_test = [dask.delayed(_are_fitsfiles_bad_)(files_) for files_ in chunked_files]
+        d_test = [dask.delayed(_are_fitsfiles_bad_)(files_, test_exist=test_exist)
+                      for files_ in chunked_files]
         client_ = self.get_client(client)
         if client_ is None:
             return d_test
