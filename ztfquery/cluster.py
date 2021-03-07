@@ -51,7 +51,7 @@ class ClusterQuery( object ):
             return d_test
         
         futures = client_.compute(d_test)
-        bools = client.gather(futures)
+        bools = client_.gather(futures)
         return np.asarray([chunked_files[i][b] for i,b in enumerate(bools) if np.any(b)])
     
     # ============= #
