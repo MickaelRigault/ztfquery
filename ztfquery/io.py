@@ -410,8 +410,9 @@ def _are_fitsfiles_bad_(filenames, test_exist=True):
 
 def _is_fitsfile_bad_(filename, test_exist=True):
     """ """
-    if not test_exist and not os.path.isfile(filename):
-        return True
+    if not os.path.isfile(filename):
+        return not test_exist
+    
     try:
         _ = fits.getdata(filename)
         return False
