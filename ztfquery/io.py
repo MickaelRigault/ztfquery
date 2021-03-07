@@ -404,6 +404,9 @@ def _test_file_multiprocess_(args):
     filename, erasebad = args
     return _test_file_(filename, erasebad=erasebad, fromdl=False, redownload=False)
 
+def _are_fitsfiles_bad_(filenames):
+    """ """
+    return [_is_fitsfile_bad_(f_) for f_ in filenames]
 
 def _is_fitsfile_bad_(filename):
     """ """
@@ -412,7 +415,15 @@ def _is_fitsfile_bad_(filename):
         return False
     except:
         return True
-    
+
+def _is_textfile_bad_(filename):
+    """ """
+    try:
+        _ = open(filename).read().splitlines()
+        return False
+    except:
+        return True
+
 
     
 def _test_file_(filename, erasebad=True, fromdl=False,
