@@ -30,7 +30,7 @@ CCIN2P3_SOURCE = "/sps/ztf/data/"
 #  High level tools #
 # ================= #
 def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix=True,
-                 dlfrom="irsa", overwrite=False, maxnprocess=4, exist=True, test_file=False,
+                 dlfrom="irsa", overwrite=False, maxnprocess=4, exist=True, test_file=True,
                  squeeze=True, show_progress=True, **kwargs):
     """ Get full path associate to the filename. 
     If you don't have it on your computer, this downloads it for you.
@@ -58,7 +58,8 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
         
     """
     from .buildurl import filename_to_scienceurl
-    local_filenames = np.asarray([filename_to_scienceurl(filename_, suffix=suffix_, verbose=verbose,
+    local_filenames = np.asarray([filename_to_scienceurl(filename_, suffix=suffix_,
+                                                             verbose=verbose,
                                                 source="local", check_suffix=check_suffix)
                    for filename_ in np.atleast_1d(filename)
                    for suffix_ in np.atleast_1d(suffix)])
@@ -69,14 +70,14 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
     if overwrite:
         flag_todl = np.asarray(np.ones(len(local_filenames)), dtype="bool")
     else:
-        flag_todl = np.asarray([not os.path.isfile(f_) or
+        flag_todl = np.asarray([(not os.path.isfile(f_)) or
                                     (test_file and ".fits" in f_ and _is_fitsfile_bad_(f_))
                                 for f_ in local_filenames])
 
     # DL if needed (and wanted)
     if np.any(flag_todl) and downloadit:
         _ = download_from_filename(local_filenames[flag_todl],show_progress=show_progress,
-                                    host=dlfrom, overwrite=overwrite, maxnprocess=maxnprocess,
+                                    host=dlfrom, overwrite=True, maxnprocess=maxnprocess,
                                     check_suffix=check_suffix)
     # - Output
     if len(local_filenames)==1 and squeeze:
