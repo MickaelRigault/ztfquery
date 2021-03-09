@@ -4,6 +4,9 @@
 
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1345222.svg)](https://doi.org/10.5281/zenodo.1345222)
 
+[cite ztfquery](https://ui.adsabs.harvard.edu/abs/2018zndo...1345222R/abstract)
+
+
 # ztfquery: a python tool to access ztf (and SEDM) data
 
 `ztfquery` contains a list of tools:
