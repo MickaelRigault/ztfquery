@@ -1245,7 +1245,7 @@ class FritzSpectrum( object ):
         """ """
         from astropy.io import fits
         from pyifu import spectroscopy 
-        variance = np.asarray(self.fritzdict["errors"], dtype="float")**2 if self.fritzdict["errors"] is not None else None
+        variance = np.asarray(self.fritzdict["errors"], dtype="float")**2 if self.fritzdict.get("errors") is not None else None
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             self.set_spectrum( spectroscopy.get_spectrum(np.asarray(self.fritzdict["wavelengths"], dtype="float"), 
