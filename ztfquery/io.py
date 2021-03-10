@@ -81,7 +81,7 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
                                     host=dlfrom, overwrite=True, maxnprocess=maxnprocess,
                                     check_suffix=check_suffix)
     # - Output
-    if fill_notexist is not "None":
+    if fill_notexist != "None":
         local_filenames = [f if os.path.isfile(f) else fill_notexist
                                for f in local_filenames]
             
