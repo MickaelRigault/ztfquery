@@ -31,7 +31,8 @@ CCIN2P3_SOURCE = "/sps/ztf/data/"
 # ================= #
 def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix=True,
                  dlfrom="irsa", overwrite=False, maxnprocess=4, exist=True, test_file=True,
-                 squeeze=True, show_progress=True, **kwargs):
+                 squeeze=True, show_progress=True,
+                 fill_notexist="None", **kwargs):
     """ Get full path associate to the filename. 
     If you don't have it on your computer, this downloads it for you.
 
@@ -66,7 +67,7 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
     if not exist:
         return local_filenames
     
-    #local_filenames
+    # local_filenames
     if overwrite:
         flag_todl = np.asarray(np.ones(len(local_filenames)), dtype="bool")
     else:
@@ -80,6 +81,10 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
                                     host=dlfrom, overwrite=True, maxnprocess=maxnprocess,
                                     check_suffix=check_suffix)
     # - Output
+    if fill_notexist is not "None":
+        local_filenames = [f if os.path.isfile(f) else fill_notexist
+                               for f in local_filenames]
+            
     if len(local_filenames)==1 and squeeze:
         return local_filenames[0]
     

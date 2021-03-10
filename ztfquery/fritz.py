@@ -1102,7 +1102,7 @@ class FritzSpectrum( object ):
     @classmethod
     def from_fritz(cls, name, entry=None, spectra_ok=True):
         """ """
-        response = fritz.api('get', fritz._BASE_FRITZ_URL+f'api/sources/{name}/spectra', load=True)
+        response = api('get', fritz._BASE_FRITZ_URL+f'api/sources/{name}/spectra', load=True)
         if entry is None:
             if len(response)==1:
                 entry=0
@@ -1251,7 +1251,7 @@ class FritzSpectrum( object ):
             self.set_spectrum( spectroscopy.get_spectrum(np.asarray(self.fritzdict["wavelengths"], dtype="float"), 
                                                np.asarray(self.fritzdict["fluxes"], dtype="float"), 
                                               variance=variance,
-                                              header=fits.Header(self.fritzdict["altdata"]))
+                                              header=fits.Header(self.fritzdict["altdata"]) if self.fritzdict.get("altdata") is not None else None)
                              )
             
     def _loadspec_fileformat_(self):
@@ -1348,9 +1348,7 @@ class FritzSpectra( FritzSpectrum ):
     
     def load(self, filenames, **kwargs):
         """ """
-        self.set_spectra([FritzSpectrum.from_file(filename) for filename in np.atleast_1d(filenames)
-                         ]
-                         )
+        self.set_spectra([FritzSpectrum.from_file(filename) for filename in np.atleast_1d(filenames)])
         
     def to_fits(self, fileout=None, dirout="default", **kwargs):
         """ Loops over the spectra to call the individual to_fits """
