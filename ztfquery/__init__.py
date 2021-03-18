@@ -1,6 +1,4 @@
 
-__version__ = "1.13.0"
-
-# - First time you call the script, it'll ask for your login info
+__version__ = "1.13.1"
 
 from .io import get_file

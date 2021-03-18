@@ -248,7 +248,8 @@ def get_program_filepath(program):
 #
 #  LightCurves
 #
-def get_lightcurve_localfile(name, extension="csv", directory="default", builddir=False, squeeze=True, exists=True):
+def get_lightcurve_localfile(name, extension="csv", directory="default",
+                                 builddir=False, squeeze=True, exists=True):
     """ Return filename (or list of, see extension) for the lightcurves.
     format: f"fritz_lightcurves_{name}{extension}"
 
@@ -713,7 +714,7 @@ class FritzAccess( object ):
         Creation data, Last modified
         """
         from astropy.time import Time
-        creation, lastmod = self._get_target_key_(name,["created_at","last_detected"], which=which).values[0]
+        creation, lastmod = self._get_target_key_(name,["created_at","last_detected_at"], which=which).values[0]
         tcreation  = Time(creation.split(".")[0], format="isot")
         tlast      = Time(lastmod.split(".")[0],  format="isot")
         if format in ["Time", "time"]:
@@ -1501,7 +1502,7 @@ class FritzSource( object ):
             return annot[0]
         return annot
     
-    def get_time(self, which=["created_at","last_detected"], squeeze=True, 
+    def get_time(self, which=["created_at","last_detected_at"], squeeze=True, 
                     format=None, asarray=False):
         """ 
         
@@ -1510,7 +1511,7 @@ class FritzSource( object ):
         which: [str or list of] -optional-
             Which time key you want (could be a combination)
             - created_at
-            - last_detected
+            - last_detected_at
             
         squeeze: [bool] -optional-
             get the value directly if only one 'which'
@@ -1550,7 +1551,7 @@ class FritzSource( object ):
     
     def get_metaquery(self, priorcreation=100, postlast=100, size=0.01, add_query=None):
         """ get entry for ZTFQuery.query.load_metaquery(**this_output) """
-        jdmin, jdmax = self.get_time(which=["created_at", "last_detected"],
+        jdmin, jdmax = self.get_time(which=["created_at", "last_detected_at"],
                                          format="jd", asarray=True)+ [-priorcreation, postlast]
         return dict( radec=[self.ra,self.dec], size=size,
                      sql_query=f"obsjd BETWEEN {jdmin} and {jdmax}")
