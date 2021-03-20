@@ -1173,7 +1173,7 @@ class FritzSpectrum( object ):
             return None
         
         if warn:
-            warnings.warn(f"{name} as several spectra, list of FritzSpectrum returned")
+            warnings.warn(f"{name} has several spectra, list of FritzSpectrum returned")
         return [cls(spec_) for spec_ in spectra]
         
 
