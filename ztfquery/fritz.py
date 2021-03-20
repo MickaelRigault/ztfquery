@@ -1574,127 +1574,12 @@ class FritzSpectrum( object ):
         return self._filename
 
 
-
-
-
-
-
-
-
     
 class FritzSpectra( FritzSpectrum ):
     # FritzSpectrum Collection
     def __init__(self, spectra):
         """ """
-        if spectra is not None:
-            self.set_spectra(spectra)
-    
-    @classmethod
-    def from_file(cls, filename, spectrum_ok=False, **kwargs):
-        """ """
-        filenames = np.atleast_1d(filename)
-        if len(filenames)==1 and spectrum_ok:
-            return FritzSpectrum.from_file(filename[0], **kwargs)
-        
-        this = cls()
-        this.load(filename, **kwargs)
-        return this
-
-    
-    def load(self, filenames, **kwargs):
-        """ """
-        self.set_spectra([FritzSpectrum.from_file(filename) for filename in np.atleast_1d(filenames)])
-        
-    def to_fits(self, fileout=None, dirout="default", **kwargs):
-        """ Loops over the spectra to call the individual to_fits """
-        [s.to_fits(fileout=fileout, dirout=dirout, **kwargs) for s in self.spectra]
-    
-    def to_ascii(self, fileout=None, dirout="default", **kwargs):
-        """ Loops over the spectra to call the individual to_ascii """
-        [s.to_ascii(fileout=fileout, dirout=dirout, **kwargs) for s in self.spectra]
-    
-    def to_json(self, fileout=None, dirout="default", **kwargs):
-        """ Loops over the spectra to call the individual to_json """
-        [s.to_json(fileout=fileout, dirout=dirout, **kwargs) for s in self.spectra]
-    
-    def build_filename(self, dirout="default", extension="json", builddir=True, **kwargs):
-        """ Loops over the spectra to call the individual build_filename """
-        [s.build_filename(dirout=dirout, extension=extension, builddir=builddir, **kwargs)
-                    for s in self.spectra]
-
-    def show(self, ax=None, savefile=None, show=True, **kwargs):
-        """ calls self.spectrum.show() """
-        if not self.has_spectra():
-            raise AttributeError("No spectra loaded")
-
-        if ax is None:
-            import matplotlib.pyplot as mpl            
-            fig = mpl.figure(figsize=[7,4])
-            ax = fig.add_axes([0.15,0.2, 0.7,0.7])
-            ax.set_xlabel("Wavelength")
-            ax.set_ylabel("Flux")
-        else:
-            fig = ax.figure
-            
-        _ = [s.show(ax=ax, savefile=None, color="C%d"%i, show=False, **kwargs)
-                 for i,s in enumerate(self.spectra)]            
-        if show:
-            fig.show()
-
-        if savefile:
-            fig.savefig(savefile)
-
-        return fig
-
-    def set_spectra(self, fritzspectra):
-        """ """
-        self._spectra = []
-        for spec in np.atleast_1d(fritzspectra):
-            if FritzSpectrum not in spec.__class__.__mro__:
-                raise TypeError("Only FritzSpectrum could be given.")
-            
-            self._spectra.append(spec)
-
-    def set_spectrum(self, *args,**kwargs):
-        """ """
-        raise NotImplementedError("Cannot set individual spectrum. See self.set_spectra()")
-    
-    # ============= #
-    #  Properties   #
-    # ============= #
-    @property
-    def nspectra(self):
-        """ """
-        return len(self.spectra) if self.has_spectra() else None
-    
-    @property
-    def spectra(self):
-        """ """
-        return self._spectra
-    
-    def has_spectra(self):
-        """ """
-        return hasattr(self, "_spectra") and self._spectra is not None
-    
-    @property
-    def spectrum(self):
-        """ Shortcut to self.spectra """
-        raise NotImplementedError("See self.spectra")
-    
-    @property
-    def obj_id(self):
-        """ """
-        if not self.has_spectra():
-            return None
-        return [s.obj_id for s in self.spectra]
-
-    @property
-    def instrument(self):
-        """ """
-        if not self.has_spectra():
-            return None
-        return [s.instrument for s in self.spectra]
-
+        print("DEPRECATED: FritzSpectra  is no longer supported, use FritzSpectrum")
     
 # ----------- #
 #             #
