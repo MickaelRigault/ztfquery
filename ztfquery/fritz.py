@@ -8,19 +8,17 @@ import requests
 import numpy as np
 
 from astropy import time
+from astropy.io import fits
 
 from .io import LOCALSOURCE, _load_id_
 FRITZSOURCE = os.path.join(LOCALSOURCE,"fritz")
 if not os.path.isdir(FRITZSOURCE):
     os.mkdir(FRITZSOURCE)
 
-
-ZTFCOLOR = { # ZTF
-            "ztfr":dict(marker="o",ms=7,  mfc="C3"),
-            "ztfg":dict(marker="o",ms=7,  mfc="C2"),
-            "ztfi":dict(marker="o",ms=7, mfc="C1"),
-           }
-
+    
+FID_TO_NAME = {1:"ztfg", 2:"ztfr", 3:"ztfi"}
+ZTFCOLOR = {"ztfr":"tab:red", "ztfg":"tab:green", "ztfi":"tab:orange"}
+    
 _BASE_FRITZ_URL = "https://fritz.science/"
 FRITZSOURCE = os.path.join(LOCALSOURCE,"fritz")
 
@@ -56,11 +54,11 @@ def api(method, endpoint, data=None, load=True, token=None, **kwargs):
 #
 #  LightCurve
 #
-def download_lightcurve(name, asdataframe=True,
-                            get_object=False, saveonly=False,
-                            token=None, dirout="default",
-                            clean_groupcolumn=True,
-                            format=None, magsys=None):
+def download_lightcurve(name,
+                        get_object=False, saveonly=False,
+                        token=None, dirout="default",
+                        clean_groupcolumn=True,
+                        format=None, magsys=None, **kwargs):
     """ 
     Parameters
     ----------
@@ -72,6 +70,7 @@ def download_lightcurve(name, asdataframe=True,
         = skyportal api option = 
         ab or vega (None means default)
     
+    **kwargs are ignored (here for backward compatibilities)
     """
     #
     # - start: addon
@@ -105,28 +104,36 @@ def download_lightcurve(name, asdataframe=True,
 #
 #  Spectra
 #
-def download_spectra(name, get_object=False,saveonly=False,
-                         token=None, dirout="default"):
+def download_spectra(name, get_object=False, token=None):
     """ """
     list_of_dict = api('get', _BASE_FRITZ_URL+f'api/sources/{name}/spectra', load=True,
                            token=token)
+    #
+    # - Any problem ?
     if list_of_dict is None or len(list_of_dict)==0:
         url = _BASE_FRITZ_URL+f'api/sources/{name}/spectra'
         warnings.warn(f"no spectra downloaded. {url} download is empty")
         return None
-    
-    if get_object or dirout is not None:
-        specobject = FritzSpectrum(list_of_dict[0]) if len(list_of_dict)==1 else FritzSpectra(list_of_dict)
-        # to be stored
-        if dirout is not None:
-            specobject.store(dirout=dirout)
-            if saveonly:
-                return
+
+    spectra = list_of_dict["spectra"]
+    if spectra is None or len(spectra)==0:
+        url = _BASE_FRITZ_URL+f'api/sources/{name}/spectra'
+        warnings.warn(f"no spectra downloaded. {url} download is empty")
+        return None
+    # - No ? Good
+    #
+
+    if get_object:
+        if len(spectra)==1:
+            return FritzSpectrum(spectra[0])
+        else:
+            return [FritzSpectrum(spec_) for spec_ in spectra]
+        
         # Get the object            
         return specobject
     
     # get the raw download
-    return list_of_dict
+    return spectra
 
 #
 #  Alerts
@@ -151,7 +158,11 @@ def download_alerts(name, candid=None, allfields=None,
     # - end: addon
     #    
     alerts = api('get', _BASE_FRITZ_URL+f'api/alerts/ztf/{name}{addon}', load=True,
-                     token=token)    
+                     token=token)
+
+    if get_object:
+        return FritzAlerts.from_alerts(alerts)
+    
     return alerts
 #
 #  Source
@@ -400,8 +411,8 @@ def get_local_spectra(name, extension="*", directory="default", asfile=False,
     
     if len(filein)==0:
         return None
-    
-    return FritzSpectra.from_file(filein, spectrum_ok=squeeze, **kwargs)
+
+    return [FritzSpectrum.from_file(filein_, **kwargs) for filein_ in filein]
 
 #
 #  Alerts
@@ -713,10 +724,9 @@ class FritzAccess( object ):
         -------
         Creation data, Last modified
         """
-        from astropy.time import Time
         creation, lastmod = self._get_target_key_(name,["created_at","last_detected_at"], which=which).values[0]
-        tcreation  = Time(creation.split(".")[0], format="isot")
-        tlast      = Time(lastmod.split(".")[0],  format="isot")
+        tcreation  = time.Time(creation.split(".")[0], format="isot")
+        tlast      = time.Time(lastmod.split(".")[0],  format="isot")
         if format in ["Time", "time"]:
             return tcreation, tlast
         
@@ -822,7 +832,13 @@ class FritzPhotometry( object ):
     @classmethod
     def from_fritz(cls, name):
         """ """
-        df = download_lightcurve(name, asdataframe=True)
+        print("FritzPhotometry.from_fritz(name) is DEPRECATED, use FritzPhotometry.from_name(name)")
+        return cls.from_name(name)
+
+    @classmethod
+    def from_name(cls, name):
+        """ """
+        df = download_lightcurve(name)
         this = cls(df)
         return this
 
@@ -1017,7 +1033,7 @@ class FritzPhotometry( object ):
         else:
             fig = ax.figure
 
-        base_prop = dict(ls="None", mec="0.9", mew=0.5, ecolor="0.7")
+        base_prop = dict(ls="None", mec="0.9", mew=0.5, ecolor="0.7",marker="o", ms=7)
         base_up   = dict(ls="None", label="_no_legend_")
 
         if filtering is None:
@@ -1034,7 +1050,7 @@ class FritzPhotometry( object ):
             datadet_ = data.query("filter == @filter_ and mag != 'NaN'")
             ax.errorbar(time.Time(datadet_["mjd"], format="mjd").datetime, 
                      datadet_["mag"], yerr= datadet_["magerr"], 
-                     label=filter_, **{**base_prop,**ZTFCOLOR[filter_]})
+                     label=filter_, color=ZTFCOLOR[filter_], **base_prop)
             
         ax.invert_yaxis()  
         
@@ -1045,7 +1061,7 @@ class FritzPhotometry( object ):
             datadet_ = data.query("filter == @filter_ and mag == 'NaN'")
             ax.errorbar(time.Time(datadet_["mjd"], format="mjd").datetime, 
                      datadet_["limiting_mag"], yerr= 0.1, lolims=True, alpha=0.3,
-                     **{**base_up,**{"color":ZTFCOLOR[filter_]["mfc"]}})
+                     **{**base_up,**{"color":ZTFCOLOR[filter_]}})
 
         locator = mdates.AutoDateLocator()
         formatter = mdates.ConciseDateFormatter(locator)
@@ -1090,7 +1106,42 @@ class FritzPhotometry( object ):
 #  Spectro       #
 #                #
 # -------------- #
-    
+def parse_ascii(datastring, sep=None, hkey="#", hsep=":", isvariance=None):
+    """ """
+
+    header_key = [l for l in datastring if l.startswith("#")]
+    if len(header_key)>0:
+        header = pandas.DataFrame([l.replace("#","").split(": ")
+                            for l in header_key if len(l.replace("#","").split(": "))==2]).set_index(0)[1]
+    else:
+        header = None
+        
+    lbda, flux, *error = np.asarray([l.split(sep) for l in datastring
+                                             if not l.startswith(hkey) and len(l)>2],
+                                            dtype="float").T
+    if len(error) == 0:
+        error = None
+    elif len(error) == 1:
+        error = error[0]
+    else:
+        warnings.warn("Cannot parse the last columns (lbda, flux, several_columns) ; ignored.")
+        error = None
+        
+    if error is not None:
+        if isvariance is None:
+            isvariance = np.all(np.abs(flux/error)>1e3)
+        if isvariance:
+            error = np.sqrt(error)
+
+    if error is not None:
+        data = pandas.DataFrame(np.asarray([lbda, flux, error]).T, 
+                                    columns=["lbda", "flux", "error"])
+    else: 
+        data = pandas.DataFrame(np.asarray([lbda, flux]).T, 
+                                    columns=["lbda", "flux"])
+        
+    return data, header
+
 class FritzSpectrum( object ):
     """ """
     _IMPLEMENTED_ORIGINALFORMAT = ["sedm"]
@@ -1099,33 +1150,117 @@ class FritzSpectrum( object ):
         """ """
         if fritzdict is not None:
             self.set_fritzdict(fritzdict, **kwargs)
-        
+
+    # --------- #
+    #  From     #
+    # --------- #
     @classmethod
     def from_fritz(cls, name, entry=None, spectra_ok=True):
         """ """
-        response = api('get', fritz._BASE_FRITZ_URL+f'api/sources/{name}/spectra', load=True)
-        if entry is None:
-            if len(response)==1:
-                entry=0
-            else:
-                if not spectra_ok:
-                    raise ValueError("Several spectra downloaded and you did not set which you wanted (entry=None) and did not accept a spectra object instead (spectra_ok=False)")
-                return FritzSpectra(response)
-                
-        this = cls(response[entry])
+        print("FritzSpectrum.from_fritz(name) is DEPRECATED, use FritzSpectrum.from_name(name)")
+        return cls.from_name(name, entry=entry, spectra_ok=spectra_ok)
+
+    @classmethod
+    def from_name(cls, name, warn=True):
+        """ """
+        spectra = download_spectra(name, get_object=False)
+        if len(spectra) == 1:
+            return cls(spectra[0])
+
+        if len(spectra) == 0:
+            if warn:
+                warnings.warn(f"No spectra downloaded for {name}")
+            return None
+        
+        if warn:
+            warnings.warn(f"{name} as several spectra, list of FritzSpectrum returned")
+        return [cls(spec_) for spec_ in spectra]
+        
+
+    # --------- #
+    #  READS    #
+    # --------- #
+    @classmethod
+    def read_json(cls, filename):
+        """ """
+        this = cls()
+        with open(filename, 'r') as filename_:
+            this.set_fritzdict(json.load(filename_))
+            
+        return this
+    
+    @classmethod
+    def read_fits(cls, fitsfile, dataext=0, headerext=0,
+                        errortable="ERROR", lbdatable="LBDA"):
+        """ """
+        fits_ = fits.open(fitsfile)
+        # Flux
+        flux = fits_[dataext].data
+        # Header        
+        header = fits_[headerext].header
+        
+        colnames = [f_.name.lower() for f_ in fits_]
+
+        # Error (if any)
+        if errortable.lower() in colnames:
+            error = fits_[colnames.index(errortable.lower())].data
+        else:
+            error = None
+            
+        # Wavelength
+        if lbdatable.lower() in colnames:
+            lbda = fits_[colnames.index(lbdatable.lower())].data
+        else:
+            lbda = cls._header_to_lbda_(header)
+        
+        this = cls()
+        this.setup(lbda, flux, header, error=error)
+
+        # useful information to store
+        try:
+            dictfile = parse_spectrum_filename(fitsfile)
+        except:
+            warnings.warn("Cannot parse the input name, so information (instrument, obj_id) might be missing")
+            dictfile = None
+        if dictfile is not None:
+            fritzdict = {"instrument_name":dictfile["instrument"],
+                     "obj_id":dictfile["name"],
+                     "original_file_string":None,
+                     "original_file_filename":dictfile["original_file_filename"]
+                    }
+        else:
+            fritzdict = {}
+            
+        this.set_fritzdict(fritzdict, load_spectrum=False)
+        
         return this
 
     @classmethod
-    def from_file(cls, filename, spectra_ok=False, **kwargs):
+    def read_ascii(cls, filename, **kwargs):
         """ """
-        if len(np.atleast_1d(filename))>1:
-            if spectra_ok:
-                return FritzSpectra.from_file(filename, **kwargs)
-            raise ValueError("You gave several files and did not accept a spectra object (spectra_ok=False)")
-
+        data, header = parse_ascii(open(filename).read().splitlines(), **kwargs)
         this = cls()
-        this.load(filename, **kwargs)
+        this.set_data(data)
+        this.set_header(header)
+
+        try:
+            dictfile = parse_spectrum_filename(fitsfile)
+        except:
+            warnings.warn("Cannot parse the input name, so information (instrument, obj_id) might be missing")
+            dictfile = None
+            
+        if dictfile is not None:
+            fritzdict = {"instrument_name":dictfile["instrument"],
+                     "obj_id":dictfile["name"],
+                     "original_file_string":None,
+                     "original_file_filename":dictfile["original_file_filename"]
+                     }
+        else:
+            fritzdict = {}
+                
+        this.set_fritzdict(fritzdict, load_spectrum=False)
         return this
+        
     
     # ============= #
     #  Method       #
@@ -1141,65 +1276,45 @@ class FritzSpectrum( object ):
 
         raise ValueError(f"only 'fits','json', 'txt' and 'dat' extension implemented ; {extension} given")
 
-    def load(self, filename, **kwargs):
-        """ """
-        extension = filename.split(".")[-1]
-        if extension in ["json"]:
-            self._read_json_(filename)
-        elif extension in ["fits", "txt","dat", "ascii"]:
-            self._read_from_spec_(filename)
-        else:
-            raise NotImplementedError("only json and fits loadings created so far.")
-
-    def _read_json_(self, filename):
-        """ """
-        with open(filename, 'r') as filename_:
-            self.set_fritzdict(json.load(filename_))
-        
-    def _read_from_spec_(self, filename):
-        """ """
-        dictfile = parse_spectrum_filename(filename)
-        fritzdict = {"instrument_name":dictfile["instrument"],
-                     "obj_id":dictfile["name"],
-                     "original_file_string":None,
-                     "original_file_filename":dictfile["original_file_filename"]
-                    }
-        if dictfile["instrument"] == "sedm":
-            from pysedm import sedm
-            spec = sedm.load_sedmspec(filename)
-        else:
-            import pyifu
-            spec = pyifu.load_spectrum(filename)
-
-        fritzdict["wavelengths"] = spec.lbda
-        fritzdict["fluxes"] = spec.data/np.mean(spec.data)
-        fritzdict["errors"] = np.sqrt(spec.variance)/np.mean(spec.data)
-        fritzdict["altdata"] = dict(spec.header)
-        
-        self.set_fritzdict(fritzdict, load_spectrum=False)
-        self.set_spectrum(spec)
-        
     #
     # to_format
     #
-    def to_fits(self, fileout=None, dirout="default", **kwargs):
+    def to_fits(self, fileout=None, dirout="default", overwrite=True):
         """ """
         if fileout is None:
             fileout = self.build_filename(dirout=dirout, extension="fits", builddir=True)
 
-        self.spectrum.writeto(fileout, **kwargs)
+        from astropy.io.fits import HDUList
+        from astropy.io.fits import PrimaryHDU, ImageHDU
+        hdul = []
+        # -- Data saving
+        hdul.append( PrimaryHDU(self.flux, self.header) )
+        if self.has_error():
+            hdul.append( ImageHDU(self.error, name='ERROR') )
 
-    def to_txt(self, fileout=None, dirout="default", **kwargs):
-        """ calling to_ascii """
-        return self.to_ascii(fileout=None, dirout="default", **kwargs)
+        if not self._is_lbdastep_constant_():
+            hdul.append( ImageHDU(self.lbda, name='LBDA') )
+            
+        hdulist = HDUList(hdul)
+        hdulist.writeto(fileout, overwrite=overwrite)
     
     def to_ascii(self, fileout=None, dirout="default", **kwargs):
         """ """
         if fileout is None:
             fileout = self.build_filename(dirout=dirout, extension="txt", builddir=True)
 
-        self.spectrum.writeto(fileout, ascii=True, **kwargs)
-    
+        fileout_ = open(fileout.replace(".fits", ".txt"),"w")
+        for k,v in self.header.items():
+            fileout_.write("# %s: %s\n"%(k.upper(),v))
+        if self.has_error():
+            for l_,f_,v_ in zip(self.lbda, self.flux, self.error):
+                fileout_.write(f"{l_:.1f} {f_:.3e} {f_:.3e}\n")
+        else:
+            for l_,f_ in zip(self.lbda, self.flux):
+                fileout_.write(f"{l_:.1f} {f_:.3e}\n")
+                
+        fileout_.close()
+        
     def to_json(self, fileout=None, dirout="default"):
         """ """
         import json
@@ -1208,8 +1323,8 @@ class FritzSpectrum( object ):
 
         with open(fileout,'w') as fileout_:
             json.dump(self.fritzdict, fileout_)
-
             
+    
     def build_filename(self, dirout="default", extension="json", builddir=True):
         """ """
         if self.fritzdict["original_file_filename"] is not None:
@@ -1234,7 +1349,7 @@ class FritzSpectrum( object ):
             
         if from_original_file:
             if not self.instrument in self._IMPLEMENTED_ORIGINALFORMAT:
-                warnings.warn("No original format file implemented for {self.instrument}. Back to fritzformat")
+                warnings.warn(f"No original format file implemented for {self.instrument}. Back to fritzformat")
                 from_original_file=False
             
         if not from_original_file:
@@ -1244,37 +1359,97 @@ class FritzSpectrum( object ):
         
     def _loadspec_fritzformat_(self, ignore_warnings=True):
         """ """
-        from astropy.io import fits
-        from pyifu import spectroscopy 
-        variance = np.asarray(self.fritzdict["errors"], dtype="float")**2 if self.fritzdict.get("errors") is not None else None
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            self.set_spectrum( spectroscopy.get_spectrum(np.asarray(self.fritzdict["wavelengths"], dtype="float"), 
-                                               np.asarray(self.fritzdict["fluxes"], dtype="float"), 
-                                              variance=variance,
-                                              header=fits.Header(self.fritzdict["altdata"]) if self.fritzdict.get("altdata") is not None else None)
-                             )
+        lbda   = np.asarray(self.fritzdict["wavelengths"], dtype="float")
+        flux   = np.asarray(self.fritzdict["fluxes"], dtype="float")
+        error  = self.fritzdict.get("errors", None)
+        header = fits.Header(self.fritzdict["altdata"]) if self.fritzdict.get("altdata") is not None else None
+        self.setup(lbda, flux, header, error=error)
             
     def _loadspec_fileformat_(self):
         """ """
         if self.instrument == "sedm":
-            from pysedm import sedm
-            self.set_spectrum( sedm.get_sedmspec(self.fritzdict["original_file_string"].splitlines()) )
+            data, header = parse_ascii( self.fritzdict["original_file_string"].splitlines() )
         else:
             raise NotImplementedError(f"only sedm fileformat implemented {self.instrument} given. Contact Mickael if you need that.")
+
+        self.set_data(data)
+        self.set_header(header)
+
+    def _lbda_to_header_(self, header=None):
+        """ """
+        if not self._is_lbdastep_constant_():
+            raise ValueError("step is not regular, cannot convert lbda to header keys")
+        if header is None:
+            header = self.header
+            
+        self.header["CDELT"] = self._lbdastep[0]
+        self.header["CRVAL"] = self.lbda[0]
+        self.header["NAXIS"] = len(self.lbda)
+        return header
+    
+    def _header_to_lbda_(self, header=None):
+        """ """
+        if header is None:
+            header = self.header
+        step  = header["CDELT"]
+        start = header["CRVAL"]
+        size  = header["NAXIS"]
+        return np.arange(size)*step + start
 
     # --------- #
     #  SETTER   #
     # --------- # 
     def set_fritzdict(self, fritzdict, load_spectrum=True, **kwargs):
         """ """
+        if "wavelengths" not in fritzdict and self.has_data():
+            fritzdict["wavelengths"] = self.lbda
+            fritzdict["fluxes"] = self.flux/np.mean(self.flux)
+            fritzdict["errors"] = np.sqrt(self.error)/np.mean(self.flux) if self.has_error() else None
+            fritzdict["altdata"] = dict(self.header)
+
         self._fritzdict = fritzdict
+       
         if load_spectrum:
             self.load_spectrum(**kwargs)
 
-    def set_spectrum(self, spectrum):
+    def setup(self, lbda, flux, header, error=None):
+        """ Build the spectrum given the input 
+        this calls self.set_data() and self.set_header()
+        """
+        if error is None:
+            data = pandas.DataFrame(np.asarray([lbda, flux], dtype="float").T, 
+                                    columns=["lbda", "flux"])
+        else:
+            data = pandas.DataFrame(np.asarray([lbda, flux, error], dtype="float").T, 
+                                    columns=["lbda", "flux", "error"])
+
+        self.set_data(data.sort_values("lbda"))
+        self.set_header(header)
+        
+    def set_data(self, data):
         """ """
-        self._spectrum = spectrum
+        if np.any([k not in data.columns for k in ["lbda", "flux"]]):
+            raise ValueError("the input dataframe is missing at least one of the following key 'lbda' or 'flux'")
+        
+        self._data = data
+            
+    def set_header(self, header, warn=False):
+        """ """
+        if header is None:
+            header = fits.Header()
+            if self.lbda is not None:
+                try:
+                    self._lbda_to_header_()
+                except:
+                    if warn:
+                        warnings.warn("Cannot set the lbda entries to header ")
+                    
+                    
+        self._header = header 
+
+    def set_filename(self, filename):
+        """ """
+        self._filename = filename
         
     # --------- #
     #  GETTER   #
@@ -1282,23 +1457,38 @@ class FritzSpectrum( object ):
     # --------- #
     # PLOTTER   #
     # --------- # 
-    def show(self, ax=None, savefile=None, **kwargs):
-        """ calls self.spectrum.show() """
-        if not self.has_spectrum():
-            raise AttributeError("No spectrum loaded")
+    def show(self, ax=None, savefile=None, color=None, ecolor=None, ealpha=0.2, 
+             show_error=True, zeroline=True, zcolor="0.7", zls="--", 
+             zprop={}, fillprop={}, **kwargs):
+        """ """
+        import matplotlib.pyplot as mpl
+        if ax is None:
+            fig = mpl.figure(figsize=[6,4])
+            ax = fig.add_axes([0.12,0.15,0.75,0.78])
+        else:
+            fig = ax.figure
             
-        return self.spectrum.show(ax=ax, savefile=savefile, **kwargs)
-        
+        prop = dict(zorder=3)
+        _ = ax.plot(self.lbda, self.flux, **{**prop, **kwargs})
+        if self.has_error() and show_error:
+            if ecolor is None:
+                ecolor = color
+            ax.fill_between(self.lbda, self.flux-self.error, self.flux+self.error, 
+                           facecolor=ecolor, alpha=ealpha, **{**prop,**fillprop})
+            
+        if zeroline:
+            ax.axhline(0, color=zcolor,ls=zls, **{**dict(lw=1, zorder=1),**zprop} )
+            
+        ax.set_ylabel("Flux []")
+        ax.set_xlabel(r"Wavelength [$\AA$]")
+        return fig
+    
     # ============= #
     #  Properties   #
     # ============= #    
     @property
     def fritzdict(self):
         """ dictionary given by fritz for the spectrum """
-        # used for "obj_id", "instrument_name",
-        # "original_file_string" for loading,
-        # "original_file_filename" for storing
-        # altdata / wavelengths / errors
         return self._fritzdict
 
     def has_fritzdict(self):
@@ -1322,19 +1512,83 @@ class FritzSpectrum( object ):
             return self.fritzdict["instrument_name"].lower()
             
         return None
+
+    # - Data
+    @property
+    def data(self):
+        """ """
+        if not hasattr(self, "_data"):
+            return None
+        return self._data
+
+    def has_data(self):
+        """ """
+        return self.data is not None
+    
+    @property
+    def lbda(self):
+        """ """
+        if not self.has_data():
+            return None
+        return self.data["lbda"].values
+
+    def _is_lbdastep_constant_(self):
+        """ """
+        return len(self._lbdastep)==1
+    
+    @property
+    def _lbdastep(self):
+        """ """
+        return np.unique(self.lbda[1:]-self.lbda[:-1])
+    
+    @property
+    def flux(self):
+        """ """
+        if not self.has_data():
+            return None
+        return self.data["flux"].values
         
     @property
-    def spectrum(self):
+    def error(self):
         """ """
-        return self._spectrum if self.has_spectrum() else None
+        if not self.has_data() or "error" not in self.data.columns:
+            return None
+        return self.data["error"].values
     
-    def has_spectrum(self):
+    def has_error(self):
         """ """
-        return hasattr(self, "_spectrum") and self._spectrum is not None
+        return self.error is not None
+    
+    @property
+    def header(self):
+        """ """
+        if not hasattr(self, "_header"):
+            self.set_header(None)
+        return self._header
+
+    @property
+    def filename(self):
+        """ """
+        if not hasattr(self, "_filename"):
+            return None
+        return self._filename
+
+
+
+
+
+
+
+
 
     
 class FritzSpectra( FritzSpectrum ):
     # FritzSpectrum Collection
+    def __init__(self, spectra):
+        """ """
+        if spectra is not None:
+            self.set_spectra(spectra)
+    
     @classmethod
     def from_file(cls, filename, spectrum_ok=False, **kwargs):
         """ """
@@ -1454,6 +1708,12 @@ class FritzSource( object ):
         if fritzdict is not None:
             self.set_fritzdict(fritzdict)
 
+    @classmethod
+    def from_name(cls, name):
+        """ """
+        source_  = download_source(name, get_object=False, **kwargs)
+        return cls(source_)
+    
     # ============ #
     #  Method      #
     # ============ #
@@ -1618,6 +1878,224 @@ class FritzSource( object ):
 
 
 
+import pandas
+# ----------- #
+#             #
+#  ALERTS     #
+#             #
+# ----------- #
+class FritzAlerts( object ):
+    """ """
+    def __init__(self, candidate_dataframe=None):
+        """ """
+        if candidate_dataframe is not None:
+            self.set_data(candidate_dataframe)
+
+    @classmethod
+    def from_name(cls, name, allfields=True):
+        """ """
+        alerts = fritz.download_alerts(name, get_object=False, allfields=True)
+        return cls.from_alerts(alerts)
+        
+    @classmethod
+    def from_alerts(cls, alerts):
+        """ """
+        this = cls()
+        this.set_candidates(alerts)
+        return this
+    
+    # ============== #
+    #  Methods       #
+    # ============== #
+    # -------- #
+    #  SETTER  #
+    # -------- #
+    def set_candidates(self, alerts):
+        """ Set here the alert candidate for it contains all the relevant information """
+        self.set_data(pandas.DataFrame([a["candidate"] for a in alerts]).set_index("candid"))
+        
+    def set_data(self, candidate_dataframe ):
+        """ """
+        self._data = candidate_dataframe
+        
+    # -------- #
+    #  GETTER  #
+    # -------- #        
+    def get_keys(self, keys, full=False, perband=False, groupby=None, usestat=None, index=None):
+        """ 
+        Parameters
+        ----------
+        full: [bool] -optional-
+            Returns the full data[["ra","dec"]]
+            = If True, the rest is ignored =
+            
+        // if full=False
+        
+        perband: [bool] -optional-
+            Returns the `usestat` coordinate grouped per band
+        
+        groupby: [string/None] -optional-
+            Returns the `usestat` coordinate grouped per given key.
+
+        usestat: [string] -optional-
+            How should be alert coordinates be combined.
+            any pandas statistics (mean, median, min, max etc.)
+        Returns
+        -------
+        """
+        
+        data_ = self.data.loc[index] if index is not None else self.data.copy()
+            
+        if full:
+            return data_[keys]
+        
+        if perband:
+            if groupby is None:
+                groupby = "fid"
+            else:
+                groupby = np.atleast_1d(groupby).tolist()+["fid"]
+        # = Grouped
+        if groupby is not None:
+            grouped = data_.groupby(groupby)[keys]
+            if usestat is None:
+                return grouped
+            return getattr(grouped, usestat)()
+            
+        # = not grouped
+        if usestat is None:
+            return data_[keys]
+        return getattr(data_[keys],usestat)()
+        
+    def get_coordinates(self, full=False, perband=False, groupby=None, usestat="mean", index=None):
+        """ 
+        Parameters
+        ----------
+        full: [bool] -optional-
+            Returns the full data[["ra","dec"]]
+            = If True, the rest is ignored =
+            
+        // if full=False
+        
+        perband: [bool] -optional-
+            Returns the `usestat` coordinate grouped per band
+        
+        groupby: [string/None] -optional-
+            Returns the `usestat` coordinate grouped per given key.
+
+        usestat: [string] -optional-
+            How should be alert coordinates be combined.
+            any pandas statistics (mean, median, min, max etc.)
+        Returns
+        -------
+        """
+        return self.get_keys(["ra","dec"], full=full, perband=perband, 
+                             groupby=groupby, usestat=usestat, index=index)
+        
+    def get_ccdpos(self, full=False, perband=False, groupby="field", usestat="mean", index=None):
+        """ 
+        Parameters
+        ----------
+        full: [bool] -optional-
+            Returns the full data[["ra","dec"]]
+            = If True, the rest is ignored =
+            
+        // if full=False
+        
+        perband: [bool] -optional-
+            Returns the `usestat` coordinate grouped per band
+        
+        groupby: [string/None] -optional-
+            Returns the `usestat` coordinate grouped per given key.
+
+        usestat: [string] -optional-
+            How should be alert coordinates be combined.
+            any pandas statistics (mean, median, min, max etc.)
+        Returns
+        -------
+        """
+        return self.get_keys(["xpos","ypos"], full=full, perband=perband, 
+                             groupby=groupby, usestat=usestat, index=index)
+        
+    def get_lightcurve(self, which="psf", index=None, **kwargs):
+        """ kwargs goes to get_keys() 
+        Parameters
+        ----------
+        which: [string] -optional-
+            Source of magnitude measurements
+            - 'psf'
+            - 'ap'
+            - 'apbig'            
+        """
+        extra = "g" if which != "psf" else "" # strange ipac structure
+        return self.get_keys(["jd",f"mag{which}",f"sigma{extra}{which}","fid"], index=index, **kwargs)
+            
+    def get_reference_timerange(self):
+        """ """
+        # mean because unique sets as single element list
+        return self.data.groupby(["field","fid"])[["jdstartref","jdendref"]].mean()
+    
+    def get_history_timerange(self, perband=True, groupby="field", **kwargs):
+        """ """
+        return self.get_keys(["jdstarthist","jdendhist"], perband=perband, groupby=groupby, 
+                             **{**{"usestat":"mean"},**kwargs})
+    
+    # -------- #
+    #  PLOTTER #
+    # -------- #    
+    def show_lc(self, ax=None, which="psf", index=None):
+        """ """
+        import matplotlib.pyplot as mpl
+        from matplotlib import dates as mdates # fancy x-axis
+        if ax is None:
+            fig = mpl.figure(figsize=[7,4])
+            ax = fig.add_subplot(111)
+        else:
+            fig = ax.figure
+        
+        # Data
+        extra = "g" if which != "psf" else "" # strange ipac structure
+        lc = self.get_lightcurve(which=which, index=index)
+        
+        #
+        det_prop = dict(ls="None", marker="o", ms=8, ecolor="0.8", mec="0.8")
+
+
+        for filt_ in lc["fid"].unique():
+            data_ = lc[lc["fid"]==filt_]
+            date_ = time.Time(data_["jd"], format="jd").datetime
+            ax.errorbar(date_, data_[f"mag{which}"], yerr=data_[f"sigma{extra}{which}"],
+                        color=ZTFCOLOR[FID_TO_NAME[filt_]], **det_prop)
+
+
+        # low mag means bright
+        ax.invert_yaxis()
+
+        # Fancy matplotlib dates
+        locator = mdates.AutoDateLocator()
+        formatter = mdates.ConciseDateFormatter(locator)
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(formatter)
+
+
+        # Labels
+        ax.set_ylabel("magnitude", fontsize="large")
+        ax.set_xlabel("date", fontsize="large")
+        
+    # ============== #
+    #   Properties   #
+    # ============== #
+    @property
+    def data(self):
+        """ """
+        if not hasattr(self,"_data"):
+            return None
+        
+        return self._data
+    
+    def has_data(self):
+        """ """
+        return self.data is not None
+
 # ----------- #
 #             #
 #  Groups     #
@@ -1697,5 +2175,11 @@ class FritzGroups( object ):
 
     @property
     def allgroups(self):
+        """ """
+        print("self.allgroups is DEPRECATED, use self.groups")
+        return self.groups
+
+    @property
+    def groups(self):
         """ """
         return self._all_groups
