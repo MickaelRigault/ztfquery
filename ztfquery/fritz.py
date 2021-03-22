@@ -510,10 +510,8 @@ class FritzPhotometry( object ):
             filename = cls._build_filename_(name, **kwargs)
             if os.path.isfile(filename):
                 extension = filename.split(".")[-1]
-                print("getting local")
                 return getattr(cls,f"read_{extension}")(filename)
             
-        print("downloding it.")
         return cls( download_lightcurve(name) )
 
     @classmethod
@@ -542,18 +540,6 @@ class FritzPhotometry( object ):
             return self.to_hdf(fileout, **kwargs)
         
         raise ValueError(f"only 'csv','json', 'hdf5' extension implemented ; {extension} given")
-
-    def load(self, filename, **kwargs):
-        """ """
-        extension = filename.split(".")[-1]
-        if extension in ["hdf","hd5","hdf5","h5"]:
-            extension="hdf"
-        
-        dataframe = getattr(pandas,f"read_{extension}")(filename, **kwargs)
-        if "mag" not in dataframe.columns:
-            warnings.warn("'mag' key not in input file's dataframe. Error to be expected. ")
-            
-        self.set_data(dataframe)
         
 
     # - read file    
@@ -814,10 +800,8 @@ class FritzSource( object ):
             filename = cls._build_filename_(name, **kwargs)
             if os.path.isfile(filename):
                 extension = filename.split(".")[-1]
-                print("getting local")
                 return getattr(cls,f"read_{extension}")(filename)
             
-        print("downloding it.")
         source_  = download_source(name, get_object=False, **kwargs)
         return cls(source_)
 
@@ -832,11 +816,6 @@ class FritzSource( object ):
             return getattr(self,f"to_{extension}")(fileout, **kwargs)
 
         raise ValueError(f"only 'json' extension implemented ; {extension} given")
-
-            
-    def load(self, filename):
-        """ """
-        print("Not Done yet")
 
     @staticmethod
     def _build_filename_(name, dirout=None, extension="json"):
@@ -1142,10 +1121,6 @@ class FritzSpectrum( object ):
             return getattr(self,f"to_{extension}")(fileout, **kwargs)
 
         raise ValueError(f"only 'fits','json', 'txt'/'dat'/'ascii' extension implemented ; {extension} given")
-
-    def load(self, filename, **kwargs):
-        """ """
-        print("self.load TO BE DONE")
         
     # - to file
     def to_fits(self, fileout, overwrite=True):
@@ -1591,10 +1566,8 @@ class FritzAlerts( object ):
             filename = cls._build_filename_(name, **kwargs)
             if os.path.isfile(filename):
                 extension = filename.split(".")[-1]
-                print("getting local")
                 return getattr(cls,f"read_{extension}")(filename)
             
-        print("downloding it.")
         alerts = download_alerts(name, get_object=False, allfields=True)
         return cls.from_alerts(alerts)
         
@@ -1621,18 +1594,6 @@ class FritzAlerts( object ):
             return self.to_hdf(fileout, **kwargs)
         
         raise ValueError(f"only 'csv','json', 'hdf5' extension implemented ; {extension} given")
-
-    def load(self, filename, **kwargs):
-        """ """
-        extension = filename.split(".")[-1]
-        if extension in ["hdf","hd5","hdf5","h5"]:
-            extension="hdf"
-        
-        dataframe = getattr(pandas,f"read_{extension}")(filename, **kwargs)
-        if "mag" not in dataframe.columns:
-            warnings.warn("'mag' key not in input file's dataframe. Error to be expected. ")
-            
-        self.set_data(dataframe)
         
     # - read file    
     @classmethod
