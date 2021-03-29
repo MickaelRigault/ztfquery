@@ -52,7 +52,7 @@ def api(method, endpoint, data=None, load=True, token=None, **kwargs):
     return downloaded["data"]
 
 def bulk_download(fobject, names, nprocess=4, show_progress=True,
-                      force_dl=False, store=True):
+                    asdict=False, force_dl=False, client=None, store=True):
     """ Multiprocessed download of Fritz{fobject}. 
     This makes use of the Fritz{fobject}.from_name() classmethods
 
@@ -60,7 +60,7 @@ def bulk_download(fobject, names, nprocess=4, show_progress=True,
     ----------
     fobject: [string]
         What you want to download.
-        - "lightcurve" (or "photometry"), "spectra" (or "spectrum"), "alerts", or "sources"
+        - "lightcurve" (or "photometry"), "spectra" (or "spectrum"), "alerts", or "source"
 
     names: [list of string]
         list of names for which you want to download data.
@@ -74,11 +74,15 @@ def bulk_download(fobject, names, nprocess=4, show_progress=True,
     store: [bool] -optional-
         Should the downloaded data be stored ?
 
+    asdict: [bool] -optional-
+        Should this return a dictionary or a list
+        - asdict=True: {name: fritz{fobject}}
+        - asdict=False: [fritz{fobject}]
     Returns
     -------
     Dictionary {name: fritz{fobject}}
     """
-    KNOW_OBJECT = ["lightcurve","photometry", "spectra", "spectrum", "alerts","sources"]
+    KNOW_OBJECT = ["lightcurve","photometry", "spectra", "spectrum", "alerts","source"]
     if fobject not in KNOW_OBJECT:
         raise ValueError(f"Unknown fritz object {fobject}")
     
@@ -86,14 +90,20 @@ def bulk_download(fobject, names, nprocess=4, show_progress=True,
         fobject = "spectra"
     if fobject == "photometry":
         fobject = "lightcurve"
-        
-        
+
+
+    if client is not None:
+        from dask import delayed
+        dl_func = eval(f"_single_download_{fobject}_")
+        d_download = [delayed(dl_func)([name, force_dl, store]) for name in names]
+        return client.compute(d_download)
+            
+
     from .utils.tools import is_running_from_notebook
     import multiprocessing
 
-    
     nnames = len(names)
-
+    
     #
     # - Progress bar or not
     if show_progress:
@@ -107,7 +117,7 @@ def bulk_download(fobject, names, nprocess=4, show_progress=True,
     objects = {}
     force_dl = [force_dl]*nnames
     store = [store]*nnames  
-
+    
     #
     # - Multiprocessing
     with multiprocessing.Pool(nprocess) as p:
@@ -120,7 +130,7 @@ def bulk_download(fobject, names, nprocess=4, show_progress=True,
         if bar is not None:
             bar.update(nnames)
             
-    return objects
+    return objects if asdict else list(objects.values())
 
 def _single_download_lightcurve_(args):
     """ """
@@ -142,8 +152,6 @@ def _single_download_source_(args):
     name, force_dl, store = args
     return FritzSource.from_name(name, force_dl=force_dl, store=store)
 
-
-
 # =============== #
 #                 #
 #  LightCurve     #
@@ -152,6 +160,7 @@ def _single_download_source_(args):
 def download_lightcurve(name, get_object=False,
                         token=None, clean_groupcolumn=True,
                         format=None, magsys=None, store=False,
+                        verbose=False,
                         **kwargs):
     """ 
     Parameters
@@ -177,12 +186,17 @@ def download_lightcurve(name, get_object=False,
     addon = "" if len(addon)==0 else "?"+"&".join(addon)
     # - end: addon
     #
+
+    q_url = _BASE_FRITZ_URL+f'api/sources/{name}/photometry{addon}'
+    if verbose:
+        print(f"queried URL: {q_url}")
         
-    lcdata = api('get', _BASE_FRITZ_URL+f'api/sources/{name}/photometry{addon}', load=True, token=token)
+    lcdata = api('get', q_url, load=True, token=token)
     lcdata = pandas.DataFrame(lcdata)
     
     if clean_groupcolumn:
-        lcdata["groups"] = [[i_["id"] for i_ in lcdata["groups"].iloc[i]] for i in range(len(lcdata))]
+        lcdata["groups"] = [[i_["id"] for i_ in lcdata["groups"].iloc[i]]
+                                for i in range(len(lcdata))]
 
     # - output
     if not store and not get_object:
@@ -195,27 +209,27 @@ def download_lightcurve(name, get_object=False,
     return flcdata if get_object else lcdata
         
 
-
 # =============== #
 #                 #
 #  Spectra        #
 #                 #
 # =============== #
-def download_spectra(name, get_object=False, token=None, store=False):
+def download_spectra(name, get_object=False, token=None, store=False, verbose=False):
     """ """
-    list_of_dict = api('get', _BASE_FRITZ_URL+f'api/sources/{name}/spectra', load=True,
-                           token=token)
+    q_url = _BASE_FRITZ_URL+f'api/sources/{name}/spectra'
+    if verbose:
+        print(f"queried URL: {q_url}")
+        
+    list_of_dict = api('get', q_url, load=True, token=token)
     #
     # - Any problem ?
     if list_of_dict is None or len(list_of_dict)==0:
-        url = _BASE_FRITZ_URL+f'api/sources/{name}/spectra'
-        warnings.warn(f"no spectra downloaded. {url} download is empty")
+        warnings.warn(f"no spectra downloaded. {q_url} download is empty")
         return None
 
     spectra = list_of_dict["spectra"]
     if spectra is None or len(spectra)==0:
-        url = _BASE_FRITZ_URL+f'api/sources/{name}/spectra'
-        warnings.warn(f"no spectra downloaded. {url} download is empty")
+        warnings.warn(f"no spectra downloaded. {q_url} download is empty")
         return None
     # - No ? Good
     #
@@ -236,9 +250,6 @@ def download_spectra(name, get_object=False, token=None, store=False):
             [fspec_.store() for fspec_ in fspectra]
 
     return fspectra if get_object else spectra
-
-def get_spectra(name, **kwargs):
-    """ """
     
 # =============== #
 #                 #
@@ -246,7 +257,7 @@ def get_spectra(name, **kwargs):
 #                 #
 # =============== #
 def download_alerts(name, candid=None, allfields=None,
-                    get_object=False, token=None, store=False):
+                    get_object=False, token=None, store=False, verbose=False):
     """ 
     Parameters
     ----------
@@ -263,9 +274,13 @@ def download_alerts(name, candid=None, allfields=None,
 
     addon = "" if len(addon)==0 else "?"+"&".join(addon)
     # - end: addon
-    #    
-    alerts = api('get', _BASE_FRITZ_URL+f'api/alerts/ztf/{name}{addon}', load=True,
-                     token=token)
+    #
+
+    q_url = _BASE_FRITZ_URL+f'api/alerts/ztf/{name}{addon}'
+    if verbose:
+        print(f"queried URL: {q_url}")
+        
+    alerts = api('get',q_url, load=True, token=token)
 
     # - output
     if not store and not get_object:
@@ -277,20 +292,19 @@ def download_alerts(name, candid=None, allfields=None,
     
     return falerts if get_object else alerts
 
-
-def get_alerts(name, **kwargs):
-    """ """
-
 # =============== #
 #                 #
 #   Source        #
 #                 #
 # =============== #
-def download_source(name, get_object=False, token=None, store=False):
+def download_source(name, get_object=False, token=None, store=False, verbose=False):
     """ """
     addon=''
-    source = api('get', _BASE_FRITZ_URL+f'api/sources/{name}{addon}', load=True,
-                     token=token)
+    q_url = _BASE_FRITZ_URL+f'api/sources/{name}{addon}'
+    if verbose:
+        print(f"queried URL: {q_url}")
+
+    source = api('get', q_url, load=True, token=token)
 
     if not store and not get_object:
         return source
@@ -300,11 +314,6 @@ def download_source(name, get_object=False, token=None, store=False):
         fsource.store()
 
     return fsource if get_object else source
-
-def get_source(name, **kwargs):
-    """ """
-
-
     
 # =============== #
 # --------------- #
@@ -318,7 +327,7 @@ def download_sample( groupid, get_object=False,
                      includephotometry=None,
                      includerequested=None,
                      addon=None, token=None,
-                     store=False):
+                     store=False, verbose=False):
     """ 
     
     includephotometry: [bool] -optional-
@@ -334,6 +343,9 @@ def download_sample( groupid, get_object=False,
 
     if savesummary:
         addon.append(f"saveSummary=true")
+        if store:
+            warnings.warn("store option not available if savesummary=True.")
+            store=False
         
     if groupid is not None:
         addon.append(f"group_ids={groupid}")
@@ -357,7 +369,11 @@ def download_sample( groupid, get_object=False,
     # - end: addon
     #
 
-    sources = api("get",_BASE_FRITZ_URL+f"api/sources{addon}", load=True, token=token)
+    q_url = _BASE_FRITZ_URL+f"api/sources{addon}"
+    if verbose:
+        print(f"queried URL: {q_url}")
+
+    sources = api('get', q_url, load=True, token=token)
 
     if not store and not get_object:
         return sources
@@ -369,9 +385,13 @@ def download_sample( groupid, get_object=False,
 #
 #  Group
 #
-def download_groups(get_object=False, token=None, store=True):
+def download_groups(get_object=False, token=None, store=True, verbose=False):
     """ """
-    groups = api('get', _BASE_FRITZ_URL+f'api/groups', load=True, token=token)
+    q_url =  _BASE_FRITZ_URL+f'api/groups'
+    if verbose:
+        print(f"queried URL: {q_url}")
+
+    groups = api('get',q_url, load=True, token=token)
 
     if not store and not get_object:
         return groups
@@ -385,123 +405,9 @@ def download_groups(get_object=False, token=None, store=True):
 # -------------- #
 #  Data I/O      #
 # -------------- #
-# - What at ?
-def get_target_directory(name, whichdata, builddir=False):
-    """ get the directory of the data {spectra/lightcurves/alerts} for the given target """
-    if whichdata not in ["spectra","lightcurves","alerts"]:
-        raise ValueError(f"whichdata could be 'spectra','lightcurves' or 'alerts' ; {whichdata} given")
-
-    return os.path.join(FRITZSOURCE, whichdata, name)
-
-def get_program_filepath(program):
-    """ builds the program filepath """
-    return os.path.join(FRITZSOURCE,f"{program}_target_sources.csv")
-
-#
-#  LightCurves
-#
-def get_lightcurve_localfile(name, extension="csv", directory="default",
-                                 builddir=False, squeeze=True, exists=True):
-    """ Return filename (or list of, see extension) for the lightcurves.
-    format: f"fritz_lightcurves_{name}{extension}"
-
-    Parameters
-    ----------
-    name: [string]
-        Name of a source, e.g., ZTF20acmzoxo
-        
-    extension: [string] -optional-
-        Extension of the file you are looking for.
-        If extension is "*"/"all", None or "any". 
-        This looks for the existing files in the given directory for 
-        fritz lightcurves with any extension.
-        
-    directory: [string] -optional-
-        In which directory the file should be?
-        If default, this is the ztfquery structure.
-
-    """
-    from .io import _parse_filename_
-    if directory is None or directory in ["default","None","ztfquery"]:
-        directory = get_target_directory(name, "lightcurves")
-
-    if extension is None:
-        extension = "*"
-    if not extension.startswith("."):
-        extension = f".{extension}"
-
-    basename = f"fritz_lightcurves_{name}{extension}"
-    fileout  = os.path.join(directory, basename)
-    return _parse_filename_(fileout, builddir=builddir, squeeze=squeeze, exists=exists)
-
-
-def get_local_lightcurves(name, extension="csv", directory="default",
-                            asfile=False, squeeze=True, **kwargs):
-    """ looks for locally stored fritz lightcurves.
-
-    Parameters
-    ----------
-    name: [string]
-        ZTF target name (e.g. ZTF20acmzoxo)
-    
-    extension: [string] -optional-
-        Extension of the file you are looking for.
-        
-    directory: [string] -optional-
-        In which directory the file should be?
-        If default, this is the ztfquery structure.
-        
-    """
-    filein = get_lightcurve_localfile(name, extension=extension, directory=directory)
-    if asfile:
-        if len(np.atleast_1d(filein))==0 and squeeze:
-            return None
-        if len(np.atleast_1d(filein))==1 and squeeze:
-            return np.atleast_1d(filein)[0]
-        return filein
-
-    if filein is None:
-        return None
-    
-    fileexists = [f_ for f_ in np.atleast_1d(filein) if os.path.isfile(f_)]
-    outs = [FritzPhotometry.from_file(filein, **kwargs) for filein in fileexists]
-    
-    if len(outs)==0:
-        return None
-    if len(outs)==1 and squeeze:
-        return outs[0]
-    return outs
-
 #
 #  Spectra
 #
-def get_spectra_localfile(name, instrument="*", extension="json", origin_filename=None,
-                          directory="default", builddir=False,
-                          squeeze=True, exists=True):
-    """ Datafile structure:
-    fritz_{instrument}spectrum_{name}_{origin_filename}{extension}
-
-    """
-    from .io import _parse_filename_
-    if directory is None or directory in ["default","None","ztfquery"]:
-        directory = get_target_directory(name, "spectra")
-
-    if extension is None or instrument in ["all","any"]:
-        extension = "*"
-        
-    if not extension.startswith("."):
-        extension = f".{extension}"
-        
-    if origin_filename is None or instrument in ["all","any"]:
-        origin_filename = "*"
-
-    if instrument is None or instrument in ["all","any"]:
-        instrument = "*"
-
-    basename = f"fritz_{instrument.lower()}spectrum_{name}_{origin_filename}{extension}"
-    fileout = os.path.join(directory,basename)
-    return _parse_filename_(fileout, builddir=builddir, squeeze=squeeze, exists=exists)
-
 def parse_spectrum_filename(filename):
     """ """
     directory = os.path.dirname(filename)
@@ -519,87 +425,6 @@ def parse_spectrum_filename(filename):
             "original_file_filename":originalname,
             "extension":extension,
             "directory":directory}
-    
-def get_local_spectra(name, extension="*", directory="default", asfile=False,
-                          squeeze=True, **kwargs):
-    """ looks for locally stored fritz lightcurves.
-
-    Parameters
-    ----------
-    name: [string]
-        ZTF target name (e.g. ZTF20acmzoxo)
-    
-    extension: [string] -optional-
-        Extension of the file you are looking for.
-        
-    directory: [string] -optional-
-        In which directory the file should be?
-        If default, this is the ztfquery structure.
-        
-    squeeze: [bool] -optional-
-        If only a single spectrum found, should this return a 
-        FritzSpectrum object rathen than FritzSpectra ? 
-        if asfile is True this squeeze the returned files
-    """
-    filein = get_spectra_localfile(name, extension=extension, directory=directory, squeeze=False)
-    # - Returns
-    if asfile:
-        if len(np.atleast_1d(filein))==0 and squeeze:
-            return None
-        if len(np.atleast_1d(filein))==1 and squeeze:
-            return np.atleast_1d(filein)[0]
-        return filein
-    
-    if len(filein)==0:
-        return None
-
-    return [FritzSpectrum.from_file(filein_, **kwargs) for filein_ in filein]
-
-#
-#  Alerts
-#
-    
-#
-#  Groups
-# 
-def get_group_datasource_filepath(groups):
-    """ Where target sources are stored in your local files 
-
-    Parameters
-    ----------
-    program: [string/None list of]
-        Program you want to load.
-        Formats are:
-        - */None/All: all are loaded
-        - keyword: programs with the given keyword in the name are loaded, e.g. 'Cosmo'
-        - list of keywords: program with any of the keyword are loaded, e.g. ['Cosmo','Infant']
-
-    Returns
-    -------
-    list of filenames
-    """
-    return {l.split("_")[0]:os.path.join(FRITZSOURCE,l)
-            for l in os.listdir(FRITZSOURCE) if l.endswith("sources.csv") and 
-            (groups in ["*", None,"all", "All"] or np.any([group in l for group in np.atleast_1d(groups)]))
-            }
-
-def get_groupsources_filepath(group):
-    """ builds the program filepath  """
-    return os.path.join(FRITZSOURCE,f"{group}_sources.csv")
-
-# ---------- #
-# PLOTTER    #
-# ---------- #
-def plot_lightcurve(dataframe=None, name=None, source="fritz", ax=None, **kwargs):
-    """ """
-    if dataframe is not None:
-        fp = FritzPhotometry(dataframe)
-    elif name is not None:
-        fp = getattr(FritzPhotometry,f'from_{source}')(dataframe)
-    else:
-        raise ValueError("name or dataframe must be given, None are.")
-    
-    return fp.show(ax=ax, **kwargs)
 
 ####################
 #                  #
@@ -1979,311 +1804,162 @@ class FritzAccess( object ):
     # --------- #
     #  I/O      #
     # --------- #
-    def store(self):
-        """ """
-        for group in self.get_loaded_groups():
-            fileout = get_groupsources_filepath(group)
-            if not os.path.isfile( fileout ):
-                dirout = os.path.dirname(fileout)
-                if not os.path.exists(dirout):
-                    os.mkdir(dirout)
-                
-            self.get_group_sources(group).to_csv(fileout, index=False)
-        
-    @classmethod
-    def load_local(cls, groups=None):
-        """ """
-        filepath = get_group_datasource_filepath(groups)
-        return cls.load_datafile( filepath )
-    
-    @classmethod
-    def load_datafile(cls, dataframefile, groups=None):
-        """ """
-         # - Dict formating
-        if not type(dataframefile) is dict:
-            dataframefile = np.atleast_1d(dataframefile)
-            if groups is None:
-                groups = [l.split("/")[-1].split("_target_sources")[0] for l in dataframefile]
-            else:
-                groups = np.atleast_1d(groups)
-            if len(groups) != len(dataframefile):
-                raise ValueError("the groups and dataframefile don't have the same size.")
-                
-            dataframefile = {k:v for k,v in zip(groups, dataframefile)}
-            
-        # - Let's go
-        groups = list(dataframefile.keys())
-        list_of_df = []
-        for p in groups:
-            file_ = dataframefile[p]
-            if not os.path.isfile(file_):
-                raise IOError(f"{file_} does not exists")
-            list_of_df.append(pandas.read_csv(file_))
-            
-        this = cls()
-        this.set_sources(list_of_df, groups=groups)
-        return this
+    def store(self, use_id=False):
+        """ Store the individual samples 
 
+        = calling the sample's FritzSample.store() =
+
+        Parameters
+        ----------
+        use_id: [bool -optional-
+            to store the individual sample, should this use the current sample keys (use_id=True)
+            or the groupid of the sample (use_id=False)
+
+        Returns
+        -------
+        Void
+        """
+        for id_, sample_ in self.samples.items():
+            groupname = None if not use_id else id_
+            sample_.store(groupname=groupname)
+            
     # --------- #
     #  LOADER   #
     # --------- #
-    def load_groups(self, token=None):
+    def load_groups(self, force_dl=False, token=None):
         """ which could be:
         'user_groups', 'user_accessible_groups', 'all_groups'
         """
-        self._groups =  download_groups(get_object=True, token=None)
+        self._groups = FritzGroups.load(force_dl=force_dl, token=token, store=True)
 
-    def load_user_programs(self, auth=None):
-        """ """
-        warnings.warn("DEPRECATED: programs is called groups in Fritz. Use load_groups().")
-        return self.load_groups(token=auth)
-    
-    
-    def load_target_sources(self, groups="*", 
-                            setit=True, token=None, store=True):
-        """ """
-        warnings.warn("DEPRECATED NAME CHANGE: load_target_sources -> load_sources.")
-        return self.load_sources( groups=groups,  setit=setit, token=token, store=store)
-    
-    def load_sources(self, groups="*",  setit=True, token=None, store=True):
-        """ """
-        if groups is None or groups in ["*","all"]:
-            groups = self.data.accessible["nickname"].values
+    def load_samples(self, groupnames_or_id=None, local_only=False, force_dl=False):
+        """ This fetchs the fritz sample and set them.
+        
+        (see fetch_samples())
+
+        Parameters
+        ----------
+        groupnames_or_id: [string/int (or list of)] -optional-
+            provide the list of group name or id you want.
+            If None, it will be the list of groups you have access to or the list of store local 
+            (see local_only)
+
+        local_only: [bool] -optional-
+            Load only the groups locally stored. 
+            Remark if groupnames_or_id is not None, it will be the groupnames_or_id locally stored.
+
+        force_dl: [bool] -optional-
+            Should the sample be updated while been loaded if they exist locally.
+            (FritzSample.from_group option)
+
+        Returns
+        -------
+        list of FritzSample
+        """
+        samples = self.fetch_samples(groupnames_or_id=groupnames_or_id, local_only=local_only, force_dl=force_dl)
+        for sample_ in samples:
+            self.set_sample(sample_)
+        
+    def fetch_samples(self, groupnames_or_id=None, local_only=False, force_dl=False, store=True, client=None):
+        """ loads the individual samples using the FritzSample.from_group() class method.
+        
+        Parameters
+        ----------
+        groupnames_or_id: [string/int (or list of)] -optional-
+            provide the list of group name or id you want.
+            If None, it will be the list of groups you have access to or the list of store local 
+            (see local_only)
+
+        local_only: [bool] -optional-
+            Load only the groups locally stored. 
+            Remark if groupnames_or_id is not None, it will be the groupnames_or_id locally stored.
+
+        force_dl: [bool] -optional-
+            Should the sample be updated while been loaded if they exist locally.
+            (FritzSample.from_group option)
+
+        client: [dask client or None] -optional-
+            Use dask client to distribute the computations.
+
+        Returns
+        -------
+        list of FritzSample
+        """
+        if groupnames_or_id is not None:
+            groupid = [g_ if str(g_).isdigit() else self.groupname_to_groupid(g_) for g_ in np.atleast_1d(groupnames_or_id)]
+            if local_only:
+                glob_groupid = ",".join(np.asarray(groupid, dtype="str"))
+                groupid = self.get_storedsamples(basename=f"fritz_sample_[{glob_groupid}]*", get_id=True)
+        elif local_only:
+            groupid = self.get_storedsamples(basename=f"fritz_sample_*", get_id=True)
         else:
-            groups = np.atleast_1d(groups)
+            groupid = self.get_mygroups("id")
+
+        from_group_prop = dict(force_dl=force_dl, store=store)
+        if client is not None:
+            from dask import delayed
+            d_fsample = [delayed(FritzSample.from_group)(id_, **from_group_prop) for id_ in groupid]
+            return client.compute(d_fsample)
             
-        df = {}
-        for i, groupname in enumerate(groups):
-            groupid = self.get_groupid(groupname)
-            dataframe = download_sources(groupid=groupid, asdataframe=True)
-            df[groupname] = dataframe
-        
-        if setit:
-            self.set_sources(df, groups=groups)
-            
-        if store:
-            self.store()
-            
-        if not setit:
-            return df
-        
+        return [FritzSample.from_group(id_, **from_group_prop) for id_ in groupid]
+    
     # --------- #
     #  SETTER   #
     # --------- #
-    def set_sources(self, source_dataframe, groups="unknown"):
-        """ Provide a Pandas.DataFrame containing the target source information 
-            as obtained by `load_target_sources`
-        """
-        if type(source_dataframe) is pandas.DataFrame:
-            source_dataframe = [source_dataframe]
-            
-        if type(source_dataframe) is dict:
-            self._sources = pandas.concat(source_dataframe)
-            self._loaded_groups = np.asarray(list(source_dataframe.keys()))
-        else:
-            groups = np.atleast_1d(groups)
-            self._sources = pandas.concat(source_dataframe, keys=groups)
-            self._loaded_groups = groups
-            
+    def set_sample(self, fritzsample, id_=None, overwrite=False):
+        """ """
+        if FritzSample not in fritzsample.__class__.__mro__:
+            raise TypeError(f"fritzsample must by a FritzSample object (or child of): type {type(fritzsample)} given")
+
+        if id_ is None:
+            if fritzsample.groupid is not None:
+                id_ = fritzsample.groupid
+            else:
+                from .utils import tools
+                id_ = tools.avoid_duplicate(list(self.samples_id)+["unknown_name"])[-1]
+
+        if id_ in self.samples_id and not overwrite:
+            raise AttributeError(f"{id_} is already a loaded sample. Set overwrite=True to overwrite it.")
+        
+        self.samples[id_] = fritzsample
+        
     # --------- #
     #  GETTER   #
     # --------- #
-    def get_groupid(self, groupname):
-        """ """
-        return self.data.get_groupid(groupname)
-    
-    def get_group_sources(self, group):
-        """ """
-        flaggroup =self.sources.index.get_level_values(0).isin(np.atleast_1d(group))
-        d_ = self.sources[flaggroup]
-        return d_.set_index(d_.index.droplevel(0))
-    
-    def get_loaded_groups(self):
-        """ get the values of currently loaded programs in the self.sources """
-        return np.unique(self.sources.index.get_level_values(0))
-
-    def get_source(self, name):
-        """ """
-        import ast
-        # Messy but the best I can do so far.
-        sourcesdf = self.sources[self.sources["id"].isin(np.atleast_1d(name))]
-        sdf = sourcesdf.set_index(sourcesdf.index.droplevel(0), inplace=False).iloc[0].to_dict()
-        newsdk = {}
-        for k,v in sdf.items():
-            if type(v) is str:
-                try:
-                    newsdk[k]= ast.literal_eval(v)
-                except:
-                    newsdk[k] = v
-            else:
-                newsdk[k] = v
-        
-        return FritzSource(newsdk)
-
-    def get_target_data(self, name, verbose=True, assource=False):
-        """ sources entry corresponding to the given name(s)
-
-        Parameters
-        ----------
-        name: [str or list of]
-        one or several target name(s) from `sources`
-
-        Returns
-        -------
-        DataFrame Row(s)
-        """
-        if not self.has_sources():
-            raise AttributeError("No sources loaded. run self.load_sources()")
-
-        if "name" in self.sources.columns:
-            namekey = "name"
-        elif "id" in self.sources.columns:
-            namekey = "id"
-        else:
-            raise AttributeError("no 'name' nor 'id' columns in self.sources")
-        return self.sources[self.sources[namekey].isin(np.atleast_1d(name))]
-
-    def get_target_coordinates(self, name, which="latest"):
-        """ Target(s) coordinates ["ra", "dec"] in degree
-        
-        [simply  `self.get_target_data(name)[["ra","dec"]]` ]
-        
-        Parameters
-        ----------
-        name: [str or list of]
-            one or several target name(s) from `target_sources`
-    
-        Returns
-        -------
-        Ra, Dec
-        """
-        return self._get_target_key_(name, ["ra","dec"], which=which)
-    
-    def get_target_redshift(self, name, which="latest"):
-        """ Target(s) redshift as saved in the Marshal.
-        # Caution, Redshift in the marshal might not be accurate. #
-        
-        [simply  `self.get_target_data(name)[["redshift"]]` ]
-        
-        Parameters
-        ----------
-        name: [str or list of]
-            one or several target name(s) from `target_sources`
-            
-        Returns
-        -------
-        Redshift
-        """
-        return self._get_target_key_(name, "redshift", which=which)
-
-    def get_target_classification(self, name, which="latest", full=False, squeeze=True):
-        """ 
-
-        Parameters
-        ----------
-        name: [str or list of]
-            one or several target name(s) from `target_sources`
-
-        Returns
-        -------
-        classification 
-        """
-        
-        fullclass = self._get_target_key_(name,"classifications", which=which).values[0]
-        if type(fullclass) is str:
-            import ast
-            fullclass = ast.literal_eval(fullclass)
-            
-        if full:
-            return fullclass
-        all_class = [f["classification"] for f in fullclass]
-        
-        if squeeze:
-            all_class = np.unique(all_class)
-            if len(all_class)==1:
-                return all_class[0]
-        
-        return all_class
-
-    def get_target_jdrange(self, name, format="jd", which="latest"):
-        """ get the target time range defined as [creation data, lastmodified]
-        
-        Parameters
-        ----------
-        name: [str or list of]
-            One or several target name(s) from `target_sources`
-            
-        format: [string] -optional-
-            What should be returned:
-            - 'time': this returns the astropy.time
-            - anything else: should be an argument of astropy.time
-              e.g.: jd, iso, mjd
-
-        Returns
-        -------
-        Creation data, Last modified
-        """
-        creation, lastmod = self._get_target_key_(name,["created_at","last_detected_at"], which=which).values[0]
-        tcreation  = time.Time(creation.split(".")[0], format="isot")
-        tlast      = time.Time(lastmod.split(".")[0],  format="isot")
-        if format in ["Time", "time"]:
-            return tcreation, tlast
-        
-        return getattr(tcreation,format),getattr(tlast,format)
-
-    def get_target_metadataquery(self, name, priorcreation=100, postlast=100, size=0.01):
-        """ get a dict you can use as kwargs for ztfquery's load_metadata()
-
-        Parameters
-        ----------
-        name: [str or list of]
-            one or several target name(s) from `target_sources`
-
-        priorcreation: [float] -optional-
-            how many days before the target creation date do you want to go back
-
-        postlast: [float] -optional-
-            how many days after the target last change you want to go ?
-
-        Returns
-        -------
-        dict(radec, size, sql_query)
-        """
-        if len(np.atleast_1d(name))>1:
-            return [self.get_target_metadataquery(name_, dayprior=dayprior,
-                                                  daypost=daypost, size=size) for name_ in name]
-        
-        targetdata = self.get_target_data(name)
-        ra,dec     = self.get_target_coordinates(name).values[0]
-        tcreation, tlast = self.get_target_jdrange(name, format="jd")
-
-        return self.get_metadataquery(ra,dec, tcreation-priorcreation,tlast+postlast,
-                                          size=size)
-
     @staticmethod
-    def get_metadataquery(ra,dec, jdmin, jdmax, size=0.01):
+    def get_storedsamples(basename="fritz_sample*", get_id=False):
         """ """
-        return dict(radec=[ra,dec], size=size,
-                    sql_query=f"obsjd BETWEEN {jdmin} and {jdmax}")
+        from glob import glob
+        filenames = glob( os.path.join(FRITZSOURCE,"sample", basename) )
+        if not get_id:
+            return filenames
+        return [FritzSample._filename_to_groupid_(f_) for f_ in filenames]
 
-    
-    def _get_target_key_(self, name, key, which="latest"):
-        """ """
-        d = self.get_target_data(name)
-        if len(d)==1:
-            return d[key]
+    # -------- #
+    #  GROUPS  #
+    # -------- #
+    def groupid_to_groupname(self, groupid, nickname=False, warn=True):
+        """ Short cut to groups.groupid_to_groupname """
+        return self.groups.groupid_to_groupname(groupid, nickname=nickname, warn=warn)
+
+    def groupname_to_groupid(self, groupname, nickname_ok=True, warn=True):
+        """ Short cut to groups.groupname_to_groupid """
+        return self.groups.groupname_to_groupid(groupname, nickname_ok=nickname_ok, warn=warn)
+
+    def get_mygroups(self, asformat="name"):
+        """ get the group's name/nickname/id for the group you have access to.
+        """
+        if asformat not in ["name", "nickname", "id"]:
+            raise ValueError(f"asformat should be name, nickname or id, {asformat} given")
         
-        if which in ["*","all",None, "All"]:
-            return d[key]
-        
-        if which in ["latest"]:
-            return d.sort_values("lastmodified", ascending=False).iloc[[0]][key]
-        
-        if which in self.get_loaded_programs():
-            return d.iloc[np.argwhere(d.index.get_level_values(0)==which)[0]][key]
-        
-        raise ValueError("Cannot parse the given which ({which}). all, `a program` or 'latest' available")
-    
+        return self.groups.accessible[asformat].values
+
+    # -------- #
+    #  SAMPLE  #
+    # -------- #
+
+
+
     # ============= #
     #  Properties   #
     # ============= #
@@ -2293,13 +1969,18 @@ class FritzAccess( object ):
         if not hasattr(self, "_groups"):
             self.load_groups()
         return self._groups
-        
-    # -- Marhsal users
+
     @property
-    def programs(self):
+    def samples(self):
+        """ list of loaded samples """
+        if not hasattr(self, "_samples") or self._samples is None:
+            self._samples = {}
+        return self._samples
+
+    @property
+    def samples_id(self):
         """ """
-        warnings.warn("DEPRECATED: programs is called groups in Fritz")
-        return self.data
+        return list(self.samples.keys())
 
     @property
     def sources(self):
@@ -2318,22 +1999,14 @@ class FritzAccess( object ):
         return None if not self.has_sources() else len(self.sources)
 
 
-
 # ----------- #
 #             #
 #  Sample     #
 #             #
 # ----------- #
 
-    
-
-
-# ----------- #
-#             #
-#  SAMPLE     #
-#             #
-# ----------- #
 class FritzSample( object ):
+    
     def __init__(self, fritzdict_sources=None, groupname_or_id=None):
         """ """
         if fritzdict_sources is not None:
@@ -2341,16 +2014,18 @@ class FritzSample( object ):
         if groupname_or_id is not None:
             self.set_group(groupname_or_id)
             
-
     @classmethod
-    def from_group(cls, groupname_or_id, force_dl=False, **kwargs):
+    def from_group(cls, groupname_or_id, force_dl=False, update_sources=False, store=False,
+                       load_sources=True, nprocess=4, client=None, **kwargs):
         """ """
+        prop_load = dict(load_sources=load_sources, nprocess=nprocess, client=client, force_dl=update_sources)
+        
         if not force_dl: 
             # - Did you provide an existing name ?
             filename = cls._build_filename_(groupname_or_id)
             if os.path.isfile(filename):
                 extension = filename.split(".")[-1]
-                return getattr(cls,f"read_{extension}")(filename)
+                return getattr(cls,f"read_{extension}")(filename, **prop_load)
             
         # is it a group name ?
         if not str(groupname_or_id).isdigit():
@@ -2364,54 +2039,152 @@ class FritzSample( object ):
             filename = cls._build_filename_(groupid)
             if os.path.isfile(filename):
                 extension = filename.split(".")[-1]
-                return getattr(cls,f"read_{extension}")(filename)
+                return getattr(cls,f"read_{extension}")(filename, **prop_load)
+            
+        summary = download_sample(groupid, get_object=False, store=False, savesummary=True, **kwargs)
+        return cls.from_summary(summary, groupname_or_id=groupname_or_id, store=store, **prop_load)
+        
+    @classmethod
+    def from_summary(cls, samplesummary, load_sources=True, nprocess=4,
+                         client=None, groupname_or_id=None, store=False, **kwargs):
+        """ loads the instance given the sample summary information only. 
+        If then loads the individual associated sources. 
 
-        sources = download_sample(groupid, **kwargs)
-        return cls(sources, groupname_or_id=groupid)
+        = calls cls.from_names() =
+        
+        Parameters
+        ----------
+        samplesummary: [dict or DataFrame]
+        """
+        if type(samplesummary) is dict:
+            summary = pandas.DataFrame(samplesummary["sources"])
+        else:
+            summary = pandas.DataFrame(samplesummary)
 
+        return cls.from_names(summary["obj_id"].values, load_sources=load_sources, store=store,
+                                  nprocess=nprocess, client=client, groupname_or_id=groupname_or_id, **kwargs)
+
+    @classmethod
+    def from_names(cls, names, load_sources=True, nprocess=4, client=None,
+                       groupname_or_id=None, store=False, **kwargs):
+        """ loads the instance simply given the names of the group's target
+
+        Parameters
+        ----------
+        names: [1d array]
+            list of source names
+
+        load_sources: [bool] -optional-
+            shall the individual sources by loaded ?
+
+        nprocess: [int] -optional-
+            number of processes used to load the sources.
+            - ignored if load_sources = False -
+            - ignored if client is not None -
+
+        client: [dask client] -optional-
+            provide a dask client to distribution to source loading. 
+            - ignored if load_sources = False -
+
+        Returns
+        -------
+        instance of the class.
+        """
+        this = cls(groupname_or_id=groupname_or_id)
+        this.set_names(names, load_sources=load_sources, nprocess=nprocess, client=client, **kwargs)
+        if store:
+            self.store(store_sources=True, client=client)
+        return this
+    
     # ============= #
     #  Method       #
     # ============= #
     # --------- #
     #  I/O      #
     # --------- #        
-    def store(self, groupname=None, fileout=None, dirout="default", extension="json", **kwargs):
+    def store(self, groupname=None, fileout=None, dirout="default", extension="csv",
+                  store_sources=False, client=None, **kwargs):
         """ calls the self.to_{extension} with the default naming convention. """  
         # can differ to extension if fileout given
 
         if groupname is None:
-            groupname = self.groupid
+            groupname = self.groupnickname if self.groupnickname is not None else self.groupid
             
         if fileout is None:
             fileout = self._build_filename_(groupname, dirout=dirout, extension=extension)
 
-        if extension == "json":
+        if extension in ["json", "parquet", "csv", "hdf"]:
             return getattr(self,f"to_{extension}")(fileout, **kwargs)
-        
-        raise ValueError(f"'json' extension implemented ; {extension} given")
-                
+        else:
+            raise ValueError(f"'json', 'parquet', 'csv', 'hdf' extension implemented ; {extension} given")
+
+        if store_sources:
+            self.store_sources(client=client)
+
+    def store_sources(self, client=None, **kwargs):
+        """ """
+        if client is None:
+            for s in self.sources:
+                s.store(**kwargs)
+        else:
+            from dask import delayed
+            d_store = [delayed(s.store)(**kwargs) for s in self.sources]
+            return client.compute(d_store)
+            
+    # - to file    
+    def to_parquet(self, fileout, **kwargs):
+        """ export the data as parquet using pandas.to_parquet """
+        self.data.to_parquet(fileout, **{**{"index":True},**kwargs})
+    
+    def to_csv(self, fileout, **kwargs):
+        """ export the data as csv using pandas.to_csv """
+        self.data.to_csv(fileout, **{**{"index":True},**kwargs})
+
+    def to_hdf(self, fileout, **kwargs):
+        """ export the data as csv using pandas.to_hdf """            
+        self.data.to_hdf(fileout, key="data", **{**{"index":True},**kwargs})
+
+    def to_json(self, fileout, **kwargs):
+        """ export the data as csv using pandas.to_json. """
+        self.data.to_json(fileout, **{**{"index":True},**kwargs})
+
     # - read file    
     @classmethod
-    def read_json(cls, filename):
+    def read_parquet(cls, filename, load_sources=True, client=None, **kwargs):
         """ """
+        data = pandas.read_parquet(filename)
         this = cls()
-        with open(filename, 'r') as filename_:
-            this.set_fritzdict( json.load(filename_) )
-            
-        if not "fritz_sample_" in os.path.basename(filename):
-            warnings.warn("Enable to parse the groupid from the filename.")
-        else:
-            groupid = os.path.basename(filename).split(".")[0].split("_")[-1]
-            this.set_group(groupid)
+        this.set_data(data, load_sources=load_sources, client=client, **kwargs)
+        this.set_filename(filename, load_groupname=True)
+        return this
+    
+    @classmethod
+    def read_csv(cls, filename, load_sources=True, client=None, **kwargs):
+        """ """
+        data = pandas.read_csv(filename) 
+        this = cls()
+        this.set_data(data, load_sources=load_sources, client=client, **kwargs)
+        this.set_filename(filename, load_groupname=True)
         return this
 
-    # - to file    
-    def to_json(self, filename):
+    @classmethod
+    def read_hdf(cls, filename, key="data", load_sources=True, client=None, **kwargs):
         """ """
-        import json
-        with open(filename,'w') as fileout_:
-            json.dump(self.fritzdict, fileout_)
+        data = pandas.read_hdf(filename, key=key)
+        this = cls()
+        this.set_data(data, load_sources=load_sources, client=client, **kwargs)
+        this.set_filename(filename, load_groupname=True)
+        return this
     
+    @classmethod
+    def read_json(cls, filename, load_sources=True, client=None, **kwargs):
+        """ """
+        data = pandas.read_json(filename)
+        this = cls()
+        this.set_data(data, load_sources=load_sources, client=client, **kwargs)
+        this.set_filename(filename, load_groupname=True)
+        return this
+
     @staticmethod
     def _build_filename_(groupid, dirout=None, extension="json"):
         """ """
@@ -2423,29 +2196,50 @@ class FritzSample( object ):
             
         return os.path.join(dirout,f"fritz_sample_{groupid}.{extension}")
 
+    @staticmethod
+    def _filename_to_groupid_(filename):
+        """ """
+        return os.path.basename(filename).split("_")[-1].split(".")[0]
+
+    # --------- #
+    #  LOADER   #
+    # --------- #
+    def load_sources(self, names=None, client=None, nprocess=4, **kwargs):
+        """ """
+        if names is None:
+            names = self.names
+
+        if names is None or len(names)==0:
+            warnings.warn("no names to load.")
+            return None
+
+        sources = self.fetch_data("source", names=names,
+                                    nprocess=nprocess, client=client, **kwargs)
+        self.set_sources(sources)
+
     # --------- #
     #  SETTER   #
     # --------- #
+    def set_names(self, names, load_sources=False, **kwargs):
+        """ 
+        **kwargs goes to load_sources() and then to fetch_data()
+        -> incl. notably client=None, nprocess=4 
+        """
+        self._names = np.asarray(names, dtype="str")
+        if load_sources:
+            self.load_sources(**kwargs)
+        
     def set_group(self, groupname_or_id):
         """ """
         if not str(groupname_or_id).isdigit():
-            self._groupname = groupname_or_id
-            self._groupid = FritzGroups.fetch_groupid(self._groupname)
+            self._groupid = FritzGroups.fetch_groupid(groupname_or_id)
         else:
             self._groupid = int(groupname_or_id)
-            self._groupname = FritzGroups.fetch_groupname(self._groupid)
-    
         
-    def set_fritzdict(self, fritzdict):
-        """ """
-        self._fritzdict = fritzdict
-        self.set_sources(fritzdict["sources"])
-        
-    def set_filename(self, filename):
-        """ """
-        self._filename = filename
+        self._groupname = FritzGroups.fetch_groupname(self._groupid)
+        self._groupnickname = FritzGroups.fetch_groupname(self._groupid, nickname=True, error="skip")
 
-    def set_sources(self, sources):
+    def set_sources(self, sources, update_data=True):
         """ """
         if type(sources[0])==dict:
             self._sources = [FritzSource(s_) for s_ in sources]
@@ -2453,9 +2247,31 @@ class FritzSample( object ):
             self._sources = sources
         else:
             raise TypeError("Only list of dict or list of FritzSource accepted.")
-            
-        self._data = None
+
+        if update_data:
+            self._load_data_()
+    
+    def set_data(self, data, load_sources=True, nprocess=4, client=None, **kwargs):
+        """ """
+        self._data = data.reset_index().set_index("name")
+        self.set_names(self.data.index.values)
+        if load_sources:
+            self.load_sources(client=client, nprocess=nprocess, **kwargs)
         
+    def set_fritzdict(self, fritzdict):
+        """ """
+        self._fritzdict = fritzdict
+        self.set_sources(fritzdict["sources"])
+        
+    def set_filename(self, filename, load_groupname=False):
+        """ """
+        self._filename = filename
+        if load_groupname:
+            try:
+                self.set_group( self._filename_to_groupid_(filename) )
+            except:
+                warnings.warn(f"cannot parse the groupname from {filename}")
+
     # --------- #
     #  GETTER   #
     # --------- #
@@ -2463,19 +2279,25 @@ class FritzSample( object ):
         """ Get the fritz Source """
         if name not in self.names:
             raise ValueError(f"Unknown source {name}")
-            
-            
+    
         source_ = self.sources[list(self.names).index(name)]
         if as_object:
             return source_
         
         return source_.fritzdict
 
+    def get_target_metaquery(self, name, **kwargs):
+        """ 
+        **kwargs goes to FritzSource.get_metaquery()
+        -> incl. priorcreation=100, postlast=100, add_query=None
+        """
+        return self.get_source(name).get_metaquery( **kwargs)
+    
     # --------- #
     #  Bulk     #
-    # --------- #
+    # --------- #        
     def fetch_data(self, fobject, names=None, store=True, force_dl=False,
-                           nprocess=4, show_progress=True, **kwargs):
+                       client=None, nprocess=4, show_progress=False, **kwargs):
         """ uses bulk_download to download data using multiprocessing. 
         
         This will only download data you don't have stored already (except if force_dl=True)
@@ -2489,12 +2311,15 @@ class FritzSample( object ):
         names: [list of string] -optional-
             list of names for which you want to download data.
             uses self.names if names=None
-
-        nprocess: [int] -optional-
-            list of parallel download processes.
         
         force_dl: [bool] -optional-
             Should this redownload existing data ?
+
+        nprocess: [int] -optional-
+            list of parallel download processes.
+
+        client: [dask client or None] -optional-
+            Use dask client to distribute the computations.
 
         store: [bool] -optional-
             Should the downloaded data be stored ?
@@ -2507,17 +2332,18 @@ class FritzSample( object ):
         if names is None:
             names = self.names
             
-        return bulk_download( fobject, self.names,
+        sources = bulk_download( fobject, names, client=client,
                               nprocess=nprocess, show_progress=show_progress,
-                              store=store, force_dl=force_dl, **kwargs)
-        
-
-    def _download_photometry_(self, sources=None, nprocess=None, client=None, show_progress=False, **kwargs):
-        """ """
+                              store=store, force_dl=force_dl, asdict=False, **kwargs)
+        if client is not None:
+            # means sources are actually futures
+            sources = client.gather(sources, errors="skip")
+            
+        return sources
 
     # --------- #
     # INTERNAL  #
-    # --------- #
+    # --------- #        
     def _load_data_(self, what=["redshift","ra","dec","classification","created_at", "last_detected_at"]):
         """ """
         # Force it
@@ -2537,7 +2363,6 @@ class FritzSample( object ):
             data.append(data_)
             
         self._data = pandas.DataFrame(data).set_index("name")
-        
     #
     # Internal method to grab info from individual sources
     def _call_down_(self, key, isfunc, *args, **kwargs):
@@ -2564,9 +2389,12 @@ class FritzSample( object ):
     def nsources(self):
         """ """
         return len(self.sources)
+    
     @property
     def fritzdict(self):
         """ """
+        if not hasattr(self,"_fritzdict"):
+            return None
         return self._fritzdict
     
     @property
@@ -2583,16 +2411,32 @@ class FritzSample( object ):
     @property
     def names(self):
         """ """
-        return self.data.index.values
+        if not hasattr(self, "_names"):
+            if self.has_data():
+                self.set_names(self.data.index.values)
+            else:
+                return None
+        return self._names
 
     @property
     def groupid(self):
         """ """
+        if not hasattr(self,"_groupid"):
+            return None
         return self._groupid
+    
+    @property
+    def groupnickname(self):
+        """ """
+        if not hasattr(self,"_groupnickname"):
+            return None
+        return self._groupnickname
 
     @property
     def groupname(self):
         """ """
+        if not hasattr(self,"_groupname"):
+            return None        
         return self._groupname
     
 # ----------- #
@@ -2608,11 +2452,11 @@ class FritzGroups( object ):
             self.set_fritzdict(fritzdict)
 
     @classmethod
-    def load(cls, force_dl=False, store=True, **kwargs):
+    def load(cls, force_dl=False, store=True, token=None, **kwargs):
         """ """
         json_file = cls._build_filename_(**kwargs)
         if force_dl or not os.path.isfile(json_file):
-            return cls( download_groups(get_object=False, store=store) )
+            return cls( download_groups(get_object=False, store=store, token=token) )
             
         return cls.read_json(json_file)
         
@@ -2672,7 +2516,7 @@ class FritzGroups( object ):
     #  Fetcher  #
     # --------- # 
     @classmethod
-    def fetch_groupname(cls, groupid, nickname=False):
+    def fetch_groupname(cls, groupid, nickname=False, error="raise"):
         """ """
         this = cls.load()
         groupname = this.groupid_to_groupname(groupid, nickname=nickname, warn=False)
@@ -2681,7 +2525,11 @@ class FritzGroups( object ):
             this = cls.load(force_dl=True, store=True) # update and see
             groupname = this.groupid_to_groupname(groupid, nickname=nickname, warn=False)
             if groupname is None:
-                raise ValueError(f"unknown groupid {groupid}, even after update")
+                if error == "raise":
+                    raise ValueError(f"unknown groupid {groupid}, even after update")
+                elif error == "warn":
+                    warnings.warn(f"unknown {nickname} groupid {groupid}, even after update")
+                    
         
         return groupname
 
@@ -2706,7 +2554,6 @@ class FritzGroups( object ):
         """ """
         self._fritzdict = fritzdict
         self._load_groups_()
-
 
     def groupname_to_groupid(self, groupname, nickname_ok=True, warn=True):
         """ """
@@ -2760,9 +2607,6 @@ class FritzGroups( object ):
             
         ids_ = self.data[flagin]["id"].values
         return ids_[0] if (squeeze and len(ids_)==1) else ids_[0]
-
-    
-
         
     # ============= #
     #  Properties   #

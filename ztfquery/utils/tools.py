@@ -21,8 +21,16 @@ def running_from():
             return "other"  # Other type (?)
     except NameError:
         return None 
-
     
+def avoid_duplicate(string_array):
+    """ """
+    string_array = np.asarray(string_array, dtype=object)
+    occurence = {k:v for k,v in zip(*np.unique(string_array, return_counts=True))}
+    for name_,nname_ in occurence.items():
+        if nname_>1:
+            string_array[np.in1d(string_array,name_)] = [name_+f"{i+1}" for i in range(nname_)]
+            
+    return np.asarray(string_array, dtype="str")
 
 ##############################
 #                            #
