@@ -2297,7 +2297,7 @@ class FritzSample( object ):
     #  Bulk     #
     # --------- #        
     def fetch_data(self, fobject, names=None, store=True, force_dl=False,
-                       client=None, nprocess=4, show_progress=False, **kwargs):
+                       client=None, nprocess=4, show_progress=False, gather=True, **kwargs):
         """ uses bulk_download to download data using multiprocessing. 
         
         This will only download data you don't have stored already (except if force_dl=True)
@@ -2333,11 +2333,12 @@ class FritzSample( object ):
             names = self.names
             
         sources = bulk_download( fobject, names, client=client,
-                              nprocess=nprocess, show_progress=show_progress,
-                              store=store, force_dl=force_dl, asdict=False, **kwargs)
-        if client is not None:
+                                nprocess=nprocess, show_progress=show_progress,
+                                store=store, force_dl=force_dl, asdict=False, **kwargs)
+        if client is not None and gather:
             # means sources are actually futures
             sources = client.gather(sources, errors="skip")
+                
             
         return sources
 
