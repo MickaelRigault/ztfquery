@@ -1822,7 +1822,17 @@ class FritzAccess( object ):
         for id_, sample_ in self.samples.items():
             groupname = None if not use_id else id_
             sample_.store(groupname=groupname)
-            
+
+    @classmethod
+    def load_local(cls, groupnames_or_id=None, force_dl=False, ignorenames_or_id=None,):
+        """ """
+        this = cls()
+        this.load_samples(local_only=True,
+                              force_dl=force_dl,
+                              groupnames_or_id=groupnames_or_id,
+                              ignorenames_or_id=ignorenames_or_id)
+        return this
+    
     # --------- #
     #  LOADER   #
     # --------- #
@@ -1832,7 +1842,8 @@ class FritzAccess( object ):
         """
         self._groups = FritzGroups.load(force_dl=force_dl, token=token, store=True)
 
-    def load_samples(self, groupnames_or_id=None, local_only=False, force_dl=False):
+    def load_samples(self, groupnames_or_id=None, local_only=False, force_dl=False, ignorenames_or_id=None,
+                         reset=False):
         """ This fetchs the fritz sample and set them.
         
         (see fetch_samples())
@@ -1852,15 +1863,28 @@ class FritzAccess( object ):
             Should the sample be updated while been loaded if they exist locally.
             (FritzSample.from_group option)
 
+        ignorenames_or_id: [string/int (or list of)] -optional-
+            similar to groupnames_or_id but for the sample to be ignored.
+            for instance: ignorenames_or_id=["RCF Junk and Variables"]
+
         Returns
         -------
         list of FritzSample
-        """
-        samples = self.fetch_samples(groupnames_or_id=groupnames_or_id, local_only=local_only, force_dl=force_dl)
+        """            
+        samples = self.fetch_samples(groupnames_or_id=groupnames_or_id, local_only=local_only, force_dl=force_dl,
+                                         ignorenames_or_id=ignorenames_or_id)
         for sample_ in samples:
             self.set_sample(sample_)
-        
-    def fetch_samples(self, groupnames_or_id=None, local_only=False, force_dl=False, store=True, client=None):
+
+    def load_sources(self, client=None, nprocess=4, **kwargs):
+        """ """
+        return self._call_down_sample_("load_sources", isfunc=isfunc, client=client, nprocess=nprocess, **kwargs)
+
+    def fetch_samples(self, groupnames_or_id=None, load_sources=False,
+                          local_only=False, update_sources=False,
+                          ignorenames_or_id=None,
+                          force_dl=False, store=False,
+                          client=None):
         """ loads the individual samples using the FritzSample.from_group() class method.
         
         Parameters
@@ -1881,10 +1905,14 @@ class FritzAccess( object ):
         client: [dask client or None] -optional-
             Use dask client to distribute the computations.
 
+        ignorenames_or_id: [string/int (or list of)] -optional-
+            similar to groupnames_or_id but for the sample to be ignored.
+            for instance: ignorenames_or_id=["RCF Junk and Variables"]
+
         Returns
         -------
         list of FritzSample
-        """
+        """            
         if groupnames_or_id is not None:
             groupid = [g_ if str(g_).isdigit() else self.groupname_to_groupid(g_) for g_ in np.atleast_1d(groupnames_or_id)]
             if local_only:
@@ -1894,14 +1922,64 @@ class FritzAccess( object ):
             groupid = self.get_storedsamples(basename=f"fritz_sample_*", get_id=True)
         else:
             groupid = self.get_mygroups("id")
-
-        from_group_prop = dict(force_dl=force_dl, store=store)
+            
+        if ignorenames_or_id is not None:
+            ignoredgroupid = [g_ if str(g_).isdigit() else self.groupname_to_groupid(g_) for g_ in np.atleast_1d(ignorenames_or_id)]
+            groupid = [id_ for id_ in groupid if id_ not in ignoredgroupid]
+            
+        from_group_prop = dict(force_dl=force_dl, store=store, load_sources=load_sources, update_sources=update_sources)
         if client is not None:
             from dask import delayed
             d_fsample = [delayed(FritzSample.from_group)(id_, **from_group_prop) for id_ in groupid]
             return client.compute(d_fsample)
             
         return [FritzSample.from_group(id_, **from_group_prop) for id_ in groupid]
+
+
+    def fetch_data(self, fobject, names=None, store=True, force_dl=False,
+                       client=None, nprocess=4, show_progress=False, gather=True, **kwargs):
+        """ uses bulk_download to download data using multiprocessing. 
+        
+        This will only download data you don't have stored already (except if force_dl=True)
+
+        Parameters
+        ----------
+        fobject: [string]
+            What you want to download.
+            - "lightcurve" (or "photometry"), "spectra" (or "spectrum"), "alerts", or "sources"
+
+        names: [list of string] -optional-
+            list of names for which you want to download data.
+            uses self.names if names=None
+        
+        force_dl: [bool] -optional-
+            Should this redownload existing data ?
+
+        nprocess: [int] -optional-
+            list of parallel download processes.
+
+        client: [dask client or None] -optional-
+            Use dask client to distribute the computations.
+
+        store: [bool] -optional-
+            Should the downloaded data be stored ?
+
+        **kwargs goes to bulk_download
+        Returns
+        -------
+        Dictionary {name: fritz{fobject}}
+        """
+        if names is None:
+            names = self.names
+            
+        sources = bulk_download( fobject, names, client=client,
+                                nprocess=nprocess, show_progress=show_progress,
+                                store=store, force_dl=force_dl, asdict=False, **kwargs)
+        if client is not None and gather:
+            # means sources are actually futures
+            sources = client.gather(sources, errors="skip")
+                
+        return sources
     
     # --------- #
     #  SETTER   #
@@ -1922,7 +2000,19 @@ class FritzAccess( object ):
             raise AttributeError(f"{id_} is already a loaded sample. Set overwrite=True to overwrite it.")
         
         self.samples[id_] = fritzsample
-        
+
+    def set_sources(self, sources, update_data=True):
+        """ """
+        if type(sources[0])==dict:
+            self._sources = [FritzSource(s_) for s_ in sources]
+        elif type(sources[0])==FritzSource:
+            self._sources = sources
+        else:
+            raise TypeError("Only list of dict or list of FritzSource accepted.")
+
+        if update_data:
+            self._load_data_()
+
     # --------- #
     #  GETTER   #
     # --------- #
@@ -1934,7 +2024,7 @@ class FritzAccess( object ):
         if not get_id:
             return filenames
         return [FritzSample._filename_to_groupid_(f_) for f_ in filenames]
-
+    
     # -------- #
     #  GROUPS  #
     # -------- #
@@ -1957,9 +2047,51 @@ class FritzAccess( object ):
     # -------- #
     #  SAMPLE  #
     # -------- #
+    def get_sample(self, groupname_or_id):
+        """ """
+        if not str(groupname_or_id).isdigit():
+            groupid = self.groupname_to_groupid(groupname_or_id)
+        else:
+            groupid = int(groupname_or_id)
+            
+        return self.samples[groupid]
 
+    def get_sample_overlap(self, groupname_or_id_1, groupname_or_id_2):
+        """ get the name list of target that are in both """
+        sample1 = self.get_sample(groupname_or_id_1)
+        sample2 = self.get_sample(groupname_or_id_2)
+        return sample1.names[np.in1d(sample1.names, sample2.names)]
+        
+    def get_names(self, sample):
+        """ """
+        return self._call_down_sample_("names", isfunc=False)
 
+    def get_samples_size(self, asgroup="name"):
+        """ """
+        if asgroup not in ["id", "groupid", "name", "nickname"]:
+            raise ValueError(f"asgroup should be id, name or nickname, {asgroup} given")
+        
+        groupid_map = self._map_down_sample(len, "names", isfunc=False)
+        if asgroup in ["id", "groupid"]:
+            return groupid_map
+        if asgroup in ["name"]:
+            return {self.groupid_to_groupname(id_):v for id_,v in groupid_map.items()}
+        if asgroup in ["nickname"]:
+            return {self.groupid_to_groupname(id_, nickname=nickname):v for id_,v in groupid_map.items()}
+        
+    #
+    # Internal method to grab info from individual sources
+    def _call_down_sample_(self, key, isfunc, *args, **kwargs):
+        """ """
+        if not isfunc:
+            return {id_:getattr(s_,key) for id_, s_ in self.samples.items()}
+        return {id_:getattr(s_,key)(*args,**kwargs) for id_, s_ in self.samples.items()}
 
+    def _map_down_sample(self, func, key, isfunc, *args, **kwargs):
+        """ """
+        if not isfunc:
+            return {id_:func(getattr(s_,key)) for id_, s_ in self.samples.items()}
+        return {id_:func(getattr(s_,key)(*args,**kwargs)) for id_, s_ in self.samples.items()}
     # ============= #
     #  Properties   #
     # ============= #
@@ -1977,6 +2109,10 @@ class FritzAccess( object ):
             self._samples = {}
         return self._samples
 
+    def has_samples(self):
+        """ """
+        return len(self.samples)>0
+    
     @property
     def samples_id(self):
         """ """
@@ -1998,7 +2134,22 @@ class FritzAccess( object ):
         """ """
         return None if not self.has_sources() else len(self.sources)
 
+    @property
+    def names(self):
+        """ list of individual target names (from any loaded sample) """
+        return np.unique(np.concatenate(list(self._call_down_sample_('names', isfunc=False).values())))
 
+    @property
+    def data(self):
+        """ """
+        if not hasattr(self,"_data") or self._data is None:
+            if self.has_samples():
+                self._data = pandas.concat(self._call_down_sample_("data", isfunc=False))
+            else:
+                return None
+        return self._data
+    
+            
 # ----------- #
 #             #
 #  Sample     #
@@ -2108,7 +2259,7 @@ class FritzSample( object ):
         # can differ to extension if fileout given
 
         if groupname is None:
-            groupname = self.groupnickname if self.groupnickname is not None else self.groupid
+            groupname = self.groupid
             
         if fileout is None:
             fileout = self._build_filename_(groupname, dirout=dirout, extension=extension)
