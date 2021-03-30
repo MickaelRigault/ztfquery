@@ -2186,7 +2186,7 @@ class FritzSample( object ):
         return this
 
     @staticmethod
-    def _build_filename_(groupid, dirout=None, extension="json"):
+    def _build_filename_(groupid, dirout=None, extension="csv"):
         """ """
         if dirout is None or dirout == "default":
             dirout = os.path.join(FRITZSOURCE,"sample")
