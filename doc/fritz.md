@@ -2,6 +2,9 @@
 _fritz.py documentation_
 ***
 
+
+**THIS DOCUMENTATION IS OUTDATED FOR VERSION >1.14 ; SEE TUTORIALS FOR NOW **
+
 `ztfquery.fritz.py` is module to access data from [fritz.science](https://fritz.science/).
 
 # Requirements 
