@@ -46,7 +46,8 @@ def get_log(date, which="completed", download=True, update=False, **kwargs):
     DataFrame
     """
     if len(np.atleast_1d(date))>1:
-        return pandas.concat([get_log(date_, which=which, download=download, update=update, **kwargs)  for date_ in date])
+        return pandas.concat([get_log(date_, which=which, download=download, update=update,
+                                          **kwargs)  for date_ in date])
     
     date = np.atleast_1d(date)[0]
     if update:
@@ -190,22 +191,34 @@ def download_completed_log(date, auth=None, store=True,
         print(data)
         
     if time.Time(date)<=time.Time("2018-07-09"):
-        columns = ['UT Date','UT Time','Sequence ID', 'Program ID', 'Field ID', 'RA', 'DEC', 'Epoch',
-                   'RA Rate', 'Dec Rate', 'Exptime', 'Filter', 'Observation Status', 'Setup Time', 'Exptime']
+        columns = ['UT Date','UT Time','Sequence ID', 'Program ID',
+                    'Field ID', 'RA', 'DEC', 'Epoch',
+                   'RA Rate', 'Dec Rate', 'Exptime', 'Filter', 'Observation Status',
+                    'Setup Time', 'Exptime']
+    elif time.Time(date)>=time.Time("2021-04-01"):
+        columns = ['UT Date','UT Time', 'Base Image Name','Sequence ID', 'Program ID',
+                    'Field ID', 'RA', 'DEC', 'Epoch',
+                   'RA Rate', 'Dec Rate', 'Exptime', 'Filter', 'Observation Status',
+                    'Setup Time', 'Exptime',"_num0", "_num1"]
+            
     elif time.Time(date)>=time.Time("2020-10-29"):
-        columns = ['UT Date','UT Time', 'Base Image Name','Sequence ID', 'Program ID', 'Field ID', 'RA', 'DEC', 'Epoch',
-                   'RA Rate', 'Dec Rate', 'Exptime', 'Filter', 'Observation Status', 'Setup Time', 'Exptime',"_num"]
+        columns = ['UT Date','UT Time', 'Base Image Name','Sequence ID', 'Program ID',
+                    'Field ID', 'RA', 'DEC', 'Epoch',
+                   'RA Rate', 'Dec Rate', 'Exptime', 'Filter', 'Observation Status',
+                    'Setup Time', 'Exptime',"_num"]
     else:
-        columns = ['UT Date','UT Time', 'Base Image Name','Sequence ID', 'Program ID', 'Field ID', 'RA', 'DEC', 'Epoch',
-                   'RA Rate', 'Dec Rate', 'Exptime', 'Filter', 'Observation Status', 'Setup Time', 'Exptime']
+        columns = ['UT Date','UT Time', 'Base Image Name','Sequence ID', 'Program ID',
+                    'Field ID', 'RA', 'DEC', 'Epoch',
+                   'RA Rate', 'Dec Rate', 'Exptime', 'Filter', 'Observation Status',
+                   'Setup Time', 'Exptime']
 
             
     try:
         df = pandas.DataFrame(data, columns=columns)
     except:
         warnings.warn(f"Column format does not match the completed_log date downloade for {date}")
-        print(data)
-        return None
+        print("FORMAT ERROR:", data)
+        return data
         
     if store:
         df.to_csv( get_log_filepath(date, which="completed"), index=False)
