@@ -195,6 +195,7 @@ def download_completed_log(date, auth=None, store=True,
                     'Field ID', 'RA', 'DEC', 'Epoch',
                    'RA Rate', 'Dec Rate', 'Exptime', 'Filter', 'Observation Status',
                     'Setup Time', 'Exptime']
+            
     elif time.Time(date)>=time.Time("2021-04-01"):
         columns = ['UT Date','UT Time', 'Base Image Name','Sequence ID', 'Program ID',
                     'Field ID', 'RA', 'DEC', 'Epoch',

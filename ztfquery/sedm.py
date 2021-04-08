@@ -211,6 +211,7 @@ class PharosIO( object ):
         stored: [bool] -optional-
             load the stored multiindex DataFrame. containing
             all the whatfile loaded and then stored.
+            If no whatdata has been stored, this will be ignored.
 
         Returns
         -------
@@ -243,9 +244,14 @@ class PharosIO( object ):
         -------
         DataFrame (MultiIndex)
         """
+        whatfiles = cls.get_local_whatfiles(contains)
+        if len(whatfiles) == 0:
+            return None
+        
         whatdata= pandas.concat({os.path.basename(f_).split("_")[-1].split(".")[0]:\
                                        pandas.read_parquet(f_)
-                         for f_ in cls.get_local_whatfiles(contains)})
+                         for f_ in whatfiles})
+            
         if clean_exptime:
             whatdata["exptime"] = whatdata["exptime"].str.replace(" s", "")
 
@@ -481,7 +487,7 @@ class PharosIO( object ):
     # -------- #
     def get_whatdata(self, targets=None,
                          incl_calib=False, incl_std=True, incl_ztf=True,
-                         ztf_calib=False, std_only=False, ztf_only=False,
+                         calib_only=False, std_only=False, ztf_only=False,
                          airmass_range=None, exptime_range=None, date_range=None):
         """ Get the subpart of the whatdata DataFrame
         
@@ -493,7 +499,7 @@ class PharosIO( object ):
         incl_calib, incl_std, incl_ztf: [bool] -optional-
             Include the calibration, standard star observations and ztf observations ?
 
-        only_calib, only_std, only_ztf: [bool] -optional-
+        calib_only, std_only, ztf_only: [bool] -optional-
             Limit the returned entries as the one corresponding to 
             calibration, standard stars or ztf names targets.
 
@@ -535,7 +541,7 @@ class PharosIO( object ):
         if ztf_only:
             data_ = data_[data_["target"].str.startswith("ZTF")]
             
-        if ztf_calib:
+        if calib_only:
             data_ = data_[data_["target"].str.startswith("Calib")]
             
         if exptime_range is not None:
@@ -558,13 +564,27 @@ class PharosIO( object ):
 
         return data_
 
-    def get_pharosdata(self, date, force_dl=False):
+    def get_pharosdata(self, date, force_dl=False, basename=False):
         """ """
         if date not in self.pharosdata or force_dl:
             self.pharosdata[date] = self.fetch_pharosfile(date, force_dl=force_dl, load=True)
 
-        return self.pharosdata[date]
+        if not basename:
+            return self.pharosdata[date]
+        return [os.path.basename(l) for l in self.pharosdata[date]]
 
+    def get_nights_with_target(self, targetname, 
+                                  airmass_range=None,
+                                  exptime_range=None,
+                                  date_range=None, **kwargs):
+        """ """
+        target_what = self.get_whatdata(targets=targetname,
+                                        airmass_range=airmass_range, 
+                                        exptime_range=exptime_range,
+                                        date_range=date_range,
+                                            **kwargs)
+        return np.unique(target_what.index.get_level_values(0))
+    
     def get_target_pharosdata(self, targetname,
                                   airmass_range=None,
                                   exptime_range=None,
@@ -641,374 +661,534 @@ class PharosIO( object ):
 #  PHAROS        #
 #                #
 ##################
-class SEDMQuery( object ):
-    """ """
-    _PROPERTIES = ["auth", "date"]
-    def __init__(self, auth=None, date=None):
+class SEDMQuery():
+    def __init__(self, load_pharosio=True, **kwargs):
         """ """
-        self.sedmwhatfiles = _SEDMFiles_()
-        self.reset()
-        self.set_date(date)
-        self.set_auth(io._load_id_("pharos") if auth is None else auth)
-        
-    def reset(self):
-        """ set the authentification, date and any other properties to default """
-        self._properties = {k:None for k in self._PROPERTIES}
-        
-    # -------- #
-    #  SETTER  #
-    # -------- #
-    def set_date(self, date):
-        """ attach a date for faster night access interation """
-        self._properties["date"] = date
+        if load_pharosio:
+            self._load_pharosio_(**kwargs)
     
-    def set_auth(self, auth):
-        """ provide your authentification. """
-        self._properties["auth"] = auth
+    def _load_pharosio_(self, **kwargs):
+        """ """
+        self._pharosio = PharosIO.load_local(stored=True, **kwargs)
 
-    # ----------- #
-    # Downloader  #
-    # ----------- #
-    def download_night_fluxcal(self, night, nodl=False, auth=None, download_dir="default",
-                                 show_progress=False,  verbose=True,
-                                 overwrite=False, nprocess=None):
-        """ download SEDM fluxcalibration file for the given night
+    # ============= #
+    #  Method       #
+    # ============= #
+    def update_pharosio(self, client=None, **kwargs):
+        """ """
+        return self.pharosio.update(client=client, **kwargs)
+    
+    def get_whatdata(self, targets=None,
+                     incl_calib=False, incl_std=True, incl_ztf=True,
+                     calib_only=False, std_only=False, ztf_only=False,
+                     airmass_range=None, exptime_range=None, date_range=None):
+        """ Get the subpart of the whatdata DataFrame
         
         Parameters
         ----------
-        nodl: [bool] -optional-
-            do not launch the download, instead, returns 
-            list of queried url and where they are going to be stored.
+        targets: [string or list of] -optional-
+            Select only whatdata entries corresponding to this target (or these targets).
             
-        download_dir: [string] -optional-
-            Directory where the file should be downloaded.
-            If th
-            
-        overwrite: [bool] -optional-
-            Check if the requested data already exist in the target download directory. 
-            If so, this will skip the download except if overwrite is set to True.
+        incl_calib, incl_std, incl_ztf: [bool] -optional-
+            Include the calibration, standard star observations and ztf observations ?
 
-        nprocess: [None/int] -optional-
-            Number of parallel downloading you want to do. 
-            If None, it will be set to 1 and will not use multiprocess
+        calib_only, std_only, ztf_only: [bool] -optional-
+            Limit the returned entries as the one corresponding to 
+            calibration, standard stars or ztf names targets.
 
-        auth: [str, str] -optional-
-            [username, password] of you pharos account.
-            If used, information stored in ~/.ztfquery will be ignored.
+        airmass_range, exptime_range, date_range: [float/None, float/None] -optional-
+            select a range or airmass and/or exptime.
+            None means no limit. For instance all the exposure lower than 300s
+            will be exptime_range=[None,300]
+            * Format * for date_range, dates are given as YYYYMMDD
             
         Returns
         -------
-        Void or list (see nodl)
+        DataFrame (subpart of whatdata)
         """
-        relative_path = [l for l in self.get_night_data(night, source='pharos') if l.split("/")[-1].startswith("fluxcal")]
-        return self._download_from_relative_path_(relative_path, nodl=nodl, auth=auth, download_dir=download_dir,
-                                          show_progress=show_progress,  verbose=verbose,
-                                          overwrite=overwrite, nprocess=nprocess)
+        klocal = locals().copy()
+        klocal.pop("self")
+        return self.pharosio.get_whatdata(**klocal)
+    
+    def get_targetnames(self, **kwargs):
+        """ """
+        whatdata = self.get_whatdata(**kwargs)
+        return np.asarray(np.unique(whatdata["target"]), dtype="str")
 
-    def download_target_data(self, target, which="cube", extension="fits",
-                                 timerange=["2018-08-01", None],
-                                 nodl=False, auth=None, download_dir="default",
-                                 show_progress=False,  verbose=True,
-                                 overwrite=False, nprocess=None ):
+    # ============= #
+    #  Fetch        #
+    # ============= #
+    # ------- #
+    #  Night  #
+    # ------- #
+    def get_night_fluxcal(self, date,
+                              download_missing=True, exist=True, 
+                          contains=None, not_contains=None, client=None, **kwargs):
+        """ """
+        return self.get_night_data(date, kind="fluxcal", extension=".fits",
+                                download_missing=download_missing, exist=exist, 
+                                contains=contains, not_contains=not_contains, client=client, **kwargs)
+    
+    def get_night_data(self, date, download_missing=True, exist=True, force_dl=False,
+                           contains=None, not_contains=None, kind=None, extension="*", 
+                           client=None, **kwargs):
+        """ """
+        pharosdata = {date_:
+                      [l for l in self.pharosio.get_pharosdata(date_, basename=True) 
+                        if  (kind is None or l.startswith(kind)) and 
+                            (extension is None or extension in ["*","all"] or l.endswith(extension)) and 
+                            (contains is None or contains in l) and 
+                            (not_contains is None or not_contains not in l)]
+                                
+                     for date_ in np.atleast_1d(date)}
+
+
+        local_path = np.concatenate(self._pharosdata_to_datapath_(pharosdata, "local"))
+        
+        if download_missing or force_dl:
+            index_missing = [not os.path.isfile(l) for l in local_path]
+            if np.any(index_missing) or force_dl:
+                if force_dl:
+                    index_missing=None
+                futures_ifany = self._download_pharosdata_(pharosdata, index=index_missing, client=client, **kwargs)
+                if client is not None:
+                    from dask.distributed import wait
+                    _ = wait(futures_ifany)
+                    
+        if exist:
+            return [l for l in local_path if os.path.isfile(l)]
+        return local_path
+    
+    # ------- #
+    # Target  #
+    # ------- #
+    def get_target_astrom(self, targetname, download_missing=True, exist=True, 
+                          not_contains=None, client=None, **kwargs):
+        """ """
+        prop = dict(kind="guider", contains="astrom", not_contains=not_contains, extension=".fits")
+        return self.get_target_datapath(targetname, client=client, **{**prop,**kwargs})
+
+    def get_target_guider(self, targetname, download_missing=True, exist=True, 
+                          contains=None, not_contains=None, client=None, **kwargs):
+        """ """
+        prop = dict(kind="guider", contains=contains, not_contains=not_contains, extension=".fits")
+        return self.get_target_datapath(targetname, client=client,**{**prop,**kwargs})
+
+    def get_target_spectra(self, targetname, download_missing=True, exist=True, 
+                          contains=None, not_contains=None, client=None, **kwargs):
+        """ """
+        prop = dict(kind="spec", contains=contains, not_contains=not_contains, extension=".fits")
+        return self.get_target_datapath(targetname, client=client,**{**prop,**kwargs})
+    
+    def get_target_cubes(self, targetname, download_missing=True, exist=True, 
+                          contains=None, not_contains=None, client=None, **kwargs):
+        """ """
+        prop = dict(kind="e3d", contains=contains, not_contains=not_contains, extension=".fits")
+        return self.get_target_datapath(targetname, client=client,**{**prop,**kwargs})
+    
+    
+    def get_target_datapath(self, targetname, kind, contains=None, not_contains=None, 
+                            download_missing=True, exist=True, force_dl=False,
+                            extension=".fits",  ioprop={}, client=None, **kwargs):
+        """ """
+        prop = dict(contains=contains, not_contains=not_contains, extension=extension)
+        pharosdata = self.pharosio.get_target_pharosdata(targetname, kind=kind, **{**prop, **ioprop})
+        local_path = np.concatenate(self._pharosdata_to_datapath_(pharosdata, "local"))
+        if download_missing or force_dl:
+            index_missing = [not os.path.isfile(l) for l in local_path]
+            if np.any(index_missing) or force_dl:
+                if force_dl:
+                    index_missing=None
+                futures_ifany = self._download_pharosdata_(pharosdata, index=index_missing, client=client, **kwargs)
+                if client is not None:
+                    from dask.distributed import wait
+                    _ = wait(futures_ifany)
+                    
+        if exist:
+            return [l for l in local_path if os.path.isfile(l)]
+        return local_path
+        
+    # ============= #
+    #  Download     #
+    # ============= #
+    # -------- #
+    #  Night   #
+    # -------- #
+    def bulk_download_night(self, date, contains=None, not_contains=None, kind=None, extension="*", 
+                                dirout=None, client=None, nprocess=None, **kwargs):
+        """ """
+        pharosdata = {date_:
+                      [l for l in self.pharosio.get_pharosdata(date_, basename=True) 
+                        if  (kind is None or l.startswith(kind)) and 
+                            (extension is None or extension in ["*","all"] or l.endswith(extension)) and 
+                            (contains is None or contains in l) and 
+                            (not_contains is None or not_contains not in l)]
+                                
+                     for date_ in np.atleast_1d(date)}
+        
+        return self._download_pharosdata_(pharosdata, dirout=dirout, nprocess=nprocess, client=client, 
+                                            **kwargs)
+        
+    def download_night_calibrations(self, date, which="*", 
+                                      dirout=None, client=None, nprocess=4, **kwargs):
         """ 
-        download SEDM data associated to the given target. 
-        
         Parameters
         ----------
-        target: [string] 
-            Name of a source (e.g. ZTF18abuhzfc) of any part of a filename (i.e. 20180913_06_28_51)
+        date: [string (or list of)]
+            night date as YYYYMMDD. It could be a list or [YYYYMMDD, YYYYMMDD etc.]
             
-        which: [string] -optional-
-            kind oif data you want. 
-            - cube / spec / ccd / all
-
-        extension: [string] -optional-
-            Extension of the file 
-            - these exist depending on the file you want: fits / png / pdf / pkl / all
-
-        timerange: [iso format dates] -optional-
-            time range between which you are looking for file.
-            If the dates are not yet stored in you whatfiles.json, this will first download it.
-            if the second data is None, it means 'today'
-
-        nodl: [bool] -optional-
-            do not launch the download, instead, returns 
-            list of queried url and where they are going to be stored.
+        which: [string or list of]
+            kind on calibration file to download. 
+            could any (of list of): 
+            - ['HexaGrid.pkl', 'TraceMatch.pkl','TraceMatch_WithMasks.pkl', 
+               'WaveSolution.pkl','Flatfits']
+            - which='*' means all of them.
             
-        download_dir: [string] -optional-
-            Directory where the file should be downloaded.
-            If th
-            
-        overwrite: [bool] -optional-
-            Check if the requested data already exist in the target download directory. 
-            If so, this will skip the download except if overwrite is set to True.
-
-        nprocess: [None/int] -optional-
-            Number of parallel downloading you want to do. 
-            If None, it will be set to 1 and will not use multiprocess
-
-        auth: [str, str] -optional-
-            [username, password] of you pharos account.
-            If used, information stored in ~/.ztfquery will be ignored.
-            
-        Returns
-        -------
-        Void or list (see nodl)
-        """
-        # Build the path (local and url)
-        if "astrom" in which or "guider" in which:
-            print("TMP which=astrom fixe")
-            relative_path = [l.replace("e3d","guider").replace(target,"astrom")
-                                 for l in self.get_data_path(target, which="cube",extension="fits", timerange=timerange, source="pharos")]
-        else:
-            relative_path = self.get_data_path(target, which=which,extension=extension, timerange=timerange, source="pharos")
-            
-        return self._download_from_relative_path_(relative_path, nodl=nodl, auth=auth, download_dir=download_dir,
-                                          show_progress=show_progress,  verbose=verbose,
-                                          overwrite=overwrite, nprocess=nprocess)
-                                               
-    # - Internal method
-    def _download_from_relative_path_(self, relative_path,
-                                          nodl=False, auth=None, download_dir="default",
-                                          show_progress=False,  verbose=True,
-                                          overwrite=False, nprocess=None):
-        """ Given a relative path, this builds the data to download and where to.
-
-        Parameters
-        ----------
-        nodl: [bool] -optional-
-            do not launch the download, instead, returns 
-            list of queried url and where they are going to be stored.
-            
-        download_dir: [string] -optional-
-            Directory where the file should be downloaded.
-            If th
-            
-        overwrite: [bool] -optional-
-            Check if the requested data already exist in the target download directory. 
-            If so, this will skip the download except if overwrite is set to True.
-
-        nprocess: [None/int] -optional-
-            Number of parallel downloading you want to do. 
-            If None, it will be set to 1 and will not use multiprocess
-
-        auth: [str, str] -optional-
-            [username, password] of you pharos account.
-            If used, information stored in ~/.ztfquery will be ignored.
-            
-        Returns
-        -------
-        Void or list (see nodl)
-        """
-        self.to_download_urls  = _relative_to_source_(relative_path, "pharos")
-        if download_dir is None or download_dir in ["default"]:
-            self.download_location = _relative_to_source_(relative_path, "local")
-        else:
-            self.download_location = [os.path.join(download_dir,f.split("/")[-1]) for f in self.to_download_urls]
-            
-        if not nodl:
-            io.download_url(self.to_download_urls, self.download_location,
-                        show_progress = show_progress,  verbose=verbose,
-                        overwrite=overwrite, nprocess=nprocess,
-                        auth=self._properties["auth"] if auth is None else auth)
+        // download options
         
-        return self.to_download_urls, self.download_location
+        dirout: [string] -optional-
+            where the data should be downloaded (will actually be dirout/YYYYMMDD/_downloaded_data_).
+            by default this will be `$ZTDATA/sedm/redux`.
+                        
+        client: [Dask Client] -optional-
+            Dask client used for the downloaded. 
+            If so, a list of futures will be returned.
+            
+        nprocess: [int] -optional-
+            number of parallel downloading. 
+            - ignored if client is given -
+        
+        **kwargs goes to download_target_data()
+         incl: ignore_warnings=False, verbose=False, overwrite=True
+            nodl: [bool] -optional-
+                if nodl=True, nothing is downloaded and
+                the list_of_url and list_of_path_where_downloaded are returned.
+            
+            show_progress: [bool] -optional-
+                show the progress of downloading
+                - ignored if client is used -
+        """
+        NIGHTLY = ["HexaGrid.pkl", "TraceMatch.pkl","TraceMatch_WithMasks.pkl", "WaveSolution.pkl","Flat.fits"]
+        
+        if which in ["*","all"]:
+            which = NIGHTLY
+        elif np.any([w_ not in NIGHTLY for w_ in np.atleast_1d(which)]):
+            raise ValueError(f"At least one of the which input is not a known nighly calibration: {which}")
+            
+        pharosdata = {}
+        for date_ in np.atleast_1d(date):
+            contains = [f"{date_}_{k}" for k in np.atleast_1d(which)]
+            pharosdata[date_] = [l for l in self.pharosio.get_pharosdata(date_, basename=True)
+                                    if np.any([k in l for k in contains])]
+        
+        return self._download_pharosdata_(pharosdata, dirout=dirout, nprocess=nprocess, client=client, 
+                                          **kwargs)
     
+    def download_night_fluxcal(self, date, contains=None, not_contains=None,
+                                      dirout=None, client=None, nprocess=4, **kwargs):
+        """ 
+        
+        Parameters
+        ----------
+        date: [string (or list of)]
+            night date as YYYYMMDD. It could be a list or [YYYYMMDD, YYYYMMDD etc.]
+            
+        contains: [string] -optional-
+            element of the name that should be in the pharos' filename.
+            
+        not_contains: [string] -optional-
+            element of the name that should *not* be in the pharos' filename.
+            
+        // download options
+        
+        dirout: [string] -optional-
+            where the data should be downloaded (will actually be dirout/YYYYMMDD/_downloaded_data_).
+            by default this will be `$ZTDATA/sedm/redux`.
+                        
+        client: [Dask Client] -optional-
+            Dask client used for the downloaded. 
+            If so, a list of futures will be returned.
+            
+        nprocess: [int] -optional-
+            number of parallel downloading. 
+            - ignored if client is given -
+        
+        **kwargs goes to download_target_data()
+         incl: ignore_warnings=False, verbose=False, overwrite=True
+            nodl: [bool] -optional-
+                if nodl=True, nothing is downloaded and
+                the list_of_url and list_of_path_where_downloaded are returned.
+            
+            show_progress: [bool] -optional-
+                show the progress of downloading
+                - ignored if client is used -
+
+        Returns
+        -------
+        
+        """
+        pharosdata = {date_:[l for l in self.pharosio.get_pharosdata(date_, basename=True)
+                            if l.startswith("fluxcal") and 
+                            (contains is None or contains in l) and 
+                            (not_contains is None or not_contains not in l)]
+                     for date_ in np.atleast_1d(date)}
+        
+        return self._download_pharosdata_(pharosdata, dirout=dirout, nprocess=nprocess, client=client, 
+                                          **kwargs)
+            
     # -------- #
-    #  GETTER  # 
+    #  Target  #
     # -------- #
-    def get_obs_data(self, incl_calib=False, incl_std=True, incl_ztf=True):
-        """ """
-        data_ = self.whatdata.copy()
-        if not incl_calib:
-            data_ = data_[~data_["target"].str.startswith("Calib")]
-        if not incl_std:
-            data_ = data_[~data_["target"].str.startswith("STD")]
-        if not incl_ztf:
-            data_ = data_[~data_["target"].str.startswith("ZTF")]
+    def download_target_astrom(self, targetname, not_contains=None, 
+                               dirout=None, client=None, nprocess=4, **kwargs):
+        """ download cubes associated to a target. 
+        = uses download_target_data() with kind='e3d' =
+        
+        Parameters
+        ----------
+        targetname: [string]
+            name to the target for which you want to download data
             
-        return data_
-
+        contains: [string] -optional-
+            element of the name that should be in the pharos' filename.
+            
+        not_contains: [string] -optional-
+            element of the name that should *not* be in the pharos' filename.
+            
+        // donwload options
+        
+        dirout: [string] -optional-
+            where the data should be downloaded (will actually be dirout/YYYYMMDD/_downloaded_data_).
+            by default this will be `$ZTDATA/sedm/redux`.
+            
+        client: [Dask Client] -optional-
+            Dask client used for the downloaded. 
+            If so, a list of futures will be returned.
+            
+        nprocess: [int] -optional-
+            number of parallel downloading. 
+            - ignored if client is given -
+        
+        **kwargs goes to download_target_data()
+         incl: nodl=False, ignore_warnings=False, show_progress=True, verbose=False, overwrite=True
+            nodl: [bool] -optional-
+                if nodl=True, nothing is downloaded and
+                the list_of_url and list_of_path_where_downloaded are returned.
+            
+            show_progress: [bool] -optional-
+                show the progress of downloading
+                - ignored if client is used -s
+        Returns
+        -------
+        None (or list of futures if client given)
+        """
+        prop = dict(kind="guider", contains="astrom", not_contains=not_contains, extension=".fits")
+        return self.download_target_data(targetname, dirout=dirout, client=client, nprocess=nprocess,
+                                         **{**prop,**kwargs})
     
-    def get_data_path(self, target, which="cube", extension="fits", source="pharos", timerange=["2018-08-01", None]):
-        """ get the datapath for the given target. 
-        this is used to build the url that will be queried (see, download_target_data) and the look 
-        for file in your computer (see, get_local_data)
+    def download_target_guider(self, targetname, contains=None, not_contains=None, 
+                               dirout=None, client=None, nprocess=4, **kwargs):
+        """ download cubes associated to a target. 
+        = uses download_target_data() with kind='e3d' =
         
         Parameters
         ----------
-        target: [string] 
-            Name of a source (e.g. ZTF18abuhzfc) of any part of a filename (i.e. 20180913_06_28_51)
+        targetname: [string]
+            name to the target for which you want to download data
             
-        which: [string] -optional-
-            kind oif data you want. 
-            - cube / spec / ccd / all
-
-        extension: [string] -optional-
-            Extension of the file 
-            - these exist depending on the file you want: fits / png / pdf / pkl / all
-
-        timerange: [iso format dates] -optional-
-            time range between which you are looking for file.
-            If the dates are not yet stored in you whatfiles.json, this will first download it.
-            if the second data is None, it means 'today'
+        contains: [string] -optional-
+            element of the name that should be in the pharos' filename.
             
-        source: [string] -optional-
-            Where are you looking for data.
-            - pharos (online)
-            - local (your computer)
+        not_contains: [string] -optional-
+            element of the name that should *not* be in the pharos' filename.
             
+        dirout: [string] -optional-
+            where the data should be downloaded (will actually be dirout/YYYYMMDD/_downloaded_data_).
+            by default this will be `$ZTDATA/sedm/redux`.
+            
+        client: [Dask Client] -optional-
+            Dask client used for the downloaded. 
+            If so, a list of futures will be returned.
+            
+        nprocess: [int] -optional-
+            number of parallel downloading. 
+            - ignored if client is given -
+        
+        **kwargs goes to download_target_data()
+         incl: nodl=False, ignore_warnings=False, show_progress=True, verbose=False, overwrite=True
+            nodl: [bool] -optional-
+                if nodl=True, nothing is downloaded and
+                the list_of_url and list_of_path_where_downloaded are returned.
+            
+            show_progress: [bool] -optional-
+                show the progress of downloading
+                - ignored if client is used -
         Returns
         -------
-        list of Path
+        None (or list of futures if client given)
         """
-        all_data = []
-        for night, fileid in self.get_target_data(target, timerange=timerange)[["night","filename"]].values:
-            all_data+=[l for l in self.get_night_data(night, source=source) if fileid.split(".")[0] in l
-                               and (which in ["*", "all"] or 
-                                   ((which in ["cube"] or "cube" in which) and "/e3d" in l) or
-                                   ((which in ["spec"] or "spec" in which) and "/spec_" in l) or
-                                   ((which in ["ccd"] or "ccd" in which) and "/crr_" in l) or
-                                   ((which in ["wcs","guider","astrom"] or "guider" in which) and "/guider_" in l and "astrom" in which)
-                                    )
-                                and (extension in ["*", "all"] or extension in l or l.split(".")[-1] in extension)
-                               ]
-            
-        return all_data
+        prop = dict(kind="guider", contains=contains, not_contains=not_contains, extension=".fits")
+        return self.download_target_data(targetname,dirout=dirout, client=client, nprocess=nprocess, 
+                                         **{**prop,**kwargs})
     
-    def get_local_data(self, target, which="cube", extension="fits", **kwargs):
-        """ get existing for in you computer associated to the given target
-
+    def download_target_spectra(self, targetname, contains=None, not_contains=None, 
+                                dirout=None, client=None, nprocess=4, **kwargs):
+        """ download spectra associated to a target. 
+        = uses download_target_data() with kind='e3d' =
+        
         Parameters
         ----------
-        target: [string] 
-            Name of a source (e.g. ZTF18abuhzfc) of any part of a filename (i.e. 20180913_06_28_51)
+        targetname: [string]
+            name to the target for which you want to download data
             
-        which: [string] -optional-
-            kind oif data you want. 
-            - cube / spec / ccd / all
-
-        extension: [string] -optional-
-            Extension of the file 
-            - these exist depending on the file you want: fits / png / pdf / pkl / all
-
-        kwargs goes to get_data_path()
-
-        Returns
-        -------
-        full path
-        """
-        return self.get_data_path(target, which=which, extension=extension, source="local", **kwargs)
-
-    def get_target_data(self, target, timerange=None):
-        """ dictionary containing the dates and file id corresponding to the given target.
-        this is based on the whatfiles.json stored in your computer under the SEDM directory
-        
-        Parameters
-        ----------
-        target: [string] 
-            Name of a source (e.g. ZTF18abuhzfc) of any part of a filename (i.e. 20180913_06_28_51)
-
-        timerange: [iso format dates / None] -optional-
-            time range between which you are looking for file.
-            If the dates are not yet stored in you whatfiles.json, this will first download it.
-            if the second data is None, it means 'today'
-            - 
-            if None the instance timerange is not updated.
-
-        Returns
-        -------
-        dict {date:[list of fileid ],...}
-        """
-        if timerange is not None:
-            self.update_sedmdata(timerange)
-
-        return self.sedmwhatfiles.get_target_data(target, timerange=timerange)
-
-
-    def get_standards(self, timerange=None, use="*"):
-        """ """
-        std_names = np.unique([k for k in self.sedmwhatfiles.get_observed_targets(timerange) if 'STD' in k and (use in ["*","all"] or k in use)])
-        return self.get_target_data(std_names, timerange)
-        
-        
-    def update_sedmdata(self, timerange=["2018-08-01", None], pharosfiles=False, dump=True, client=None, **kwargs):
-        """ update the local SEDm whatfiles 
-        
-        Parameters
-        ----------
-        timerange: [iso format dates] -optional-
-            time range between which you are looking for file.
-            If the dates are not yet stored in you whatfiles.json, this will first download it.
-            if the second data is None, it means 'today'
-
-        pharosfiles: [bool] -optional-
-            Do you also what to get the list of files accessible from pharos for the given timerange ?
-
-        dump: [bool] -optional-
-            Once all what is requested is downloaded, shall the local file be updated too ?
-
-        **kwargs goes to download_nightrange()
-
-        """
-        self.sedmwhatfiles.download_nightrange(*timerange, pharosfiles=pharosfiles, dump=dump, client=client, **kwargs)
-        
-    # = Get Night Data = #
-    def get_night_data(self, date, source="pharos"):
-        """  get all the data of the given date you have access to:
-        
-        Parameters
-        ----------
-        date: [string]
-           format YYYYMMDD
-
-        source: [string] -optional-
-            Where are you looking for data.
-            - pharos (online, only the one you have access to)
-            - local (your computer,  only the one you have already downloaded)
-        
-        Returns
-        -------
-        list of file
-        """
-        if source in ["pharos", "sedm"]:
-            if date not in self.sedmwhatfiles._pharoslist.keys():
-                self.sedmwhatfiles.add_pharoslist(date, update=True)
-            return self.sedmwhatfiles.get_pharos_night_data(date)
-        
-        if source in ["what"]:
-            if date not in self.sedmwhatfiles.data["night"]:
-                self.sedmwhatfiles.add_night(date)
-            return self.sedmwhatfiles.data[self.sedmwhatfiles.data["night"]==date]
+        contains: [string] -optional-
+            element of the name that should be in the pharos' filename.
             
-        elif source in ["local"]:
-            return self._get_local_night_data_(date)
-        raise ValueError("unknown source: %s, use 'local' or 'pharos'"%source)
-
-    def _get_local_night_data_(self, date):
-        """ """
-        date_dir = SEDMLOCALSOURCE+"/%s/"%date
-        if not os.path.exists( date_dir ):
-            return []
-        return [date_dir+l for l in os.listdir( date_dir )]
+        not_contains: [string] -optional-
+            element of the name that should *not* be in the pharos' filename.
+            
+        dirout: [string] -optional-
+            where the data should be downloaded (will actually be dirout/YYYYMMDD/_downloaded_data_).
+            by default this will be `$ZTDATA/sedm/redux`.
+            
+        client: [Dask Client] -optional-
+            Dask client used for the downloaded. 
+            If so, a list of futures will be returned.
+            
+        nprocess: [int] -optional-
+            number of parallel downloading. 
+            - ignored if client is given -
+        
+        **kwargs goes to download_target_data()
+         incl: nodl=False, ignore_warnings=False, show_progress=True, verbose=False, overwrite=True
+            nodl: [bool] -optional-
+                if nodl=True, nothing is downloaded and
+                the list_of_url and list_of_path_where_downloaded are returned.
+            
+            show_progress: [bool] -optional-
+                show the progress of downloading
+                - ignored if client is used -
+                
+        Returns
+        -------
+        None (or list of futures if client given)
+        """
+        prop = dict(kind="spec", contains=contains, not_contains=not_contains, extension=".fits")
+        return self.download_target_data(targetname, dirout=dirout, client=client, nprocess=nprocess, 
+                                         **{**prop,**kwargs})
     
-    # ============== #
-    #  Properties    #
-    # ============== #
-    @property
-    def date(self):
-        """ """
-        return self._properties["date"]
-
-    @property
-    def night_files(self):
-        """ """
-        if not hasattr(self, "_night_files") or self._night_files is None:
-            self._night_files = self.get_night_data(self.date, source="pharos")
+    def download_target_cubes(self, targetname, contains=None, not_contains=None, 
+                              dirout=None, client=None, nprocess=4, **kwargs):
+        """ download cubes associated to a target. 
+        = uses download_target_data() with kind='e3d' =
+        
+        Parameters
+        ----------
+        targetname: [string]
+            name to the target for which you want to download data
             
-        return self._night_files
-
-    @property
-    def whatdata(self):
+        contains: [string] -optional-
+            element of the name that should be in the pharos' filename.
+            
+        not_contains: [string] -optional-
+            element of the name that should *not* be in the pharos' filename.
+            
+        dirout: [string] -optional-
+            where the data should be downloaded (will actually be dirout/YYYYMMDD/_downloaded_data_).
+            by default this will be `$ZTDATA/sedm/redux`.
+            
+        client: [Dask Client] -optional-
+            Dask client used for the downloaded. 
+            If so, a list of futures will be returned.
+            
+        nprocess: [int] -optional-
+            number of parallel downloading. 
+            - ignored if client is given -
+        
+        **kwargs goes to download_target_data()
+         incl: nodl=False, ignore_warnings=False, show_progress=True, verbose=False, overwrite=True
+            nodl: [bool] -optional-
+                if nodl=True, nothing is downloaded and
+                the list_of_url and list_of_path_where_downloaded are returned.
+            
+            show_progress: [bool] -optional-
+                show the progress of downloading
+                - ignored if client is used -
+                
+        Returns
+        -------
+        None (or list of futures if client given)
+        """
+        prop = dict(kind="e3d", contains=contains, not_contains=not_contains, extension=".fits")
+        return self.download_target_data(targetname, dirout=dirout, client=client, nprocess=nprocess, 
+                                         **{**prop,**kwargs})
+        
+    def download_target_fluxcal(self, targetname, contains=None, not_contains=None, 
+                                 dirout=None, client=None, nprocess=4, **kwargs):
         """ """
-        return self.sedmwhatfiles.data
+        dates = self.pharosio.get_nights_with_target(targetname, **kwargs)
+        return self.download_night_fluxcal(dates, contains=contains, not_contains=not_contains, 
+                                           dirout=dirout, nprocess=nprocess, client=client,
+                                           **kwargs)
+        
+    def download_target_data(self, targetname, kind, 
+                             contains=None, not_contains=None, extension=".fits", 
+                             dirout=None, nodl=False, 
+                             show_progress=True, nprocess=4, client=None, ioprop={}, **kwargs):
+        """ """
+        prop = dict(contains=contains, not_contains=not_contains, extension=extension)
+        pharosdata = self.pharosio.get_target_pharosdata(targetname, kind=kind, **{**prop, **ioprop})
+        return self._download_pharosdata_(pharosdata, 
+                                          dirout=dirout, nodl=nodl, 
+                                          show_progress=show_progress, nprocess=nprocess, client=client,
+                                         **kwargs)
+        
+    def _download_pharosdata_(self, pharosdata, dirout=None,
+                             nodl=False, ignore_warnings=False,
+                             show_progress=True, verbose=False, overwrite=True, 
+                             nprocess=4, client=None, index=None):
+        """ """
+        if dirout is None:
+            dirout = "local"
+        
+        pharos_path = np.concatenate(self._pharosdata_to_datapath_(pharosdata, "pharos"))
+        local_path = np.concatenate(self._pharosdata_to_datapath_(pharosdata, dirout))
+        if index is not None:
+            pharos_path = pharos_path[index]
+            local_path = local_path[index]
+            
+        if nodl:
+            return pharos_path, local_path
+        
+        with warnings.catch_warnings():
+            if ignore_warnings:
+                warnings.simplefilter("ignore")
+            
+            return io.download_url(pharos_path, local_path,
+                        show_progress = show_progress, verbose=verbose,
+                        overwrite=overwrite, nprocess=nprocess, 
+                        cookies="no_cookies",client=client,
+                        filecheck=False)
+        
+    # ============= #
+    #  Internal     #
+    # ============= #
+    @staticmethod
+    def _pharosdata_to_datapath_(pharosdata, source):
+        """ """
+        if source == "local":
+            source = os.path.join(SEDMLOCAL_BASESOURCE, "redux")
+        elif source == "pharos":
+            source = os.path.join(PHAROS_BASEURL, "data")
+        elif source is None:
+            source = ""
+            
+        return [[os.path.join(source,k,v_) for v_ in v] for k,v in pharosdata.items()]
+        
+    # ============= #
+    #  Properties   #
+    # ============= #
+    @property
+    def pharosio(self):
+        """ """
+        return self._pharosio

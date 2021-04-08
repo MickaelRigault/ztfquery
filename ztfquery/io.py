@@ -516,20 +516,36 @@ def _download_(args):
 def download_url(to_download_urls, download_location,
                 show_progress = True,  verbose=True,
                 overwrite=False, nprocess=None, cookies=None,
+                client=None,
                 **kwargs):
     """ """
+    #
+    # - Dask Client
+    if client is not None:
+        from dask import delayed
+        d_download = [delayed(download_single_url)(url ,fileout=fileout, show_progress=False,
+                                    overwrite=overwrite, verbose=False,
+                                    cookies=cookies, **kwargs)
+                    for url, fileout in zip(to_download_urls, download_location)]
+        return client.compute(d_download)
+
+
+    #
+    # - MultiProcessing (or not)
     if nprocess is None:
         nprocess = 1
     elif nprocess<1:
         raise ValueError("nprocess must 1 or higher (None means 1)")
 
+    
     if nprocess == 1:
         # Single processing
         if verbose:
             warnings.warn("No parallel downloading")
         for url, fileout in zip(to_download_urls, download_location):
             download_single_url(url,fileout=fileout, show_progress=show_progress,
-                                    overwrite=overwrite, verbose=verbose, cookies=cookies, **kwargs)
+                                    overwrite=overwrite, verbose=verbose, cookies=cookies,
+                                    **kwargs)
     else:
         # Multi processing
         import multiprocessing
