@@ -540,7 +540,53 @@ class FritzPhotometry( object ):
     # --------- #
     #  GETTER   #
     # --------- #
-    def get_coordinates(self, full=False, method="nanmedian", detected=True, **kwargs):
+    def get_keys(self, keys, full=False, perband=False, groupby=None, usestat=None, index=None, **kwargs):
+        """ 
+        Parameters
+        ----------
+        full: [bool] -optional-
+            Returns the full data[["ra","dec"]]
+            = If True, the rest is ignored =
+            
+        // if full=False
+        
+        perband: [bool] -optional-
+            Returns the `usestat` coordinate grouped per band
+        
+        groupby: [string/None] -optional-
+            Returns the `usestat` coordinate grouped per given key.
+
+        usestat: [string] -optional-
+            How should be alert coordinates be combined.
+            any pandas statistics (mean, median, min, max etc.)
+        Returns
+        -------
+        """
+        
+        data_ = self.get_data(**kwargs).loc[index] if index is not None else self.get_data(**kwargs)
+            
+        if full:
+            return data_[keys]
+        
+        if perband:
+            if groupby is None:
+                groupby = "filter"
+            else:
+                groupby = np.atleast_1d(groupby).tolist()+["filter"]
+        # = Grouped
+        if groupby is not None:
+            grouped = data_.groupby(groupby)[keys]
+            if usestat is None:
+                return grouped
+            return getattr(grouped, usestat)()
+            
+        # = not grouped
+        if usestat is None:
+            return data_[keys]
+        
+        return getattr(data_[keys],usestat)()
+    
+    def get_coordinates(self, full=False, method="median", detected=True, perband=False, groupby=None, **kwargs):
         """ get the coordinates of the alerts
         
         Parameters
@@ -559,11 +605,8 @@ class FritzPhotometry( object ):
         -------
         DataFrame
         """
-        data = self.get_data(detected=detected, **kwargs)[["ra","dec"]]
-        if full:
-            return data
-        return getattr(np,method)(data, axis=0)
-            
+        return self.get_keys(keys=["ra","dec"], detected=detected, usestat=method, full=full, perband=perband, groupby=groupby, **kwargs)
+    
 
     def get_data(self, detected=None, filters="*", time_range=None, query=None):
         """ get a filtered version of the data. 
@@ -636,7 +679,7 @@ class FritzPhotometry( object ):
         if len(query)==0:
             return self.data
         return self.data.query(" and ".join(query))
-        
+    
     def get_filters(self):
         """ list of filter in the data """
         return np.unique(self.data["filter"]).astype(str)
@@ -962,7 +1005,10 @@ def parse_ascii(datastring, sep=None, hkey="#", hsep=": ", isvariance=None):
     if len(header_key)>0:
         header = pandas.DataFrame([l.replace(hkey,"").split(hsep)
                             for l in header_key if len(l.replace(hkey,"").split(hsep))==2],
-                                      columns=["key","value"]).set_index("key")["value"]
+                                      columns=["key","value"])#.set_index("key")["value"]
+        header["key"] = header["key"].str.strip()
+        header = header.set_index("key")#["value"]
+                                      
     else:
         header = None
         
@@ -1056,8 +1102,10 @@ class FritzSpectrum( object ):
             extension = "ascii"
             
         if extension in ["fits", "json", "ascii", "txt"]:
-            return getattr(self,f"to_{extension}")(fileout, **kwargs)
-
+            out = getattr(self,f"to_{extension}")(fileout, **kwargs)
+            self.set_filename(fileout)
+            return out
+        
         raise ValueError(f"only 'fits','json', 'txt'/'dat'/'ascii' extension implemented ; {extension} given")
         
     # - to file
@@ -1090,7 +1138,7 @@ class FritzSpectrum( object ):
     def to_ascii(self, fileout):
         """ Store the data in text format """
         fileout_ = open(fileout, "w")
-        for k,v in self.header["value"].to_dict().items():
+        for k,v in self.header.to_dict().items():
             fileout_.write("# %s: %s\n"%(k.upper(),v))
             
         if self.has_error():
@@ -1312,8 +1360,13 @@ class FritzSpectrum( object ):
                 
             if "instrument_name" in self.fritzdict:
                 header["INSTNAME"] = self.fritzdict["instrument_name"]
+                
             if "obj_id" in self.fritzdict:
                 header["OBJID"] = self.fritzdict["obj_id"]
+                
+            if "observed_at" in self.fritzdict:
+                header["OBSERVED_AT"] = self.fritzdict["observed_at"]
+
             if "original_file_filename" in self.fritzdict:
                 if "." in self.fritzdict["original_file_filename"]:
                     header["OFNAME"] = self.fritzdict["original_file_filename"].split(".")[-2]
@@ -1321,9 +1374,9 @@ class FritzSpectrum( object ):
                     header["OFNAME"] = self.fritzdict["original_file_filename"]
 
         if type(header)==dict:
-            self._header = pandas.DataFrame(header.items(), columns=["key", "value"]).set_index("key")
+            self._header = pandas.DataFrame(header.items(), columns=["key", "value"]).set_index("key")["value"]
         else:
-            self._header = pandas.DataFrame(header)
+            self._header = pandas.DataFrame(header)["value"]
 
     def set_fritzdict(self, fritzdict, load_spectrum=True, **kwargs):
         """ """
@@ -1336,8 +1389,13 @@ class FritzSpectrum( object ):
         if self.header is not None and fritzdict is not None and len(fritzdict)>0:
             if "instrument_name" in fritzdict:
                 self.header.loc["INSTNAME"] = fritzdict["instrument_name"]
+                
+            if "observed_at" in fritzdict:
+                self.header.loc["OBSERVED_AT"] = fritzdict["observed_at"]
+                
             if "obj_id" in fritzdict:
                 self.header.loc["OBJID"] = fritzdict["obj_id"]
+                
             if "original_file_filename" in fritzdict:
                 if "." in fritzdict["original_file_filename"]:
                     self.header.loc["OFNAME"] = fritzdict["original_file_filename"].split(".")[-2]
@@ -1406,14 +1464,28 @@ class FritzSpectrum( object ):
     def obj_id(self):
         """  """
         if "OBJID" in self.header.index:
-            return self.header.loc["OBJID"].value
+            return self.header.loc["OBJID"]
         return None
+
+    @property
+    def observed_at(self):
+        """  time of observation as stored on fritz. (might be good to check header to be sure)."""
+        if "OBSERVED_AT" in self.header.index:
+            return self.header.loc["OBSERVED_AT"]
+        return None
+
+    @property
+    def mjd(self):
+        """ modified Julian date of the observation if known. (see self.observed_at). """
+        if self.observed_at is None:
+            return None
+        return time.Time(self.observed_at).mjd
 
     @property
     def instrument(self):
         """ """
         if "INSTNAME" in self.header.index:
-            return self.header.loc["INSTNAME"].value
+            return self.header.loc["INSTNAME"]
             
         return None
 
@@ -1421,7 +1493,7 @@ class FritzSpectrum( object ):
     def filekey(self):
         """ """
         if "OFNAME" in self.header.index:
-            return self.header.loc["OFNAME"].value
+            return self.header.loc["OFNAME"]
             
         return ""
     

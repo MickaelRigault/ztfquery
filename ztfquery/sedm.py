@@ -763,34 +763,79 @@ class SEDMQuery():
     # Target  #
     # ------- #
     def get_target_astrom(self, targetname, download_missing=True, exist=True, 
-                          not_contains=None, client=None, **kwargs):
-        """ """
+                          not_contains=None, client=None, ioprop={}, **kwargs):
+        """ 
+        Parameters:
+        -----------
+        ioprop: [dict] -optional-
+            used as kwargs for get_whatdata().
+            Incl: incl_calib, incl_std, incl_ztf, 
+                  calib_only, std_only, ztf_only,
+                  airmass_range, exptime_range, date_range
+
+        """
         prop = dict(kind="guider", contains="astrom", not_contains=not_contains, extension=".fits")
-        return self.get_target_datapath(targetname, client=client, **{**prop,**kwargs})
+        return self.get_target_datapath(targetname, client=client, ioprop=ioprop,  **{**prop,**kwargs})
 
     def get_target_guider(self, targetname, download_missing=True, exist=True, 
-                          contains=None, not_contains=None, client=None, **kwargs):
-        """ """
+                          contains=None, not_contains=None, client=None, ioprop={}, **kwargs):
+        """ 
+        Parameters:
+        -----------
+        ioprop: [dict] -optional-
+            used as kwargs for get_whatdata().
+            Incl: incl_calib, incl_std, incl_ztf, 
+                  calib_only, std_only, ztf_only,
+                  airmass_range, exptime_range, date_range
+
+        """
         prop = dict(kind="guider", contains=contains, not_contains=not_contains, extension=".fits")
-        return self.get_target_datapath(targetname, client=client,**{**prop,**kwargs})
+        return self.get_target_datapath(targetname, client=client,ioprop=ioprop, **{**prop,**kwargs})
 
     def get_target_spectra(self, targetname, download_missing=True, exist=True, 
-                          contains=None, not_contains=None, client=None, **kwargs):
-        """ """
+                          contains=None, not_contains=None, client=None, ioprop={}, **kwargs):
+        """ 
+        Parameters:
+        -----------
+        ioprop: [dict] -optional-
+            used as kwargs for get_whatdata().
+            Incl: incl_calib, incl_std, incl_ztf, 
+                  calib_only, std_only, ztf_only,
+                  airmass_range, exptime_range, date_range
+
+        """
         prop = dict(kind="spec", contains=contains, not_contains=not_contains, extension=".fits")
-        return self.get_target_datapath(targetname, client=client,**{**prop,**kwargs})
+        return self.get_target_datapath(targetname, client=client,ioprop=ioprop, **{**prop,**kwargs})
     
     def get_target_cubes(self, targetname, download_missing=True, exist=True, 
-                          contains=None, not_contains=None, client=None, **kwargs):
-        """ """
+                          contains=None, not_contains=None, client=None,ioprop={},  **kwargs):
+        """ 
+        Parameters:
+        -----------
+        ioprop: [dict] -optional-
+            used as kwargs for get_whatdata().
+            Incl: incl_calib, incl_std, incl_ztf, 
+                  calib_only, std_only, ztf_only,
+                  airmass_range, exptime_range, date_range
+        """
         prop = dict(kind="e3d", contains=contains, not_contains=not_contains, extension=".fits")
-        return self.get_target_datapath(targetname, client=client,**{**prop,**kwargs})
+        return self.get_target_datapath(targetname, client=client, ioprop=ioprop, **{**prop,**kwargs})
     
     
     def get_target_datapath(self, targetname, kind, contains=None, not_contains=None, 
                             download_missing=True, exist=True, force_dl=False,
                             extension=".fits",  ioprop={}, client=None, **kwargs):
-        """ """
+        """ 
+
+        Parameters:
+        -----------
+        ioprop: [dict] -optional-
+            used as kwargs for get_whatdata().
+            Incl: incl_calib, incl_std, incl_ztf, 
+                  calib_only, std_only, ztf_only,
+                  airmass_range, exptime_range, date_range
+
+        """
         prop = dict(contains=contains, not_contains=not_contains, extension=extension)
         pharosdata = self.pharosio.get_target_pharosdata(targetname, kind=kind, **{**prop, **ioprop})
         local_path = np.concatenate(self._pharosdata_to_datapath_(pharosdata, "local"))
@@ -898,7 +943,7 @@ class SEDMQuery():
             
         not_contains: [string] -optional-
             element of the name that should *not* be in the pharos' filename.
-            
+    
         // download options
         
         dirout: [string] -optional-
@@ -940,7 +985,7 @@ class SEDMQuery():
     #  Target  #
     # -------- #
     def download_target_astrom(self, targetname, not_contains=None, 
-                               dirout=None, client=None, nprocess=4, **kwargs):
+                               dirout=None, client=None, nprocess=4, ioprop={},**kwargs):
         """ download cubes associated to a target. 
         = uses download_target_data() with kind='e3d' =
         
@@ -969,6 +1014,16 @@ class SEDMQuery():
             number of parallel downloading. 
             - ignored if client is given -
         
+        // whatdata options
+
+        ioprop: [dict] -optional-
+            used as kwargs for get_whatdata().
+            Incl: incl_calib, incl_std, incl_ztf, 
+                  calib_only, std_only, ztf_only,
+                  airmass_range, exptime_range, date_range
+
+
+
         **kwargs goes to download_target_data()
          incl: nodl=False, ignore_warnings=False, show_progress=True, verbose=False, overwrite=True
             nodl: [bool] -optional-
@@ -984,10 +1039,11 @@ class SEDMQuery():
         """
         prop = dict(kind="guider", contains="astrom", not_contains=not_contains, extension=".fits")
         return self.download_target_data(targetname, dirout=dirout, client=client, nprocess=nprocess,
+                                             ioprop=ioprop,
                                          **{**prop,**kwargs})
     
     def download_target_guider(self, targetname, contains=None, not_contains=None, 
-                               dirout=None, client=None, nprocess=4, **kwargs):
+                               dirout=None, client=None, nprocess=4, ioprop={}, **kwargs):
         """ download cubes associated to a target. 
         = uses download_target_data() with kind='e3d' =
         
@@ -1002,6 +1058,8 @@ class SEDMQuery():
         not_contains: [string] -optional-
             element of the name that should *not* be in the pharos' filename.
             
+        // download options
+
         dirout: [string] -optional-
             where the data should be downloaded (will actually be dirout/YYYYMMDD/_downloaded_data_).
             by default this will be `$ZTDATA/sedm/redux`.
@@ -1014,6 +1072,15 @@ class SEDMQuery():
             number of parallel downloading. 
             - ignored if client is given -
         
+        // whatdata options
+
+        ioprop: [dict] -optional-
+            used as kwargs for get_whatdata().
+            Incl: incl_calib, incl_std, incl_ztf, 
+                  calib_only, std_only, ztf_only,
+                  airmass_range, exptime_range, date_range
+
+
         **kwargs goes to download_target_data()
          incl: nodl=False, ignore_warnings=False, show_progress=True, verbose=False, overwrite=True
             nodl: [bool] -optional-
@@ -1028,11 +1095,12 @@ class SEDMQuery():
         None (or list of futures if client given)
         """
         prop = dict(kind="guider", contains=contains, not_contains=not_contains, extension=".fits")
-        return self.download_target_data(targetname,dirout=dirout, client=client, nprocess=nprocess, 
+        return self.download_target_data(targetname,dirout=dirout, client=client, nprocess=nprocess,
+                                             ioprop=ioprop,
                                          **{**prop,**kwargs})
     
     def download_target_spectra(self, targetname, contains=None, not_contains=None, 
-                                dirout=None, client=None, nprocess=4, **kwargs):
+                                dirout=None, client=None, nprocess=4,ioprop={}, **kwargs):
         """ download spectra associated to a target. 
         = uses download_target_data() with kind='e3d' =
         
@@ -1047,6 +1115,8 @@ class SEDMQuery():
         not_contains: [string] -optional-
             element of the name that should *not* be in the pharos' filename.
             
+        // download options
+
         dirout: [string] -optional-
             where the data should be downloaded (will actually be dirout/YYYYMMDD/_downloaded_data_).
             by default this will be `$ZTDATA/sedm/redux`.
@@ -1059,6 +1129,15 @@ class SEDMQuery():
             number of parallel downloading. 
             - ignored if client is given -
         
+        // whatdata options
+
+        ioprop: [dict] -optional-
+            used as kwargs for get_whatdata().
+            Incl: incl_calib, incl_std, incl_ztf, 
+                  calib_only, std_only, ztf_only,
+                  airmass_range, exptime_range, date_range
+
+
         **kwargs goes to download_target_data()
          incl: nodl=False, ignore_warnings=False, show_progress=True, verbose=False, overwrite=True
             nodl: [bool] -optional-
@@ -1074,11 +1153,12 @@ class SEDMQuery():
         None (or list of futures if client given)
         """
         prop = dict(kind="spec", contains=contains, not_contains=not_contains, extension=".fits")
-        return self.download_target_data(targetname, dirout=dirout, client=client, nprocess=nprocess, 
+        return self.download_target_data(targetname, dirout=dirout, client=client, nprocess=nprocess,
+                                             ioprop=ioprop,                                             
                                          **{**prop,**kwargs})
     
     def download_target_cubes(self, targetname, contains=None, not_contains=None, 
-                              dirout=None, client=None, nprocess=4, **kwargs):
+                              dirout=None, client=None, nprocess=4, ioprop={}, **kwargs):
         """ download cubes associated to a target. 
         = uses download_target_data() with kind='e3d' =
         
@@ -1093,6 +1173,8 @@ class SEDMQuery():
         not_contains: [string] -optional-
             element of the name that should *not* be in the pharos' filename.
             
+        // download options
+
         dirout: [string] -optional-
             where the data should be downloaded (will actually be dirout/YYYYMMDD/_downloaded_data_).
             by default this will be `$ZTDATA/sedm/redux`.
@@ -1105,6 +1187,14 @@ class SEDMQuery():
             number of parallel downloading. 
             - ignored if client is given -
         
+        // whatdata options
+
+        ioprop: [dict] -optional-
+            used as kwargs for get_whatdata().
+            Incl: incl_calib, incl_std, incl_ztf, 
+                  calib_only, std_only, ztf_only,
+                  airmass_range, exptime_range, date_range
+
         **kwargs goes to download_target_data()
          incl: nodl=False, ignore_warnings=False, show_progress=True, verbose=False, overwrite=True
             nodl: [bool] -optional-
@@ -1120,7 +1210,8 @@ class SEDMQuery():
         None (or list of futures if client given)
         """
         prop = dict(kind="e3d", contains=contains, not_contains=not_contains, extension=".fits")
-        return self.download_target_data(targetname, dirout=dirout, client=client, nprocess=nprocess, 
+        return self.download_target_data(targetname, dirout=dirout, client=client, nprocess=nprocess,
+                                             ioprop=ioprop,
                                          **{**prop,**kwargs})
         
     def download_target_fluxcal(self, targetname, contains=None, not_contains=None, 
@@ -1135,7 +1226,18 @@ class SEDMQuery():
                              contains=None, not_contains=None, extension=".fits", 
                              dirout=None, nodl=False, 
                              show_progress=True, nprocess=4, client=None, ioprop={}, **kwargs):
-        """ """
+        """ 
+
+        // whatdata options
+
+        ioprop: [dict] -optional-
+            used as kwargs for get_whatdata().
+            Incl: incl_calib, incl_std, incl_ztf, 
+                  calib_only, std_only, ztf_only,
+                  airmass_range, exptime_range, date_range
+
+
+        """
         prop = dict(contains=contains, not_contains=not_contains, extension=extension)
         pharosdata = self.pharosio.get_target_pharosdata(targetname, kind=kind, **{**prop, **ioprop})
         return self._download_pharosdata_(pharosdata, 
