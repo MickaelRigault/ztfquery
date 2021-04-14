@@ -1143,7 +1143,7 @@ class FritzSpectrum( object ):
             
         if self.has_error():
             for l_,f_,v_ in zip(self.lbda, self.flux, self.error):
-                fileout_.write(f"{l_:.1f} {f_:.3e} {f_:.3e}\n")
+                fileout_.write(f"{l_:.1f} {f_:.3e} {v_:.3e}\n")
         else:
             for l_,f_ in zip(self.lbda, self.flux):
                 fileout_.write(f"{l_:.1f} {f_:.3e}\n")
@@ -1283,7 +1283,12 @@ class FritzSpectrum( object ):
         lbda   = np.asarray(self.fritzdict["wavelengths"], dtype="float")
         flux   = np.asarray(self.fritzdict["fluxes"], dtype="float")
         error  = self.fritzdict.get("errors", None)
-        header = dict(self.fritzdict["altdata"]) if self.fritzdict.get("altdata") is not None else None
+        try:
+            header = dict(self.fritzdict["altdata"]) if self.fritzdict.get("altdata") is not None else None
+        except:
+            warnings.warn("Cannot convert the fritz' altdata into a header. header set to None")
+            header = None
+            
         self.setup(lbda, flux, header, error=error)
             
     def _loadspec_fileformat_(self):
@@ -1367,11 +1372,14 @@ class FritzSpectrum( object ):
             if "observed_at" in self.fritzdict:
                 header["OBSERVED_AT"] = self.fritzdict["observed_at"]
 
-            if "original_file_filename" in self.fritzdict:
+            if "original_file_filename" in self.fritzdict and self.fritzdict["original_file_filename"] is not None:
                 if "." in self.fritzdict["original_file_filename"]:
                     header["OFNAME"] = self.fritzdict["original_file_filename"].split(".")[-2]
                 else:
                     header["OFNAME"] = self.fritzdict["original_file_filename"]
+            else:
+                header["OFNAME"] = "unknown"
+            
 
         if type(header)==dict:
             self._header = pandas.DataFrame(header.items(), columns=["key", "value"]).set_index("key")["value"]
@@ -1396,12 +1404,14 @@ class FritzSpectrum( object ):
             if "obj_id" in fritzdict:
                 self.header.loc["OBJID"] = fritzdict["obj_id"]
                 
-            if "original_file_filename" in fritzdict:
+            if "original_file_filename" in fritzdict and fritzdict["original_file_filename"] is not None:
                 if "." in fritzdict["original_file_filename"]:
                     self.header.loc["OFNAME"] = fritzdict["original_file_filename"].split(".")[-2]
                 else:
                     self.header.loc["OFNAME"] = fritzdict["original_file_filename"]
-            
+            else:
+                self.header.loc["OFNAME"] = "unknown"
+                
         self._fritzdict = fritzdict
        
         if load_spectrum:
@@ -1417,7 +1427,7 @@ class FritzSpectrum( object ):
     # --------- #
     # PLOTTER   #
     # --------- # 
-    def show(self, ax=None, savefile=None, color=None, ecolor=None, ealpha=0.2, 
+    def show(self, ax=None, normed=False, savefile=None, color=None, ecolor=None, ealpha=0.2, 
              show_error=True, zeroline=True, zcolor="0.7", zls="--", 
              zprop={}, fillprop={}, **kwargs):
         """ """
@@ -1429,11 +1439,13 @@ class FritzSpectrum( object ):
             fig = ax.figure
             
         prop = dict(zorder=3)
-        _ = ax.plot(self.lbda, self.flux, **{**prop, **kwargs})
+        norm = 1 if not normed else np.nanmean(self.flux)
+        
+        _ = ax.plot(self.lbda, self.flux/norm, **{**prop, **kwargs})
         if self.has_error() and show_error:
             if ecolor is None:
                 ecolor = color
-            ax.fill_between(self.lbda, self.flux-self.error, self.flux+self.error, 
+            ax.fill_between(self.lbda, (self.flux-self.error)/norm, (self.flux+self.error)/norm, 
                            facecolor=ecolor, alpha=ealpha, **{**prop,**fillprop})
             
         if zeroline:
