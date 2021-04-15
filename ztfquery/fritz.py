@@ -347,7 +347,7 @@ def download_sample( groupid, get_object=False,
             warnings.warn("store option not available if savesummary=True.")
             store=False
         
-    if groupid is not None:
+    if groupid is not None and groupid not in ["*", "all"]:
         addon.append(f"group_ids={groupid}")
 
     if savedafter is not None:
@@ -2253,7 +2253,8 @@ class FritzSample( object ):
     def from_group(cls, groupname_or_id, force_dl=False, update_sources=False, store=False,
                        load_sources=True, nprocess=4, client=None, **kwargs):
         """ """
-        prop_load = dict(load_sources=load_sources, nprocess=nprocess, client=client, force_dl=update_sources)
+        prop_load = dict(load_sources=load_sources, nprocess=nprocess, client=client,
+                             force_dl=update_sources)
         
         if not force_dl: 
             # - Did you provide an existing name ?
@@ -2276,7 +2277,8 @@ class FritzSample( object ):
                 extension = filename.split(".")[-1]
                 return getattr(cls,f"read_{extension}")(filename, **prop_load)
             
-        summary = download_sample(groupid, get_object=False, store=False, savesummary=True, **kwargs)
+        summary = download_sample(groupid, get_object=False, store=False, savesummary=True,
+                                      **kwargs)
         return cls.from_summary(summary, groupname_or_id=groupname_or_id, store=store, **prop_load)
         
     @classmethod
@@ -2297,8 +2299,72 @@ class FritzSample( object ):
             summary = pandas.DataFrame(samplesummary)
 
         return cls.from_names(summary["obj_id"].values, load_sources=load_sources, store=store,
-                                  nprocess=nprocess, client=client, groupname_or_id=groupname_or_id, **kwargs)
+                                  nprocess=nprocess, client=client,
+                                  groupname_or_id=groupname_or_id, **kwargs)
 
+    @classmethod
+    def from_timerange(cls, savedafter, savedbefore=None, groupid="*", store=False,
+                           load_sources=True, force_dl=False,
+                           nprocess=4, client=None, show_progress=False, 
+                           loadprop={}, **kwargs):
+        """ loads a sample instance simply from a time range.
+
+        Parameters
+        ----------
+
+        // download_sample option 
+
+        savedafter: [string]
+            Get the sources saved on fritz after that time. 
+            e.g. savedafter='2021-04-01'.
+            
+        savedbefore: [string or None] -optional-
+            Get the sources saved on fritz *before* that time. 
+
+        groupid: [string or None] -optional-
+            get sources only from the given group (id requested).
+            None or '*' or 'all' means all groups (no selection)
+
+        store: [bool] -optional-
+            Do you want to store the sample. Could be problematic if groupid is None/'all'.
+            if trouble, use `self.store('sample_name')` if you want to do that anyway.
+
+        // load sources options
+
+        load_sources: [bool] -optional-
+            Do you want to load the source information ?
+
+        force_dl: [bool] -optional-
+            If a source already exist on your computer, do you want to redownload it to update it's content ?
+        
+        nprocess: [int] -optional-
+            Number of parallel downloading when loading the target.
+            - ignored if client given-
+            
+        client: [Dask Client or None] -optional-
+            Provide a Dask client for the source downloading.
+            (scales to clusters)
+
+        show_progress: [bool] -optional-
+            Do you want to see the source (down)loading progress ?
+            - ignored if client given -
+
+        **kwargs goes to download_sample()
+        loadprop goes as kwargs to from_summary()->from_names()->set_names()->load_sources()
+        
+
+        Returns
+        -------
+        FritzSample
+        """
+        summary = download_sample(groupid, get_object=False, store=False, savesummary=True,
+                                            savedafter=savedafter, savedbefore=savedbefore,
+                                            **kwargs)
+        return cls.from_summary(summary, load_sources=load_sources, nprocess=nprocess,
+                                    client=client, store=store,
+                                    show_progress=show_progress, force_dl=force_dl,
+                                    **loadprop)
+    
     @classmethod
     def from_names(cls, names, load_sources=True, nprocess=4, client=None,
                        groupname_or_id=None, store=False, **kwargs):
@@ -2326,7 +2392,8 @@ class FritzSample( object ):
         instance of the class.
         """
         this = cls(groupname_or_id=groupname_or_id)
-        this.set_names(names, load_sources=load_sources, nprocess=nprocess, client=client, **kwargs)
+        this.set_names(names, load_sources=load_sources, nprocess=nprocess, client=client,
+                           **kwargs)
         if store:
             self.store(store_sources=True, client=client)
         return this
@@ -2527,6 +2594,13 @@ class FritzSample( object ):
         -> incl. priorcreation=100, postlast=100, add_query=None
         """
         return self.get_source(name).get_metaquery( **kwargs)
+
+    # --------- #
+    #  Bulk     #
+    # --------- #        
+    def view_source_on_fritz(self, sourcename):
+        """ """
+        return self.get_source(sourcename).view_on_fritz()
     
     # --------- #
     #  Bulk     #
