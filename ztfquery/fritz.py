@@ -259,6 +259,7 @@ def download_spectra(name, get_object=False, token=None, store=False, verbose=Fa
 def download_alerts(name, candid=None, allfields=None,
                     get_object=False, token=None, store=False, verbose=False):
     """ 
+    looking for api/alerts/{name}{addon}
     Parameters
     ----------
     candid: [int/str]
