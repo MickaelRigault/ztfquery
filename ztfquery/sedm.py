@@ -762,7 +762,7 @@ class SEDMQuery():
     # ------- #
     # Target  #
     # ------- #
-    def get_target_astrom(self, targetname, download_missing=True, exist=True, 
+    def get_target_astrom(self, targetname, download_missing=True, exist=True, force_dl=False,
                           not_contains=None, client=None, ioprop={}, **kwargs):
         """ 
         Parameters:
@@ -775,9 +775,9 @@ class SEDMQuery():
 
         """
         prop = dict(kind="guider", contains="astrom", not_contains=not_contains, extension=".fits")
-        return self.get_target_datapath(targetname, client=client, ioprop=ioprop,  **{**prop,**kwargs})
+        return self.get_target_datapath(targetname, client=client, ioprop=ioprop, force_dl=force_dl, **{**prop,**kwargs})
 
-    def get_target_guider(self, targetname, download_missing=True, exist=True, 
+    def get_target_guider(self, targetname, download_missing=True, exist=True, force_dl=False,
                           contains=None, not_contains=None, client=None, ioprop={}, **kwargs):
         """ 
         Parameters:
@@ -790,9 +790,9 @@ class SEDMQuery():
 
         """
         prop = dict(kind="guider", contains=contains, not_contains=not_contains, extension=".fits")
-        return self.get_target_datapath(targetname, client=client,ioprop=ioprop, **{**prop,**kwargs})
+        return self.get_target_datapath(targetname, client=client,ioprop=ioprop, force_dl=force_dl, **{**prop,**kwargs})
 
-    def get_target_spectra(self, targetname, download_missing=True, exist=True, 
+    def get_target_spectra(self, targetname, download_missing=True, exist=True, force_dl=False,
                           contains=None, not_contains=None, client=None, ioprop={}, **kwargs):
         """ 
         Parameters:
@@ -805,9 +805,9 @@ class SEDMQuery():
 
         """
         prop = dict(kind="spec", contains=contains, not_contains=not_contains, extension=".fits")
-        return self.get_target_datapath(targetname, client=client,ioprop=ioprop, **{**prop,**kwargs})
+        return self.get_target_datapath(targetname, client=client,ioprop=ioprop, force_dl=force_dl, **{**prop,**kwargs})
     
-    def get_target_cubes(self, targetname, download_missing=True, exist=True, 
+    def get_target_cubes(self, targetname, download_missing=True, exist=True, force_dl=False,
                           contains=None, not_contains=None, client=None,ioprop={},  **kwargs):
         """ 
         Parameters:
@@ -819,7 +819,7 @@ class SEDMQuery():
                   airmass_range, exptime_range, date_range
         """
         prop = dict(kind="e3d", contains=contains, not_contains=not_contains, extension=".fits")
-        return self.get_target_datapath(targetname, client=client, ioprop=ioprop, **{**prop,**kwargs})
+        return self.get_target_datapath(targetname, client=client, ioprop=ioprop, force_dl=force_dl, **{**prop,**kwargs})
     
     
     def get_target_datapath(self, targetname, kind, contains=None, not_contains=None, 

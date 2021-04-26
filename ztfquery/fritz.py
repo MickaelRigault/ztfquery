@@ -1284,7 +1284,7 @@ class FritzSpectrum( object ):
         flux   = np.asarray(self.fritzdict["fluxes"], dtype="float")
         error  = self.fritzdict.get("errors", None)
         try:
-            header = dict(self.fritzdict["altdata"]) if self.fritzdict.get("altdata") is not None else None
+            header = {k:v for k,v in dict(self.fritzdict["altdata"]) if len(k>0)} if self.fritzdict.get("altdata") is not None else None
         except:
             warnings.warn("Cannot convert the fritz' altdata into a header. header set to None")
             header = None
@@ -1318,14 +1318,20 @@ class FritzSpectrum( object ):
             header.loc["NAXIS"] = len(self.lbda)
             
         return header
-    
-    def _header_to_lbda_(self, header=None):
+
+    @classmethod
+    def _header_to_lbda_(cls, header):
         """ """
-        if header is None:
-            header = self.header
-        step  = header["CDELT"]
-        start = header["CRVAL"]
-        size  = header["NAXIS"]
+        # Both format exist
+        if "CDELT1" in header:
+            step  = header.get("CDELT1")
+            start = header.get("CRVAL1")
+            size  = header.get("NAXIS1")
+        else:
+            step  = header.get("CDELT")
+            start = header.get("CRVAL")
+            size  = header.get("NAXIS")
+            
         return np.arange(size)*step + start
 
     # --------- #
@@ -1374,7 +1380,7 @@ class FritzSpectrum( object ):
 
             if "original_file_filename" in self.fritzdict and self.fritzdict["original_file_filename"] is not None:
                 if "." in self.fritzdict["original_file_filename"]:
-                    header["OFNAME"] = self.fritzdict["original_file_filename"].split(".")[-2]
+                    header["OFNAME"] = "_".join(self.fritzdict["original_file_filename"].split(".")[:-1]) # replace "."->"_" in basename
                 else:
                     header["OFNAME"] = self.fritzdict["original_file_filename"]
             else:

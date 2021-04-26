@@ -3,6 +3,7 @@
 
 import os, hashlib
 import sys
+import time
 import requests
 import warnings
 import numpy as np
@@ -31,7 +32,7 @@ CCIN2P3_SOURCE = "/sps/ztf/data/"
 # ================= #
 def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix=True,
                  dlfrom="irsa", overwrite=False, maxnprocess=4, exist=True, test_file=True,
-                 squeeze=True, show_progress=True,
+                 squeeze=True, show_progress=True, client=None, wait=None,
                  fill_notexist="None", **kwargs):
     """ Get full path associate to the filename. 
     If you don't have it on your computer, this downloads it for you.
@@ -51,6 +52,14 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
     downloadit: [bool] -optional-
         If you do not have the file locally, shall this download it for you ?
         
+
+    wait: [None/string/float] -optional-
+        Waiting time for dwnloaded the file. It helps mostly when dask is massively multi-downloading.
+        - None: if Client, wait -> len(to_be_downloaded)/100 (so 100 per second) ; corresponds to wait="100"
+        - "None": no limit
+        - "float_in_string": waiting time reported to the size of file to download: len(to_be_downloaded)/wait
+        - float: absolute time to wait.
+
     **kwargs goes to download_from_filename
 
     Returns
@@ -77,9 +86,27 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
 
     # DL if needed (and wanted)
     if np.any(flag_todl) and downloadit:
-        _ = download_from_filename(local_filenames[flag_todl],show_progress=show_progress,
+        if client is not None and wait is None:
+            wait = "100"
+        if type(wait) is str:
+            if wait == "None":
+                wait = None
+            else:
+                try:
+                    wait = len(local_filenames[flag_todl])/float(wait)
+                except:
+                    warnings.warn(f"cannot parse the inpout waiting time {wait} -> None used.")
+                    wait = None            
+        print(f"waiting time: {wait}")
+        
+        f_ = download_from_filename(local_filenames[flag_todl], show_progress=show_progress,
                                     host=dlfrom, overwrite=True, maxnprocess=maxnprocess,
+                                    client=client, wait=wait,
                                     check_suffix=check_suffix)
+        if client is not None:
+            from dask.distributed import wait as dwait
+            _ = dwait(f_)
+            
     # - Output
     if fill_notexist != "None":
         local_filenames = [f if os.path.isfile(f) else fill_notexist
@@ -91,8 +118,9 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
     return local_filenames
                                                         
 def download_from_filename(filename, suffix=None, verbose=False, overwrite=False,
-                               auth=None, nodl=False, host="irsa",maxnprocess=4,
-                               show_progress=True, check_suffix=True,  **kwargs):
+                               auth=None, nodl=False, host="irsa", maxnprocess=4,
+                               show_progress=True, check_suffix=True,
+                               client=None, wait=None, **kwargs):
     """ Download the file associated to the given filename """
     if host not in ["irsa", "ccin2p3"]:
         raise ValueError(f"Only 'irsa' and 'ccin2p3' host implemented: {host} given")
@@ -122,6 +150,7 @@ def download_from_filename(filename, suffix=None, verbose=False, overwrite=False
         return download_url(remote_filename,
                             local_filename,
                             nprocess=nprocess,
+                            client=client, wait=wait,
                             overwrite=overwrite,verbose=verbose,
                             cookies = get_cookie(*auth),
                             show_progress=show_progress, 
@@ -510,11 +539,11 @@ def _download_(args):
     """ To be used within _ZTFDownloader_.download_data() 
     url, fileout,overwrite,verbose = args
     """
-    url, fileout,  overwrite, verbose = args
-    download_single_url(url, fileout=fileout, overwrite=overwrite, verbose=verbose)
+    url, fileout,  overwrite, verbose, wait = args
+    download_single_url(url, fileout=fileout, overwrite=overwrite, verbose=verbose, wait=wait)
     
 def download_url(to_download_urls, download_location,
-                show_progress = True,  verbose=True,
+                show_progress = True, verbose=True, wait=None,
                 overwrite=False, nprocess=None, cookies=None,
                 client=None,
                 **kwargs):
@@ -523,13 +552,12 @@ def download_url(to_download_urls, download_location,
     # - Dask Client
     if client is not None:
         from dask import delayed
-        d_download = [delayed(download_single_url)(url ,fileout=fileout, show_progress=False,
-                                    overwrite=overwrite, verbose=False,
+        d_download = [delayed(download_single_url)(url, fileout=fileout, show_progress=False,
+                                    overwrite=overwrite, verbose=False, wait=wait,
                                     cookies=cookies, **kwargs)
                     for url, fileout in zip(to_download_urls, download_location)]
         return client.compute(d_download)
-
-
+    
     #
     # - MultiProcessing (or not)
     if nprocess is None:
@@ -545,6 +573,7 @@ def download_url(to_download_urls, download_location,
         for url, fileout in zip(to_download_urls, download_location):
             download_single_url(url,fileout=fileout, show_progress=show_progress,
                                     overwrite=overwrite, verbose=verbose, cookies=cookies,
+                                    wait=wait,
                                     **kwargs)
     else:
         # Multi processing
@@ -561,11 +590,12 @@ def download_url(to_download_urls, download_location,
         # Passing arguments
         overwrite_ = [overwrite]*len(to_download_urls)
         verbose_   = [verbose]*len(to_download_urls)
+        wait_ = [wait]*len(to_download_urls)
         with multiprocessing.Pool(nprocess) as p:
             # Da Loop
             for j, result in enumerate( p.imap_unordered(_download_, zip(to_download_urls,
                                                                     download_location,
-                                                                 overwrite_, verbose_))):
+                                                                 overwrite_, verbose_, wait_))):
                 if bar is not None:
                     bar.update(j)
                     
@@ -576,12 +606,16 @@ def download_url(to_download_urls, download_location,
 def download_single_url(url, fileout=None, 
                         overwrite=False, verbose=True, cookies=None,
                         show_progress=True, chunk=1024,
+                        wait=None, randomize_wait=True,
                         filecheck=True, erasebad=True,
                         **kwargs):
     """ Download the url target using requests.get.
     the data is returned (if fileout is None) or stored in `fileout`
-    Pa
     """
+    if wait is not None:
+        waiting = wait if not randomize_wait else np.random.uniform(0,wait)
+        time.sleep(waiting)
+        
     if fileout is not None and not overwrite and os.path.isfile( fileout ):
         if verbose:
             warnings.warn("%s already exists: skipped"%fileout)
