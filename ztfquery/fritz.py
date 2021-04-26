@@ -276,7 +276,7 @@ def download_alerts(name, candid=None, allfields=None,
     # - end: addon
     #
 
-    q_url = _BASE_FRITZ_URL+f'api/alerts/ztf/{name}{addon}'
+    q_url = _BASE_FRITZ_URL+f'api/alerts/{name}{addon}'
     if verbose:
         print(f"queried URL: {q_url}")
         
