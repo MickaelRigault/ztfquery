@@ -58,6 +58,33 @@ def _account_id_declined_(username, password):
 # Stand Alone Functions     # 
 #                           #
 #############################
+def convert_lc_tofritz(marshal_lc, name):
+    """ """
+    fritz_keys = ['obj_id', 'ra', 'dec', 'filter', 'mjd', 'instrument_id',
+                      'instrument_name', 'ra_unc', 'dec_unc', 'origin', 'id', 'groups',
+                      'altdata', 'mag', 'magerr', 'magsys', 'limiting_mag']
+
+    from astropy import time
+    data = marshal_lc[["filter","mag","emag","limmag"]].rename({"emag":"magerr", "limmag":"limiting_mag"},
+                                                                   axis=1).replace(to_replace=99.0, value=np.NaN)
+    flag_gri = data["filter"].isin(["g","r","i"])
+    data.loc[flag_gri,"filter"] = "ztf"+data.loc[flag_gri,"filter"].astype('str')
+    data["mjd"] = time.Time(marshal_lc["jdobs"].astype("float"), format="jd").mjd
+    data["obj_id"] = name
+    data["magsys"] = 'ab'
+    data["instrument_name"] = marshal_lc["instrument"].str.split("+", expand=True)[1]
+    for k in ['ra', 'dec','ra_unc', 'dec_unc', 'id', 'groups', 'altdata', 
+              'instrument_id',"origin"]:
+        data[k] = np.NaN
+
+    return data[fritz_keys]
+
+        
+#############################
+#                           #
+# Stand Alone Functions     # 
+#                           #
+#############################
 def get_target_data(name):
     """ provide a name (or list of names) and get its/there marshal information 
     IMPORTANT: This function is slow, but it takes the same amount of time if you provide 1 or any number of targets.
@@ -71,7 +98,7 @@ def get_target_data(name):
     return m.get_target_data(name)
 
 
-def get_target_lightcurve(name, download=True, update=False, **kwargs):
+def get_target_lightcurve(name, download=True, update=False, as_fritz=False, **kwargs):
     """ Get the target lightcurve from the marshal. 
     
     Parameters
@@ -101,9 +128,12 @@ def get_target_lightcurve(name, download=True, update=False, **kwargs):
             warnings.warn(f"No local lightcurve for {name}. download it or set download to true")
             return None
         
-        return get_target_lightcurve(name, update=True, **kwargs)
-    else:
-        return lc
+        lc = get_target_lightcurve(name, update=True, **kwargs)
+
+    if as_fritz:
+        return convert_lc_tofritz(lc, name=name)
+        
+    return lc
 
 
 def get_target_spectra(name, download=True, update=False, only_sedm=False, **kwargs):
@@ -245,6 +275,10 @@ def target_spectra_directory(name):
 def target_lightcurves_directory(name):
     """ where Marshal lightcurves are stored """
     return os.path.join(MARSHALSOURCE,"lightcurves",name)
+
+def target_source_directory(name):
+    """ where Marshal lightcurves are stored """
+    return os.path.join(MARSHALSOURCE,"source",name)
 
 def target_alerts_directory(name):
     """ where Marshal lightcurves are stored """
@@ -397,6 +431,31 @@ def download_spectra(name, dirout="default", auth=None, verbose=False, **kwargs)
         os.makedirs(dirout, exist_ok=True)
 
     tar.extractall(dirout)
+
+
+def download_source(name,  dirout="default",
+                        auth=None, verbose=False,
+                        overwrite=False, return_data=False, **kwargs):
+    """ """
+    if dirout in ["None"]: dirout = None
+    if dirout in ["default"]: dirout = target_source_directory(name)
+    
+    if dirout is not None:
+        fileout = f"marshal_{name}.csv"
+        fileout_full = os.path.join(dirout,fileout)
+        if os.path.isfile(fileout_full) and not overwrite:
+            warnings.warn(f"The source {fileout_full} already exists. Set overwrite to True to update it.")
+            return
+                              
+    response = io.download_single_url(MARSHAL_BASEURL+f"source_summary.cgi?sourceid={name}",  
+                                   fileout=None,
+                                   auth=io._load_id_("marshal") if auth is None else auth,
+                                   cookies="no_cookies", show_progress=False, 
+                                   **kwargs)
+    return response
+                                   
+
+    
 
 def download_lightcurve(name, dirout="default",
                         auth=None, verbose=False,

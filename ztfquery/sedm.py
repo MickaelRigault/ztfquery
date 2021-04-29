@@ -723,20 +723,31 @@ class SEDMQuery():
     # ------- #
     def get_night_fluxcal(self, date,
                               download_missing=True, exist=True, 
-                          contains=None, not_contains=None, client=None, **kwargs):
-        """ """
+                              contains=None, not_contains=None, client=None, **kwargs):
+        """ date could be a list """
         return self.get_night_data(date, kind="fluxcal", extension=".fits",
                                 download_missing=download_missing, exist=exist, 
-                                contains=contains, not_contains=not_contains, client=client, **kwargs)
-    
+                                contains=contains, not_contains=not_contains, client=client,
+                                **kwargs)
+
+    def get_night_cubes(self, date, contains=None, not_contains="e3d_dome",
+                            client=None, force_dl=False,
+                            incl_dome=False,
+                            ioprop={}, **kwargs):
+        """ """
+        prop = dict(kind="e3d", contains=contains, not_contains=not_contains, extension=".fits")   
+        return self.get_night_data(date, client=client, ioprop=ioprop,
+                                    force_dl=force_dl, **{**prop,**kwargs})
+        
     def get_night_data(self, date, download_missing=True, exist=True, force_dl=False,
                            contains=None, not_contains=None, kind=None, extension="*", 
-                           client=None, **kwargs):
+                           client=None, ioprop={}, **kwargs):
         """ """
         pharosdata = {date_:
-                      [l for l in self.pharosio.get_pharosdata(date_, basename=True) 
+                      [l for l in self.pharosio.get_pharosdata(date_, basename=True, **ioprop) 
                         if  (kind is None or l.startswith(kind)) and 
-                            (extension is None or extension in ["*","all"] or l.endswith(extension)) and 
+                            (extension is None or extension in ["*","all"] or \
+                                 l.endswith(extension)) and 
                             (contains is None or contains in l) and 
                             (not_contains is None or not_contains not in l)]
                                 
@@ -750,7 +761,8 @@ class SEDMQuery():
             if np.any(index_missing) or force_dl:
                 if force_dl:
                     index_missing=None
-                futures_ifany = self._download_pharosdata_(pharosdata, index=index_missing, client=client, **kwargs)
+                futures_ifany = self._download_pharosdata_(pharosdata, index=index_missing,
+                                                               client=client, **kwargs)
                 if client is not None:
                     from dask.distributed import wait
                     _ = wait(futures_ifany)
@@ -762,6 +774,18 @@ class SEDMQuery():
     # ------- #
     # Target  #
     # ------- #
+    def get_target_fluxcal(self, targetname, download_missing=True, exist=True,
+                                     contains=None, not_contains=None, client=None,
+                                    **kwargs):
+        """ get nights associated to the target and downloads the fluxcal files of that night.
+        uses self.get_night_fluxcal()
+        """
+        dates = self.pharosio.get_nights_with_target(targetname, **kwargs)
+        return self.get_night_fluxcal(dates,
+                                    download_missing=download_missing, exist=exist, 
+                                    contains=contains, not_contains=not_contains,
+                                    client=client, **kwargs)
+
     def get_target_astrom(self, targetname, download_missing=True, exist=True, force_dl=False,
                           not_contains=None, client=None, ioprop={}, **kwargs):
         """ 
@@ -775,7 +799,8 @@ class SEDMQuery():
 
         """
         prop = dict(kind="guider", contains="astrom", not_contains=not_contains, extension=".fits")
-        return self.get_target_datapath(targetname, client=client, ioprop=ioprop, force_dl=force_dl, **{**prop,**kwargs})
+        return self.get_target_datapath(targetname, client=client, ioprop=ioprop,
+                                            force_dl=force_dl, **{**prop,**kwargs})
 
     def get_target_guider(self, targetname, download_missing=True, exist=True, force_dl=False,
                           contains=None, not_contains=None, client=None, ioprop={}, **kwargs):
@@ -790,7 +815,8 @@ class SEDMQuery():
 
         """
         prop = dict(kind="guider", contains=contains, not_contains=not_contains, extension=".fits")
-        return self.get_target_datapath(targetname, client=client,ioprop=ioprop, force_dl=force_dl, **{**prop,**kwargs})
+        return self.get_target_datapath(targetname, client=client,ioprop=ioprop,
+                                            force_dl=force_dl, **{**prop,**kwargs})
 
     def get_target_spectra(self, targetname, download_missing=True, exist=True, force_dl=False,
                           contains=None, not_contains=None, client=None, ioprop={}, **kwargs):
@@ -805,7 +831,8 @@ class SEDMQuery():
 
         """
         prop = dict(kind="spec", contains=contains, not_contains=not_contains, extension=".fits")
-        return self.get_target_datapath(targetname, client=client,ioprop=ioprop, force_dl=force_dl, **{**prop,**kwargs})
+        return self.get_target_datapath(targetname, client=client,ioprop=ioprop,
+                                            force_dl=force_dl, **{**prop,**kwargs})
     
     def get_target_cubes(self, targetname, download_missing=True, exist=True, force_dl=False,
                           contains=None, not_contains=None, client=None,ioprop={},  **kwargs):
@@ -819,7 +846,8 @@ class SEDMQuery():
                   airmass_range, exptime_range, date_range
         """
         prop = dict(kind="e3d", contains=contains, not_contains=not_contains, extension=".fits")
-        return self.get_target_datapath(targetname, client=client, ioprop=ioprop, force_dl=force_dl, **{**prop,**kwargs})
+        return self.get_target_datapath(targetname, client=client, ioprop=ioprop,
+                                            force_dl=force_dl, **{**prop,**kwargs})
     
     
     def get_target_datapath(self, targetname, kind, contains=None, not_contains=None, 
@@ -837,14 +865,18 @@ class SEDMQuery():
 
         """
         prop = dict(contains=contains, not_contains=not_contains, extension=extension)
-        pharosdata = self.pharosio.get_target_pharosdata(targetname, kind=kind, **{**prop, **ioprop})
+        pharosdata = self.pharosio.get_target_pharosdata(targetname, kind=kind,
+                                                             **{**prop, **ioprop})
+        if pharosdata is None or len(pharosdata)==0:
+            return None
         local_path = np.concatenate(self._pharosdata_to_datapath_(pharosdata, "local"))
         if download_missing or force_dl:
             index_missing = [not os.path.isfile(l) for l in local_path]
             if np.any(index_missing) or force_dl:
                 if force_dl:
                     index_missing=None
-                futures_ifany = self._download_pharosdata_(pharosdata, index=index_missing, client=client, **kwargs)
+                futures_ifany = self._download_pharosdata_(pharosdata, index=index_missing,
+                                                               client=client, **kwargs)
                 if client is not None:
                     from dask.distributed import wait
                     _ = wait(futures_ifany)
