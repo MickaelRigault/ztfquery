@@ -738,7 +738,13 @@ class SEDMQuery():
         prop = dict(kind="e3d", contains=contains, not_contains=not_contains, extension=".fits")   
         return self.get_night_data(date, client=client, ioprop=ioprop,
                                     force_dl=force_dl, **{**prop,**kwargs})
-        
+
+    def get_night_astrom(self, date, not_contains=None, client=None, force_dl=False,
+                            incl_dome=False, ioprop={}, **kwargs):
+        """ """
+        prop = dict(kind="guider", contains="astrom", not_contains=not_contains, extension=".fits")
+        return self.get_night_data(date, client=client, ioprop=ioprop, force_dl=force_dl, **{**prop,**kwargs})
+
     def get_night_data(self, date, download_missing=True, exist=True, force_dl=False,
                            contains=None, not_contains=None, kind=None, extension="*", 
                            client=None, ioprop={}, **kwargs):
