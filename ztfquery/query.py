@@ -237,7 +237,8 @@ class _ZTFDownloader_( object ):
             cookie = None
             
         # Data Structure
-        self._relative_data_path = self.get_data_path(suffix=suffix, source="None", indexes=indexes, **kwargs)
+        self._relative_data_path = self.get_data_path(suffix=suffix, source="None",
+                                                          indexes=indexes, **kwargs)
         
         # The IRSA location
         self.to_download_urls    = [os.path.join(buildurl._source_to_location_(source),d_)
@@ -297,7 +298,8 @@ class _ZTFDownloader_( object ):
         
         return io.get_file(self.get_data_path(indexes=indexes), suffix=suffix, exist=exist,
                                downloadit=downloadit, show_progress=show_progress, dlfrom=dlfrom,
-                               maxnprocess=maxnprocess, check_suffix=check_suffix, overwrite=overwrite, **kwargs)
+                               maxnprocess=maxnprocess, check_suffix=check_suffix,
+                               overwrite=overwrite, **kwargs)
     
     
     def get_local_data(self, suffix=None, exists=True, filecheck=True, indexes=None,
@@ -484,7 +486,8 @@ class _ZTFDownloader_( object ):
         """
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            badfiles = self.get_local_data(suffix=suffix, exists=True, filecheck=True, indexes=indexes, badfiles=True,
+            badfiles = self.get_local_data(suffix=suffix, exists=True, filecheck=True,
+                                            indexes=indexes, badfiles=True,
                                             redownload=redownload, nprocess=nprocess, **kwargs)
 
         if badfiles is None or len(badfiles)==0:
@@ -525,7 +528,8 @@ class ZTFQuery( ztftable._ZTFTable_, _ZTFDownloader_ ):
                            sql_query=None, auth=None, **kwargs):
         """ Loads a ZTFQuery instance and runs load_metadata with the given input """
         this = cls()
-        this.load_metadata(kind=kind, radec=radec, size=size, caltype=caltype, sql_query=sql_query, auth=auth, **kwargs)
+        this.load_metadata(kind=kind, radec=radec, size=size, caltype=caltype,
+                               sql_query=sql_query, auth=auth, **kwargs)
         return this
     
     def set_metatable(self, metatable, kind):
@@ -543,7 +547,8 @@ class ZTFQuery( ztftable._ZTFTable_, _ZTFDownloader_ ):
                         radec=None, size=None, mcen=None,
                         caltype=None,
                         sql_query=None, auth=None, **kwargs):
-        """ Querying for the metadata information that enables to reconstruct the URL to access the data.
+        """ Querying for the metadata information that enables to reconstruct 
+        the URL to access the data.
         
         [This methods uses the .metasearch library, which is python wrapper of the the IRSA web API
         see https://irsa.ipac.caltech.edu/docs/program_interface/ztf_api.html]
@@ -563,10 +568,12 @@ class ZTFQuery( ztftable._ZTFTable_, _ZTFDownloader_ ):
         sql_query: [None or string] -optional - 
             The where parameter can be set to a 'SQL WHERE' clause, with some restrictions. 
             [https://en.wikipedia.org/wiki/Where_(SQL)]
-            Notably, function calls and sub-queries are not supported. You can use AND, OR, NOT, IN, BETWEEN, LIKE, IS, 
+            Notably, function calls and sub-queries are not supported. 
+            You can use AND, OR, NOT, IN, BETWEEN, LIKE, IS, 
             the usual arithmetic and comparison operators, and literal values.
             Note that the where parameter is required in the absence of POS (a spatial constraint).
-            WHERE clauses should be URL encoded [https://en.wikipedia.org/wiki/Query_string#URL_encoding].
+            WHERE clauses should be URL encoded 
+            [https://en.wikipedia.org/wiki/Query_string#URL_encoding].
             for instance  SPACE is encoded as '+' or "%20".
             If entry must be equal to a string, use `entry='str'` (with the quotes)
             Examples:
@@ -628,7 +635,8 @@ class ZTFQuery( ztftable._ZTFTable_, _ZTFDownloader_ ):
         
         if kind not in ['cal']:
             # python3 -> self.metaquery = download_metadata(**{**locals(),**kwargs})
-            self.metaquery = download_metadata(kind=kind, radec=radec, size=size, mcen=mcen, sql_query=sql_query, **kwargs)
+            self.metaquery = download_metadata(kind=kind, radec=radec, size=size,
+                                                   mcen=mcen, sql_query=sql_query, **kwargs)
         else:
             for k in ["radec", "size", "mcen"]:
                 if locals()[k] is not None: warnings.warn("You are querying 'calibration data', the following entry is ignored: %s"%k)

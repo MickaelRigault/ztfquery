@@ -567,10 +567,13 @@ class PharosIO( object ):
     def get_pharosdata(self, date, force_dl=False, basename=False):
         """ """
         if date not in self.pharosdata or force_dl:
-            self.pharosdata[date] = self.fetch_pharosfile(date, force_dl=force_dl, load=True)
+            d = self.fetch_pharosfile(date, force_dl=force_dl, load=True)
+            d += [f.replace("bkgd_","") for f in d if os.path.basename(f).startswith("bkgd_crr")]
+            self.pharosdata[date] = d
 
         if not basename:
             return self.pharosdata[date]
+
         return [os.path.basename(l) for l in self.pharosdata[date]]
 
     def get_nights_with_target(self, targetname, 
@@ -730,6 +733,14 @@ class SEDMQuery():
                                 contains=contains, not_contains=not_contains, client=client,
                                 **kwargs)
 
+    def get_night_crr(self, date, contains=None, not_contains=None,
+                            client=None, force_dl=False,
+                            ioprop={}, **kwargs):
+        """ """
+        prop = dict(kind="crr", contains=contains, not_contains=not_contains, extension=".fits")
+        return self.get_night_data(date, client=client, ioprop=ioprop,
+                                    force_dl=force_dl, **{**prop,**kwargs})
+
     def get_night_cubes(self, date, contains=None, not_contains="e3d_dome",
                             client=None, force_dl=False,
                             incl_dome=False,
@@ -854,7 +865,22 @@ class SEDMQuery():
         prop = dict(kind="e3d", contains=contains, not_contains=not_contains, extension=".fits")
         return self.get_target_datapath(targetname, client=client, ioprop=ioprop,
                                             force_dl=force_dl, **{**prop,**kwargs})
-    
+
+    def get_target_crr(self, targetname, download_missing=True, exist=True, force_dl=False,
+                          contains=None, not_contains=None, client=None, ioprop={},  **kwargs):
+        """ 
+        Parameters:
+        -----------
+        ioprop: [dict] -optional-
+            used as kwargs for get_whatdata().
+            Incl: incl_calib, incl_std, incl_ztf, 
+                  calib_only, std_only, ztf_only,
+                  airmass_range, exptime_range, date_range
+        """
+        prop = dict(kind="crr", contains=contains, not_contains=not_contains, extension=".fits")
+        return self.get_target_datapath(targetname, client=client, ioprop=ioprop,
+                                            force_dl=force_dl, **{**prop,**kwargs})
+
     
     def get_target_datapath(self, targetname, kind, contains=None, not_contains=None, 
                             download_missing=True, exist=True, force_dl=False,
@@ -1248,7 +1274,8 @@ class SEDMQuery():
         None (or list of futures if client given)
         """
         prop = dict(kind="e3d", contains=contains, not_contains=not_contains, extension=".fits")
-        return self.download_target_data(targetname, dirout=dirout, client=client, nprocess=nprocess,
+        return self.download_target_data(targetname, dirout=dirout, client=client,
+                                             nprocess=nprocess,
                                              ioprop=ioprop,
                                          **{**prop,**kwargs})
         
@@ -1277,10 +1304,12 @@ class SEDMQuery():
 
         """
         prop = dict(contains=contains, not_contains=not_contains, extension=extension)
-        pharosdata = self.pharosio.get_target_pharosdata(targetname, kind=kind, **{**prop, **ioprop})
+        pharosdata = self.pharosio.get_target_pharosdata(targetname, kind=kind,
+                                                             **{**prop, **ioprop})
         return self._download_pharosdata_(pharosdata, 
                                           dirout=dirout, nodl=nodl, 
-                                          show_progress=show_progress, nprocess=nprocess, client=client,
+                                          show_progress=show_progress, nprocess=nprocess,
+                                          client=client,
                                          **kwargs)
         
     def _download_pharosdata_(self, pharosdata, dirout=None,
