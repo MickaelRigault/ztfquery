@@ -102,7 +102,8 @@ def download_log(date, which="completed", auth=None, store=True, **kwargs):
 def download_timerange_log(start="2018-03-01", end=None, which="completed",
                             nprocess=1, auth=None,
                             show_progress=True,  verbose=True):
-    """ Storing and not return forced. See download_completed_log() for individual date downloading. """
+    """ Storing and not return forced. See download_completed_log() for individual date 
+    downloading """
     if nprocess is None:
         nprocess = 1
     elif nprocess<1:
@@ -172,12 +173,13 @@ def download_completed_log(date, auth=None, store=True,
         warnings.warn(f"Known night with Failure only {date}, log format incorrect")
         logtable=None
     else:
-        response = requests.post(f"http://skyvision.caltech.edu/ztf/queue/?obsdate={date}",
+        response = requests.post(f"http://skyvision.caltech.edu/queue/{date}?format=csv",
                                 auth = io._load_id_("skyvision") if auth is None else auth)
         logtable = response.text
         
     if verbose:
         print(logtable)
+        
     if logtable is None:
         warnings.warn(f"no downloaded information for night {date}")
         data = None

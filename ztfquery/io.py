@@ -97,7 +97,6 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
                 except:
                     warnings.warn(f"cannot parse the inpout waiting time {wait} -> None used.")
                     wait = None            
-        print(f"waiting time: {wait}")
         
         f_ = download_from_filename(local_filenames[flag_todl], show_progress=show_progress,
                                     host=dlfrom, overwrite=True, maxnprocess=maxnprocess,
