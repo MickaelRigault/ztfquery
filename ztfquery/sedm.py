@@ -1322,6 +1322,7 @@ class SEDMQuery():
         
         pharos_path = np.concatenate(self._pharosdata_to_datapath_(pharosdata, "pharos"))
         local_path = np.concatenate(self._pharosdata_to_datapath_(pharosdata, dirout))
+        nprocess = np.min([ len(pharos_path), nprocess] )
         if index is not None:
             pharos_path = pharos_path[index]
             local_path = local_path[index]
