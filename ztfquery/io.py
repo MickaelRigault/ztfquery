@@ -832,3 +832,4 @@ def compare_hash(fname):
 def hash_for_file_exists(fname):
     """ """
     return os.path.exists(f"{fname}.md5")
+l
