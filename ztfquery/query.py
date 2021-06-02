@@ -156,12 +156,10 @@ class _ZTFDownloader_( object ):
     
     # Generic that should automatically work as long as get_data_path is defined.
     def download_data(self, suffix=None, source="IRSA", indexes=None,
-                     download_dir=None,
-                     show_progress = True, verbose=True,
-                     nodl = False, overwrite=False, nprocess=None,
-                     auth=None,
+                     download_dir=None, show_progress = True, verbose=True,
+                     nodl = False, overwrite=False, nprocess=None, auth=None,
                      filecheck=True, erasebad=True, redownload=True,
-                     ignore_warnings=False,
+                     ignore_warnings=False, client=None, 
                      **kwargs):
         """ 
         Parameters
@@ -238,7 +236,7 @@ class _ZTFDownloader_( object ):
             
         # Data Structure
         self._relative_data_path = self.get_data_path(suffix=suffix, source="None",
-                                                          indexes=indexes, **kwargs)
+                                                      indexes=indexes, **kwargs)
         
         # The IRSA location
         self.to_download_urls    = [os.path.join(buildurl._source_to_location_(source),d_)
@@ -261,7 +259,7 @@ class _ZTFDownloader_( object ):
             io.download_url(self.to_download_urls, self.download_location,
                         show_progress = show_progress, verbose=verbose,
                         overwrite=overwrite, nprocess=nprocess, cookies=cookie,
-                        filecheck=False)
+                        filecheck=False, client=client)
 
         if filecheck:
             with warnings.catch_warnings():
