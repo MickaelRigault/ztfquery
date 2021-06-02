@@ -260,6 +260,7 @@ class _ZTFDownloader_( object ):
                         show_progress = show_progress, verbose=verbose,
                         overwrite=overwrite, nprocess=nprocess, cookies=cookie,
                         filecheck=False, client=client)
+            print("delayed")
             if client is not None:
                 return delayed_
             
