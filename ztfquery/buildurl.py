@@ -46,11 +46,14 @@ def parse_filename(filename):
     filesplit = os.path.basename(filename).split("_")
     if len(filesplit) == 6:
         if "_hifreq" in filename or "_bias" in filename:
+            print("Cal file")
             return parse_calfilename(filename)
         else:
-            return parse_calfilename(filename)
+            print("raw file")            
+            return parse_rawfilename(filename)
         
     elif len(filesplit)>=8:
+        print("Science")
         return parse_scifilename(filename)
 
     raise ValueError(f"Cannot parse the file {filename}")
