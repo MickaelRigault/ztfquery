@@ -116,12 +116,22 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
         return local_filenames[0]
     
     return local_filenames
+
+
+def get_filedataframe(filenames):
+    """ get a dataframe of the files"""
+    import pandas
+    fileserie = pandas.Series(filenames, name="filename")
     
+    fdata     = pandas.DataFrame.from_records(fileserie.apply( parse_filename ))
+    fdata["isfile"] = fileserie.apply( os.path.isfile)
+    merged = fdata.merge(fileserie, left_index=True, right_index=True)
+    return merged
+
 def parse_filename(filename):
     """ """
     from .buildurl import parse_filename
     return parse_filename(filename)
-
 
 def download_from_filename(filename, suffix=None, verbose=False, overwrite=False,
                                auth=None, nodl=False, host="irsa", maxnprocess=4,
