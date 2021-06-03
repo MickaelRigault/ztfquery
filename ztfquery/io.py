@@ -15,7 +15,8 @@ from configparser import ConfigParser
 from astropy.io import fits
         
 from .utils.tools import is_running_from_notebook
-    
+from .buildurl import parse_filename
+
 _SOURCEDIR = os.path.dirname(os.path.realpath(__file__))
 
 
@@ -115,7 +116,10 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
         return local_filenames[0]
     
     return local_filenames
-                                                        
+    
+                            
+
+
 def download_from_filename(filename, suffix=None, verbose=False, overwrite=False,
                                auth=None, nodl=False, host="irsa", maxnprocess=4,
                                show_progress=True, check_suffix=True,
@@ -158,6 +162,7 @@ def download_from_filename(filename, suffix=None, verbose=False, overwrite=False
 
 def _parse_filename_(filename, builddir=False, squeeze=True, exists=False):
     """ """
+    print("IS THIS USED ?")
     from glob import glob
     directory = os.path.dirname(filename)
     #basename  = os.path.basename(filename).split(".")[0]

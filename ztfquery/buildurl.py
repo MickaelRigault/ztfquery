@@ -35,6 +35,85 @@ ZTFIRSA_BASE = ["/ref/","/sci/","/raw/","/cal/"]
 from .io import LOCALSOURCE, CCIN2P3_SOURCE
 DEFAULT_SOURCE = DATA_BASEURL
 
+FILTERS = {"zg":1,"zr":2,"zi":3, "OO":None}
+
+
+# ================== #
+#  Filename parsing  #
+# ================== #
+def parse_filename(filename):
+    """ """
+    filesplit = os.path.basename(filename).split("_")
+    if len(filesplit) == 6:
+        if "_hifreq" in filename or "_bias" in filename:
+            return parse_calfilename(filename)
+        else:
+            return parse_calfilename(filename)
+        
+    elif len(filesplit)>=8:
+        return parse_scifilename(filename)
+
+    raise ValueError(f"Cannot parse the file {filename}")
+
+def parse_calfilename(filename):
+    """ """
+    _, fileday, filtercode, ccd_, qid_, suffix = os.path.basename(filename).split("_")
+    year,month, day = fileday[:4],fileday[4:6], fileday[6:]
+    ccdid = int(ccd_.replace("c",""))
+    qid = int(qid_.replace("q",""))
+    return {"year":year,
+            "month":month,
+            "day":day,
+            "fileday":fileday,
+            "ccdid":ccdid,
+            "qid":qid,
+            "rcid":ccdid_qid_to_rcid(ccdid,qid),
+            "filtercode":filtercode,
+            "filterid":FILTERS[filtercode],
+            "kind":"cal",
+            "type":suffix.split(".")[0]}
+
+    
+def parse_rawfilename(filename):
+    """ """
+    _, filefracday, paddedfield, filtercode, ccd_, suffix_ = os.path.basename(filename).split("_")
+    year,month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
+    ccdid = int(ccd_.replace("c",""))
+    return {"year":year,
+            "month":month,
+            "day":day,
+            "filefracday":filefracday,
+            "paddedfield":paddedfield,
+            "field":int(paddedfield),
+            "ccdid":ccdid,
+            "filtercode":filtercode,
+            "filterid":FILTERS[filtercode],
+            "kind":"raw",
+            "suffix":suffix_}
+
+    
+def parse_scifilename(filename):
+    """ """
+    from .fields import ccdid_qid_to_rcid
+    
+    _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, *suffix_ = os.path.basename(filename).split("_")
+    year,month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
+
+    ccdid = int(ccd_.replace("c",""))
+    qid = int(qid_.replace("q",""))
+    return {"year":year,
+            "month":month,
+            "day":day,
+            "filefracday":filefracday,
+            "paddedfield":paddedfield,
+            "field":int(paddedfield),
+            "ccdid":ccdid,
+            "qid":qid,
+            "rcid":ccdid_qid_to_rcid(ccdid,qid),
+            "filtercode":filtercode,
+            "filterid":FILTERS[filtercode],
+            "kind":"sci",
+            "suffix":"_".join(suffix_)}
 
 # ================== #
 #  Building the URL  #
