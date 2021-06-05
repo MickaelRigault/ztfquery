@@ -118,6 +118,24 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
     return local_filenames
 
 
+
+def bulk_get_file(filenames, client=None, suffix=None, as_dask="delayed"):
+    """ """
+    import dask
+    d_files = [dask.delayed( get_file )(filename, suffix=suffix, show_progress=False, maxnprocess=1, **kwargs)
+                   for filename in filenames]
+    if as_dask == "delayed":
+        return d_files
+
+    futures = client.compute(d_files)
+    if as_dask == "futures":
+        return futures
+    if as_dask == "gather":
+        return client.gather(futures)
+    raise ValueError(f"Cannot parse the given as_dask {as_dask}")
+    
+        
+
 def get_filedataframe(filenames):
     """ get a dataframe of the files"""
     import pandas
