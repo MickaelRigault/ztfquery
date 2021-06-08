@@ -144,16 +144,6 @@ def bulk_get_file(filenames, client=None, suffix=None, as_dask="delayed", **kwar
     raise ValueError(f"Cannot parse the given as_dask {as_dask}")
     
 
-def read_radec(filename, ext=0, as_serie=False):
-    """ """
-    header = fits.getheader(filename, ext=0)
-    ra,dec = header["RAD"], header["DECD"]
-    if as_serie:
-        return pandas.Series([ra,dec], index=["ra","dec"])
-    
-    return ra,dec
-
-
 def get_filedataframe(filenames):
     """ get a dataframe of the files"""
     import pandas
