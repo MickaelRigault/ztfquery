@@ -238,6 +238,119 @@ def download_qa_log(date, auth=None, summary_values=None, inclcal=True,
         additional SQL query, e.g.:
         ' AND programid in (1,2)' for limiting yourself to MSIP+Partners
 
+
+
+    summary_values: [string or list of]
+        Keys yoiu want to have access to (see end of documentation)
+        pre-built
+        - 'detailed':
+        - 'minimal':
+        - 'cal':
+        or combination of keys.
+
+
+    
+    available keys:
+
+    Instrumental calibration based:
+    anmatches     -  total #external-cat matches for computing astrometric cal metrics
+    anmatches11   -  #external-cat matches in grid partition 1,1
+    anmatches12   -  #external-cat matches in grid partition 1,2
+    anmatches13   -  #external-cat matches in grid partition 1,3
+    anmatches21   -  #external-cat matches in grid partition 2,1
+    anmatches22   -  #external-cat matches in grid partition 2,2
+    anmatches23   -  #external-cat matches in grid partition 2,3
+    anmatches31   -  #external-cat matches in grid partition 3,1
+    anmatches32   -  #external-cat matches in grid partition 3,2
+    anmatches33   -  #external-cat matches in grid partition 3,3
+    admed1        -  median of reconst - ref posns along RA (arcsec)
+    admed2        -  median of reconst - ref posns along Dec (arcsec)
+    admedrad      -  median of reconst - ref radial sepns (arcsec)
+    adpctdif1     -  pctdif of reconst - ref posns along RA (arcsec)
+    adpctdif2     -  pctdif of reconst - ref posns along Dec (arcsec)
+    adminmed      -  minimum local admedrad over grid partitions (arcsec)
+    admaxmed      -  maximum local admedrad over grid partitions (arcsec)
+    arefmatchpct  -  percentage of reference catalog matches
+    adetmatchpct  -  percentage of detected catalog matches
+    andegref      -  SCAMP pass2 NDeg_Reference (degrees of freedom in solution)
+    anstarsdet    -  SCAMP pass2 NDetect (number of stars detected)
+    anstarsref    -  SCAMP pass2 n_catalog (number of reference stars)
+    ascmp1sigma1  -  SCAMP pass1 sigma along axis 1 (arcsec)
+    ascmp1sigma2  -  SCAMP pass1 sigma along axis 2 (arcsec)
+    ascmp1chi2    -  SCAMP pass1 chi2
+    ascmp2sigma1  -  SCAMP pass2 sigma along axis 1 (arcsec)
+    ascmp2sigma2  -  SCAMP pass2 sigma along axis 2 (arcsec)
+    ascmp2chi2    -  SCAMP pass2 chi2
+    awmeanscale   -  Mean percentage diff of final - prior scale
+    awminscale    -  Min percentage diff of final - prior scale
+    awmaxscale    -  Max percentage diff of final - prior scale
+    aboreshiftra  -  Shift of boresight RA value relative to prior input [arcsec]
+    aboreshiftdec -  Shift of boresight Dec value relative to prior input [arcsec]
+    aimshiftra    -  Shift of readout-channel image center RA value [arcsec]
+    aimshiftdec   -  Shift of readout-channel image center Dec value [arcsec]
+    gmedian       -  Global median of sci-image pixel values [DN]
+    gstddev       -  Robust measure of global std-deviation of sci-image pix values [DN]
+    npsfcat       -  Number of sources in PSF-fit catalog
+    minsnr        -  Minimum source signal-to-noise ratio in PSF-fit catalog
+    maxsnr        -  Maximum source signal-to-noise ratio in PSF-fit catalog
+    minmag        -  Minimum (brightest) source magnitude in PSF-fit catalog [mag]
+    maxmag        -  Maximum (faintest) source magnitude in PSF-fit catalog [mag]
+    npsfcatmlim   -  Number of sources used for maglimcat and medchilosnr computations
+    medchitot     -  Median chi-metric of all sources in PSF-fit catalog
+    medchilosnr   -  Median chi-metric near 5-sigma magnitude limit
+    pnmatches     -  Number of source matches to support photometric calibration
+    pabszp        -  Absolute photometric calibration zero point [mag]
+    pabszpunc     -  Uncertainty in absolute photometric calibration zero point [mag]
+    pcolterm      -  Color coefficient for absolute photometric calibration
+    pabszprms     -  RMS in ZP (mag-difference) fit residuals [mag]
+    maglimcat     -  Magnitude limit of PSF-fit catalog based on photometric uncs [mag]
+    maglimit      -  Magnitude limit of PSF-fit catalog based on semi-empirical formula
+    nsexcat       -  Number of sources in SExtractor catalog
+    fwhm          -  Median FWHM of sources in SExtractor catalog [pixels]
+    ellip         -  Median ellipticity of sources in SExtractor catalog
+    peakdist      -  Median sepn: "source peak - centroid" in SExtractor catalog [pix]
+    npixgood      -  Number of good (unmasked) pixels
+    npixbad       -  Total number of masked pixels
+    npixnoisy     -  Number of noisy pixels
+    npixsat       -  Number of saturated pixels
+    nnanpix       -  Number of NaN'd pixels
+    gpctdif       -  Spread in sci-image pixel values based on percentiles [DN]
+    infobits      -  bit-string encoding conditions/anomalies from instrumental cal.
+    bitsinfobits  -  comma-separated list of bits encoded in infobits
+    status        -  overall science image quality flag according to specific infobits:
+                     0 implies processed readout-channel image is unusable, 1 otherwise
+
+    Difference-image based:
+    fluxrat       -  scale factor for gain matching of sci and ref image pixel values
+    scigain       -  Effective electronic gain of rescaled sci image [e-/DN]
+    scisat        -  Pixel saturation value of rescaled sci image [DN]
+    scibckgnd     -  Robust estimate of background level in scaled science image [DN]
+    scisigpix     -  Robust estimate of sigma/pixel in scaled science image [DN]
+    sciinpseeing  -  Refined seeing FWHM of rescaled sci image [pixels]
+    refimfilename -  Name of archived reference image used
+    refid         -  reference image database identifier
+    refsat        -  Pixel saturation value of resampled ref image [DN]
+    refbckgnd     -  Robust estimate of bckgnd level in resampled reference image [DN]
+    refsigpix     -  Robust estimate of sigma/pixel in resampled reference image [DN]
+    refinpseeing  -  Refined seeing FWHM of resampled ref image [pixels]
+    pdiffbckgnd   -  median background level in final positive difference image [DN]
+    diffsigpix    -  robust sigma/pixel in final difference images [DN]
+    diffpctbad    -  percentage of difference image pixels tagged as bad/unusable [%]
+    diffmaglim    -  approx. 5-sigma mag limit in final difference image based on
+                     PSF-fit photometry [mag]
+    difffwhm      -  Effective point-source FWHM in final difference images [pixels]
+    diffavgsqbef  -  average of squared diff-image pixel values before PSF-matching
+    diffavgsqaft  -  average of squared diff-image pixel values after PSF-matching
+    diffavgsqchg  -  pct change: '100 x (diffavgsqaft - diffavgsqbef)'/diffavgsqbef
+    ncandscimreffilt-  number of candidates extracted from sci minus ref image
+    ncandrefmscifilt-  number of candidates extracted from ref minus sci image
+    nsolarsystobj -  number of unique Solar System objects associated with
+                     transient candidates
+    infobitsref   -  image InfoBits string for input reference image
+    bitsinfobitsref-  comma-separated list of bits encoded in infobitsref
+    statusdif     -  overall difference-image quality flag; 0 implies bad/unusable,
+                     1 implies usable for transient extraction
+
     """
     if where_statement in ["default"]:
         where_statement = "AND programid in (1,2,3)"
@@ -263,7 +376,8 @@ def download_qa_log(date, auth=None, summary_values=None, inclcal=True,
         if summary_values in ["detailed"]:
             summary_values = ['obsdatetime', 'nightdate','obsjd',
                           'exptime', 'ccdid','qid', "rcid","fid",
-                          'scibckgnd','sciinpseeing','scisat','nsexcat',
+                          'fluxrat','scigain','scibckgnd','scisigpix','sciinpseeing','scisat','nsexcat',
+                          'diffmaglim','difffwhm',
                           'refbckgnd','refinpseeing','refsat',
                           'programid','maglimit', 'field', 'fwhm','status','statusdif', 
                           'qcomment']

@@ -377,8 +377,8 @@ class HistColorbar():
         if ax is None and cax is None:
             if fig is None:
                 self._fig = mpl.figure(figsize=[8,1])
-            self._ax  = fig.add_axes([0.1,0.435,0.8,0.5])
-            self._cax = fig.add_axes([0.1,0.2,0.8,0.1])
+            self._ax  = self.fig.add_axes([0.1,0.435,0.8,0.5])
+            self._cax = self.fig.add_axes([0.1,0.2,0.8,0.1])
             
         # ax=None, cax is not
         elif ax is None:

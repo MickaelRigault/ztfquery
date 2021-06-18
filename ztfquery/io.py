@@ -131,7 +131,8 @@ def bulk_get_file(filenames, client=None, suffix=None, as_dask="delayed", **kwar
          - gathered
     """
     import dask
-    d_files = [dask.delayed( get_file )(filename, suffix=suffix, show_progress=False, maxnprocess=1, **kwargs)
+    d_files = [dask.delayed( get_file )(filename, suffix=suffix, show_progress=False,
+                                            maxnprocess=1, **kwargs)
                    for filename in filenames]
     if as_dask == "delayed":
         return d_files
