@@ -564,17 +564,34 @@ class PharosIO( object ):
 
         return data_
 
-    def get_pharosdata(self, date, force_dl=False, basename=False):
+    def get_pharosdata(self, date, force_dl=False, basename=False,
+                           add_guider=True, add_snid=True):
         """ """
         if date not in self.pharosdata or force_dl:
             d = self.fetch_pharosfile(date, force_dl=force_dl, load=True)
             d += [f.replace("bkgd_","") for f in d if os.path.basename(f).startswith("bkgd_crr")]
             self.pharosdata[date] = d
 
-        if not basename:
-            return self.pharosdata[date]
+        if basename:
+            pdata = [os.path.basename(l) for l in self.pharosdata[date]]
+        else:
+            pdata = self.pharosdata[date].copy()
 
-        return [os.path.basename(l) for l in self.pharosdata[date]]
+
+        if add_guider:
+            targetcubes = [l for l in pdata if os.path.basename(l).startswith("e3d")
+                               and "_STD-" not in l]
+            guiders = [self.build_cube_astromfile(cubef) for cubef in targetcubes]
+            pdata += guiders
+
+        if add_snid:
+            targetspecs = [l for l in pdata if os.path.basename(l).startswith("spec")
+                               and "_STD-" not in l and l.endswith(".fits")]
+            snidout = [self._specname_to_snidpath_(s_) for s_ in targetspecs]
+            pdata += snidout
+
+        return pdata
+        
 
     def get_nights_with_target(self, targetname, 
                                   airmass_range=None,
@@ -595,20 +612,22 @@ class PharosIO( object ):
                                   kind=None,
                                   contains=None, not_contains=None,
                                   extension=None,
+                                  add_guider=True, add_snid=True,
                                   **kwargs):
         """ """
-        target_what = self.get_whatdata(targets=targetname,
+        targetbasename = self.get_target_basename(targetname=targetname,
                                         airmass_range=airmass_range, 
                                         exptime_range=exptime_range,
                                         date_range=date_range,
                                             **kwargs)
         
-        all_dates = np.unique(target_what.index.get_level_values(0))
+        all_dates = np.unique(targetbasename.index.get_level_values(0))
         
         files = {}
         for date_ in all_dates:
-            tfile = np.asarray(target_what.xs(date_)["filename"].str.split(".", expand=True)[0].values, dtype="str")
-            pdata = self.get_pharosdata(date_, force_dl=False)
+            tfile = np.asarray(targetbasename.xs(date_)["basename"].values, dtype="str")
+            pdata = self.get_pharosdata(date_, force_dl=False,
+                                        add_guider=add_guider, add_snid=add_snid)
             files_ = [os.path.basename(l) for l in pdata if np.any([k in l for k in tfile])]
             # not fastest, but it's very fast anyway ; it's easier to read this way
             if not (extension is None or extension in ["*","any", "all"]):
@@ -628,7 +647,47 @@ class PharosIO( object ):
         
         return files
         
-        
+    def get_target_basename(self, targetname, date_range=None, **kwargs):
+        """ get a dataframe the basenames assocated to the target """
+        target_what = self.get_whatdata(targets=targetname,
+                                        date_range=date_range,
+                                        **kwargs)
+        return pandas.DataFrame(target_what["filename"].astype("str"
+                        ).str.split(".", expand=True).rename({0:"basename"}, axis=1)["basename"])
+
+
+    # -------------- #
+    #  Internal      #
+    # -------------- #
+    @classmethod
+    def build_cube_astromfile(cls, cubename):
+        """ """
+        basename = cls._cubename_to_basename_(cubename)
+        return cls.build_guiderpath(basename)
+    
+    @staticmethod
+    def _cubename_to_basename_(cubename):
+        """ """
+        return "_".join(os.path.basename(cubename).split("_b_")[-1].split("_")[:4])
+    
+    @staticmethod
+    def _specname_to_snidpath_(specname):
+        """ """
+        ext = specname.split(".")[-1]
+        return specname.replace(".fits", "_snid.output")
+
+    @classmethod
+    def build_guiderpath(cls, basename, astrom=True):
+        """ """
+        date = cls.basename_to_date(basename)
+        ext = "_astrom" if astrom else ""
+        return os.path.join("/data", date, f"guider_crr_b_{basename}{ext}.fits.gz")
+
+    @staticmethod
+    def basename_to_date(basename):
+        """ """
+        return basename.split("_")[0].replace("ifu","")
+
     # ============== #
     #  Properties    #
     # ============== #
@@ -750,11 +809,26 @@ class SEDMQuery():
         return self.get_night_data(date, client=client, ioprop=ioprop,
                                     force_dl=force_dl, **{**prop,**kwargs})
 
+    def get_night_spectra(self, date, contains=None, not_contains=None, client=None, force_dl=False,
+                            incl_dome=False, ioprop={}, **kwargs):
+        """ """
+        prop = dict(kind="spec", contains=contains, not_contains=not_contains, extension=".fits")
+        return self.get_night_data(date, client=client, ioprop=ioprop, force_dl=force_dl,
+                                       **{**prop,**kwargs})
+
+    def get_night_snidout(self, date, contains=None, not_contains=None, client=None, force_dl=False,
+                            incl_dome=False, ioprop={}, **kwargs):
+        """ """
+        prop = dict(kind="spec", contains=contains, not_contains=not_contains, extension="snid.output")
+        return self.get_night_data(date, client=client, ioprop=ioprop, force_dl=force_dl,
+                                       **{**prop,**kwargs})
+
     def get_night_astrom(self, date, not_contains=None, client=None, force_dl=False,
                             incl_dome=False, ioprop={}, **kwargs):
         """ """
-        prop = dict(kind="guider", contains="astrom", not_contains=not_contains, extension=".fits")
-        return self.get_night_data(date, client=client, ioprop=ioprop, force_dl=force_dl, **{**prop,**kwargs})
+        prop = dict(kind="guider", contains="astrom", not_contains=not_contains, extension="*")
+        return self.get_night_data(date, client=client, ioprop=ioprop, force_dl=force_dl,
+                                       **{**prop,**kwargs})
 
     def get_night_data(self, date, download_missing=True, exist=True, force_dl=False,
                            contains=None, not_contains=None, kind=None, extension="*", 
@@ -791,6 +865,24 @@ class SEDMQuery():
     # ------- #
     # Target  #
     # ------- #
+    def get_target_snidoutput(self, targetname, download_missing=True, exist=True, force_dl=False,
+                          contains=None, not_contains=None, client=None, ioprop={}, **kwargs):
+        """ 
+        Parameters:
+        -----------
+        ioprop: [dict] -optional-
+            used as kwargs for get_whatdata().
+            Incl: incl_calib, incl_std, incl_ztf, 
+                  calib_only, std_only, ztf_only,
+                  airmass_range, exptime_range, date_range
+
+        """
+        prop = dict(kind="spec", contains=contains, not_contains=not_contains,
+                    extension="snid.output")
+        return self.get_target_datapath(targetname, client=client, ioprop=ioprop,
+                                            force_dl=force_dl, **{**prop,**kwargs})
+    
+    
     def get_target_fluxcal(self, targetname, download_missing=True, exist=True,
                                      contains=None, not_contains=None, client=None,
                                     **kwargs):
@@ -815,7 +907,7 @@ class SEDMQuery():
                   airmass_range, exptime_range, date_range
 
         """
-        prop = dict(kind="guider", contains="astrom", not_contains=not_contains, extension=".fits")
+        prop = dict(kind="guider", contains="astrom", not_contains=not_contains, extension="*")
         return self.get_target_datapath(targetname, client=client, ioprop=ioprop,
                                             force_dl=force_dl, **{**prop,**kwargs})
 
@@ -883,7 +975,7 @@ class SEDMQuery():
 
     
     def get_target_datapath(self, targetname, kind, contains=None, not_contains=None, 
-                            download_missing=True, exist=True, force_dl=False,
+                            download_missing=True, exist=True, force_dl=False, verbose=False,
                             extension=".fits",  ioprop={}, client=None, **kwargs):
         """ 
 
@@ -897,16 +989,26 @@ class SEDMQuery():
 
         """
         prop = dict(contains=contains, not_contains=not_contains, extension=extension)
+        if verbose:
+            print(prop)
         pharosdata = self.pharosio.get_target_pharosdata(targetname, kind=kind,
                                                              **{**prop, **ioprop})
+        
         if pharosdata is None or len(pharosdata)==0:
             return None
+        
         local_path = np.concatenate(self._pharosdata_to_datapath_(pharosdata, "local"))
+        if verbose:
+            print(local_path)
+            
         if download_missing or force_dl:
             index_missing = [not os.path.isfile(l) for l in local_path]
+            if verbose:
+                print(f"missing, {index_missing}")
             if np.any(index_missing) or force_dl:
                 if force_dl:
                     index_missing=None
+                    
                 futures_ifany = self._download_pharosdata_(pharosdata, index=index_missing,
                                                                client=client, **kwargs)
                 if client is not None:
