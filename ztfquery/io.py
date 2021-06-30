@@ -36,13 +36,14 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
                  dlfrom="irsa", overwrite=False, maxnprocess=4, exist=True, test_file=True,
                  squeeze=True, show_progress=True, client=None, wait=None,
                  fill_notexist="None", **kwargs):
-    """ Get full path associate to the filename. 
+    """ Get full path associate to the filename.
     If you don't have it on your computer, this downloads it for you.
 
     Parameters
     ----------
     filename: [string]
-        name of the file you want
+        name of the file you want.
+        raw, cal and sci filenames are accepted. 
         
     suffix: [string] -optional-
         actual suffix of the file you want. By default it is that of the filename
@@ -50,11 +51,11 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
         For instance:
         if filename = ztf_20190917468333_000698_zi_c03_o_q2_sciimg.fits and suffix='mskimg.fits'
         you will be looking for ztf_20190917468333_000698_zi_c03_o_q2_mskimg.fits.
+        - If you input a raw file, then suffix is used as 'imgtypecode'
 
     downloadit: [bool] -optional-
         If you do not have the file locally, shall this download it for you ?
         
-
     wait: [None/string/float] -optional-
         Waiting time for dwnloaded the file. It helps mostly when dask is massively multi-downloading.
         - None: if Client, wait -> len(to_be_downloaded)/100 (so 100 per second) ; corresponds to wait="100"
@@ -69,10 +70,10 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
     fullpath (or None if not data)
         
     """
-    from .buildurl import filename_to_scienceurl
-    local_filenames = np.asarray([filename_to_scienceurl(filename_, suffix=suffix_,
-                                                             verbose=verbose,
-                                                source="local", check_suffix=check_suffix)
+    from .buildurl import filename_to_url
+    local_filenames = np.asarray([filename_to_url(filename_, suffix=suffix_,
+                                                    verbose=verbose,
+                                                    source="local", check_suffix=check_suffix)
                    for filename_ in np.atleast_1d(filename)
                    for suffix_ in np.atleast_1d(suffix)])
     if not exist:
@@ -170,16 +171,16 @@ def download_from_filename(filename, suffix=None, verbose=False, overwrite=False
     if host not in ["irsa", "ccin2p3"]:
         raise ValueError(f"Only 'irsa' and 'ccin2p3' host implemented: {host} given")
     
-    from .buildurl import filename_to_scienceurl
+    from .buildurl import filename_to_url
     if auth is None:
         auth = _load_id_(host)
 
     remote_filename = []
     local_filename  = []
     for file_ in np.atleast_1d(filename):
-        remote_filename.append(filename_to_scienceurl(file_, suffix=suffix, verbose=verbose,
+        remote_filename.append(filename_to_url(file_, suffix=suffix, verbose=verbose,
                                                source=host, check_suffix=check_suffix))
-        local_filename.append(filename_to_scienceurl(file_, suffix=suffix, verbose=verbose,
+        local_filename.append(filename_to_url(file_, suffix=suffix, verbose=verbose,
                                                 source="local", check_suffix=check_suffix))
         
     if nodl:

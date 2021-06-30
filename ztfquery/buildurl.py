@@ -43,17 +43,29 @@ FILTERS = {"zg":1,"zr":2,"zi":3, "OO":None}
 # ================== #
 def parse_filename(filename):
     """ """
-    filesplit = os.path.basename(filename).split("_")
-    if len(filesplit) == 6:
-        if "_hifreq" in filename or "_bias" in filename:
-            return parse_calfilename(filename)
-        else:
-            return parse_rawfilename(filename)
-        
-    elif len(filesplit)>=8:
+    kind = filename_to_kind(filename)
+    if kind == "cal":
+        return parse_calfilename(filename)
+    if kind == "raw":
+        return parse_rawfilename(filename)
+    if kind == "sci":
         return parse_scifilename(filename)
 
     raise ValueError(f"Cannot parse the file {filename}")
+
+def filename_to_kind(filename):
+    """ """
+    filesplit = os.path.basename(filename).split("_")
+    if len(filesplit) == 6:
+        if "_hifreq" in filename or "_bias" in filename:
+            return "cal"
+        else:
+            return "raw"
+        
+    elif len(filesplit)>=8:
+        return "sci"
+
+    raise ValueError(f"Cannot parse the file {filename} ; remark 'ref' not implemented.")
 
 def parse_calfilename(filename):
     """ """
@@ -340,6 +352,25 @@ def build_filename_from_dataframe(dataframe, suffix="sciimg.fits"):
     return "ztf"+"_"+filefrac+"_"+paddedfield+"_"+filtername+"_"+paddedccd+"_"+"o"+"_"+paddedqid+"_"+suffix
 
 
+def filename_to_url(filename, suffix=None, source="irsa", verbose=False, check_suffix=True):
+    """ Generic high level function that first detects the inputfile kind and then 
+    calls the associated function ; e.g., filename_to_scienceurl or filename_to_calurl.
+
+    NB:
+    suffix -> imgtypecode for raw images.
+    """
+    kind = filename_to_kind(filename)
+    if kind == "sci":
+        return filename_to_scienceurl(filename, suffix=suffix, source=source, verbose=verbose, check_suffix=check_suffix)
+    
+    if kind == "raw":
+        return filename_to_rawurl(filename, imgtypecode=suffix, source=source, verbose=verbose, check_suffix=check_suffix)
+    
+    if kind == "cal":
+        return filename_to_calurl(filename, suffix=suffix, source=source, verbose=verbose, check_suffix=check_suffix)
+
+    raise ValueError(f"Cannot parse the file {filename}")
+    
 def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=False, check_suffix=True):
     """ 
     """
@@ -410,7 +441,6 @@ def filename_to_refurl(filename, suffix, source="irsa", verbose=False):
     year,month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
     paddedccdid = ccd_.replace("c","")
     qid = qid_.replace("q","")
-    
     
     return reference_path(paddedfield,
                                    filtercode,
