@@ -120,6 +120,13 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
     return local_filenames
 
 
+def filefracday_to_local_rawdata(filefracday):
+    """ """
+    from glob import glob
+    from .buildurl import filefrac_to_year_monthday_fracday
+    filefracday = str(filefracday)
+    year, month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
+    return np.sort( glob(os.path.join(path,"raw",year, f"{month}{day}",fracday,f"ztf_{filefracday}*")) )
 
 def bulk_get_file(filenames, client=None, suffix=None, as_dask="delayed", **kwargs):
     """ 
