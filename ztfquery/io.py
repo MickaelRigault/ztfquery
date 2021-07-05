@@ -120,13 +120,17 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
     return local_filenames
 
 
-def filefracday_to_local_rawdata(filefracday):
+def filefracday_to_local_rawdata(filefracday, ccdid="*"):
     """ """
     from glob import glob
     from .buildurl import filefrac_to_year_monthday_fracday
     filefracday = str(filefracday)
     year, month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
-    return np.sort( glob(os.path.join( LOCALSOURCE, "raw",year, f"{month}{day}",fracday,f"ztf_{filefracday}*")) )
+    if ccdid in ["*","all"]:
+        cstring = "*"
+    else:
+        cstring = f"_c{ccdid:02d}_"
+    return np.sort( glob(os.path.join( LOCALSOURCE, "raw",year, f"{month}{day}",fracday,f"ztf_{filefracday}*_{cstring}_*")) )
 
 def bulk_get_file(filenames, client=None, suffix=None, as_dask="delayed", **kwargs):
     """ 
