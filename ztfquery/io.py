@@ -126,7 +126,7 @@ def filefracday_to_local_rawdata(filefracday):
     from .buildurl import filefrac_to_year_monthday_fracday
     filefracday = str(filefracday)
     year, month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
-    return np.sort( glob(os.path.join(path,"raw",year, f"{month}{day}",fracday,f"ztf_{filefracday}*")) )
+    return np.sort( glob(os.path.join( LOCALSOURCE, "raw",year, f"{month}{day}",fracday,f"ztf_{filefracday}*")) )
 
 def bulk_get_file(filenames, client=None, suffix=None, as_dask="delayed", **kwargs):
     """ 
