@@ -122,6 +122,7 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
 
 def filefracday_to_local_rawdata(filefracday, ccdid="*"):
     """ """
+    
     from glob import glob
     from .buildurl import filefrac_to_year_monthday_fracday
     filefracday = str(filefracday)
