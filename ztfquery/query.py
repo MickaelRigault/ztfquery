@@ -294,9 +294,6 @@ class _ZTFDownloader_( object ):
         -------
         list of path.
         """
-        if self.datakind != "sci":
-            raise NotImplementedError("get_data shortcut implemented only for 'sci' data. See get_local_data() or download_data().")
-        
         return io.get_file(self.get_data_path(indexes=indexes), suffix=suffix, exist=exist,
                                downloadit=downloadit, show_progress=show_progress, dlfrom=dlfrom,
                                maxnprocess=maxnprocess, check_suffix=check_suffix,

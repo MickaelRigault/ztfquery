@@ -547,18 +547,18 @@ class CompletedLog( ZTFLog ):
         if merge_qa:
             self.merge_with_qa()
         
-    def merge_with_qa(self, qalog=None, how="left", run_checks=True, **kwargs):
+    def merge_with_qa(self, qalog=None, how="left", run_checks=True, mergekwargs={}, **kwargs):
         """ 
         **kwargs goes to pandas.merge()
         """
         if qalog is None:
             dates = self.get_loaded_dates()
-            qalog = get_log(dates, which="qa").groupby(["obsdatetime","nightdate",
+            qalog = get_log(dates, which="qa", **kwargs).groupby(["obsdatetime","nightdate",
                                                         "qcomment","base_name"]
                                                       ).mean().reset_index(inplace=False)
             qalog["obsjd_start"] = qalog.pop("obsjd")
             
-        self._data = self.data.merge(qalog, how=how, **kwargs)
+        self._data = self.data.merge(qalog, how=how, **mergekwargs)
         if run_checks:
             self.run_checks()
         

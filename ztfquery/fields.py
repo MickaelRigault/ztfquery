@@ -457,7 +457,8 @@ def show_fields(fields, vmin=None, vmax=None,
     ----------
     colored_by: 
     """
-    fplot = FieldPlotter(ax=ax, cax=cax, hcax=hcax, figsize=figsize, inclhist=inclhist, **axparam)
+    fplot = FieldPlotter(ax=ax, cax=cax, hcax=hcax, figsize=figsize, inclcax=colorbar,
+                             inclhist=inclhist, **axparam)
     # - Plotting
     if show_ztf_fields:
         fplot.show_ztf_grid(which=grid, **grid_prop)
