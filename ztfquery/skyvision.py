@@ -356,8 +356,8 @@ def download_qa_log(date, auth=None, summary_values=None, inclcal=True,
         where_statement = "AND programid in (1,2,3)"
         
         
-    if summary_values is None:
-        qam = download_qa_log(date, summary_values="minimal", groupby_values="same",
+    if summary_values is None or summary_values == "mergedetailed":
+        qam = download_qa_log(date, summary_values="minimal" if summary_values is None else "detailed", groupby_values="same",
                                   where_statement= where_statement, store=False)
         qab = download_qa_log(date, summary_values="*", groupby_values=False,
                                   where_statement= where_statement, store=False)
@@ -554,7 +554,7 @@ class CompletedLog( ZTFLog ):
         if qalog is None:
             dates = self.get_loaded_dates()
             qalog = get_log(dates, which="qa", **kwargs).groupby(["obsdatetime","nightdate",
-                                                        "qcomment","base_name"]
+                                                                  "qcomment","base_name"]
                                                       ).mean().reset_index(inplace=False)
             qalog["obsjd_start"] = qalog.pop("obsjd")
             
