@@ -501,7 +501,7 @@ def show_field_ccds(fieldid, ax=None, ccd=None, textcolor="k", facecolor="0.9", 
     fccd = {i:ff[f"{fieldid}_{i}"] for i in ccd}
     for i,s_ in fccd.items():
         verts = np.asarray(s_.exterior.xy).T
-        ax.add_patch( patches.Polygon(verts, facecolor=facecolor, edgecolor=edgecolor, **kwargs))
+        ax.add_patch( Polygon(verts, facecolor=facecolor, edgecolor=edgecolor, **kwargs))
         ax.text(*np.mean(verts,axis=0),i, color=textcolor, va="center", ha="center")
 
     if autoscale:
