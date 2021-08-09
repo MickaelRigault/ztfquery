@@ -1969,7 +1969,7 @@ class FritzAccess( object ):
 
     def load_sources(self, client=None, nprocess=4, **kwargs):
         """ """
-        return self._call_down_sample_("load_sources", isfunc=isfunc, client=client, nprocess=nprocess, **kwargs)
+        return self._call_down_sample_("load_sources", isfunc=Tre, client=client, nprocess=nprocess, **kwargs)
 
     def fetch_samples(self, groupnames_or_id=None, load_sources=False,
                           local_only=False, update_sources=False,
