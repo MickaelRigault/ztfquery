@@ -2183,6 +2183,7 @@ class FritzAccess( object ):
         if not isfunc:
             return {id_:func(getattr(s_,key)) for id_, s_ in self.samples.items()}
         return {id_:func(getattr(s_,key)(*args,**kwargs)) for id_, s_ in self.samples.items()}
+    
     # ============= #
     #  Properties   #
     # ============= #

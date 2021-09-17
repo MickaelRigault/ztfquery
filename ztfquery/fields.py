@@ -554,7 +554,7 @@ def show_gri_fields(fieldsg=None, fieldsr=None, fieldsi=None,
                             show_ztf_fields=show_ztf_fields,
                             show_mw=show_mw, mw_b=mw_b, mw_prop=mw_prop,
                             **{**prop,**patch})
-    return _
+    return ax[0].figure
 
 def _get_gri_axes_(alignment="classic", title=None, titlefontsize="large", projection="hammer",
                    labelsize="x-small", labelcolor="0.7",  clabelsize="x-small", clabelcolor="k",
