@@ -58,7 +58,7 @@ class AlertReader():
         import gzip, io
         from astropy.io import fits
         with gzip.open(io.BytesIO(self.alert.get("cutout%s"%which)["stampData"]), 'rb') as f:
-            return fits.open(io.BytesIO(f.read()))[0]
+            return fits.open(io.BytesIO(f.read()), ignore_missing_simple=True)[0]
 
     # --------- #
     #  GETTER   #
