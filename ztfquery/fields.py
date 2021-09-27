@@ -165,7 +165,7 @@ def get_field_ccd_qid(ra, dec):
         
     return d_
     
-def get_fields_containing_target(ra, dec, inclccd=False):
+def get_fields_containing_target(ra, dec, inclccd=False, buffer=None):
     """ return the list of fields into which the position ra, dec is. 
     Remark that this is based on predefined field positions. 
     Hence, small attrition could affect this.
@@ -178,6 +178,10 @@ def get_fields_containing_target(ra, dec, inclccd=False):
     inclccd: [bool] -optional-
         do you want the details of the CCD id on top of the field
         format: "field_ccdid"
+
+    buffer: [float] -optional-
+        buffer the polygon (fields or ccds). 
+        In degree (unit of the polygons). The inter-ccd gap typically is 0.3 deg
 
     Returns
     -------
@@ -195,8 +199,9 @@ def get_fields_containing_target(ra, dec, inclccd=False):
         warnings.warn("get_fields_containing_target would be much faster if you install geopandas (pip install geopandas)")
         return [f for f in FIELDSNAMES
                 if geometry.Polygon( get_field_vertices(f)[0]).contains(coordpoint)]
-    
-    return fields_geoserie.index[ fields_geoserie.contains(coordpoint) ]
+    if buffer is None:
+        return fields_geoserie.index[ fields_geoserie.contains(coordpoint) ]
+    return fields_geoserie.index[ fields_geoserie.buffer(buffer).contains(coordpoint) ]
 
 
 def get_field_vertices(fieldid=None, inclccd=False, ccd=None, asdict=False, aspolygon=False,
