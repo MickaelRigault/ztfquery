@@ -149,6 +149,10 @@ def bulk_get_file(filenames, client=None, suffix=None, as_dask="delayed", **kwar
                    for filename in filenames]
     if as_dask == "delayed":
         return d_files
+    if as_dask == "persist":
+        if client is not None:
+            return client.persist(d_files)
+        return [f_.persist() for f_ in d_files]
 
     futures = client.compute(d_files)
     if as_dask == "futures":
