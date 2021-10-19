@@ -518,7 +518,7 @@ class ZTFQuery( ztftable._ZTFTable_, _ZTFDownloader_ ):
         """ Loads a ZTFQuery instance from a metatable file. """
         import pandas
         if format is None:
-            format = metafile.split(".")
+            format = metafile.split(".")[-1]
 
         metatable = getattr(pandas,f"read_{format}")(metafile, **{**{"index_col":0},**kwargs})
             
