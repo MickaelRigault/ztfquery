@@ -514,10 +514,14 @@ class ZTFQuery( ztftable._ZTFTable_, _ZTFDownloader_ ):
             self.set_metatable(metatable, kind)
 
     @classmethod
-    def from_metafile(cls, metafile, **kwargs):
+    def from_metafile(cls, metafile, format=None, **kwargs):
         """ Loads a ZTFQuery instance from a metatable file. """
         import pandas
-        metatable = pandas.read_csv(metafile, **{**{"index_col":0},**kwargs})
+        if format is None:
+            format = metafile.split(".")
+
+        metatable = getattr(pandas,f"read_{format}")(metafile, **{**{"index_col":0},**kwargs})
+            
         kind = guess_kind_from_metatable(metatable)
         return cls(metatable, kind)
 

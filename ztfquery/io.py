@@ -110,15 +110,18 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
             _ = dwait(f_)
             
     # - Output
-    if fill_notexist != "None":
+    if fill_notexist == "remove":
+        local_filenames = [f for f in local_filenames if os.path.isfile(f)]
+        
+    elif fill_notexist != "None":
         local_filenames = [f if os.path.isfile(f) else fill_notexist
                                for f in local_filenames]
+    
             
     if len(local_filenames)==1 and squeeze:
         return local_filenames[0]
     
     return local_filenames
-
 
 def filefracday_to_local_rawdata(filefracday, ccdid="*"):
     """ """
@@ -144,7 +147,7 @@ def bulk_get_file(filenames, client=None, suffix=None, as_dask="delayed", **kwar
          - gathered
     """
     import dask
-    d_files = [dask.delayed( get_file )(filename, suffix=suffix, show_progress=False,
+    d_files = [dask.delayed(get_file)(filename, suffix=suffix, show_progress=False,
                                             maxnprocess=1, **kwargs)
                    for filename in filenames]
     if as_dask == "delayed":
