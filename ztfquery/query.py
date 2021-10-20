@@ -520,7 +520,8 @@ class ZTFQuery( ztftable._ZTFTable_, _ZTFDownloader_ ):
         if format is None:
             format = metafile.split(".")[-1]
 
-        metatable = getattr(pandas,f"read_{format}")(metafile, **{**{"index_col":0},**kwargs})
+        default_dict = {"index_col":0} if format == "csv" else {}
+        metatable = getattr(pandas,f"read_{format}")(metafile, **{**default_dict,**kwargs})
             
         kind = guess_kind_from_metatable(metatable)
         return cls(metatable, kind)
