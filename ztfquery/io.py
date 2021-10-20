@@ -134,7 +134,7 @@ def filefracday_to_local_rawdata(filefracday, ccdid="*"):
         cstring = "*"
     else:
         cstring = f"_c{ccdid:02d}_"
-    return np.sort( glob(os.path.join( LOCALSOURCE, "raw",year, f"{month}{day}",fracday,f"ztf_{filefracday}*{cstring}*")) )
+    return np.sort( glob(os.path.join( LOCALSOURCE, "raw",year, f"{month}{day}",fracday,f"ztf_{filefracday}*{cstring}*.fits.fz")) )
 
 def bulk_get_file(filenames, client=None, suffix=None, as_dask="delayed", **kwargs):
     """ 
