@@ -147,16 +147,21 @@ def bulk_get_file(filenames, client=None, suffix=None, as_dask="delayed", **kwar
          - gathered
     """
     import dask
+    if client is None and as_dask in ['gather', 'gathered']:
+        as_dask= "compute"
     d_files = [dask.delayed(get_file)(filename, suffix=suffix, show_progress=False,
                                             maxnprocess=1, **kwargs)
                    for filename in filenames]
     if as_dask == "delayed":
         return d_files
+    if as_dask in ["computed","compute"]
+        return dask.delayed(list)(d_files).compute()
+    
     if as_dask == "persist":
         if client is not None:
             return client.persist(d_files)
         return [f_.persist() for f_ in d_files]
-
+    
     futures = client.compute(d_files)
     if as_dask == "futures":
         return futures
