@@ -154,7 +154,7 @@ def bulk_get_file(filenames, client=None, suffix=None, as_dask="delayed", **kwar
                    for filename in filenames]
     if as_dask == "delayed":
         return d_files
-    if as_dask in ["computed","compute"]
+    if as_dask in ["computed","compute"]:
         return dask.delayed(list)(d_files).compute()
     
     if as_dask == "persist":
