@@ -4,8 +4,7 @@
 """ LightCurve Query from IRSA """
 
 
-
-    
+import os
 import requests
 import warnings
 from io import StringIO
@@ -20,7 +19,6 @@ The variable star/AGN community will be most interested in these. The “seeds�
 """
 
 BASEURL = "https://irsa.ipac.caltech.edu/cgi-bin/ZTF/nph_light_curves?"
-
 # ==================== #
 #                      #
 #  COLOR and MPL       #
@@ -79,16 +77,22 @@ def build_query(**kwargs):
     
 def build_url(**kwargs):
     """ """
-    return BASEURL + build_query(**kwargs)
-
+    url = BASEURL+build_query(**kwargs)
+    return url.replace(" ","%20")
 
 
 class LCQuery( object ):
     
-    def __init__(self):
+    def __init__(self, data=None):
         """ """
-
-    def query_id(self, id,  cookies=None, auth=None, **kwargs):
+        if data is not None:
+            self.set_data(data)
+            
+    # ============= #
+    #    INIT       #
+    # ============= #
+    @classmethod
+    def from_id(cls, id,  cookies=None, auth=None, **kwargs):
         """ 
         id: [string/int]
             The id parameter value is the identifier of a ZTF object, and comma-separated combinations thereof (or list of).
@@ -101,10 +105,12 @@ class LCQuery( object ):
         if np.any([k.upper() in ["BAND", "BANDNAME", "NOBS_MIN","MAG"]  for k in kwargs.keys()]):
             raise ValueError("Parameters BAND, BANDNAME, NOBS_MIN, and MAG are compatible with POS and CIRCLE but not with ID.")
         
-        return self.download_data(cookies=cookies,auth=auth,
+        data = cls.download_data(cookies=cookies,auth=auth,
                                 ID=",".join(np.atleast_1d(id)), **kwargs)
+        return cls(data)
 
-    def query_position(self, ra, dec, radius_arcsec, pos="circle", 
+    @classmethod
+    def from_position(cls, ra, dec, radius_arcsec, pos="circle", 
                         bandname=None, mag=None,
                         cookies=None, auth=None,
                         **kwargs):
@@ -157,10 +163,12 @@ class LCQuery( object ):
         LCQuery
         """
         radius = radius_arcsec/3600
-        return self.download_data(cookies=cookies,auth=auth,
+        data = cls.download_data(cookies=cookies,auth=auth,
                                 POS=("{pos} {ra} {dec} {radius}".format(**locals())).split(),
                                 bandname=bandname, mag=mag, **kwargs)
-        
+        return cls(data)
+    
+
     @staticmethod
     def download_data(cookies=None, auth=None, **kwargs):
         """ 
@@ -286,7 +294,6 @@ class LCQuery( object ):
         -------
         LCQuery
         """
-        this = LCQuery()
         if cookies is None:
             from .io import get_cookie
             if auth is None:
@@ -301,49 +308,64 @@ class LCQuery( object ):
             warnings.warn("Only csv format implemented. Input 'FORMAT' ignored")
             _ = input_query.pop("FORMAT")
 
-        this.build_query(**{**{"FORMAT":"CSV"},**input_query})
-        
-        this.data = read_csv( StringIO(
-            requests.get( this.query_url, cookies=cookies).content.decode('utf-8')
+        query_url = build_url(**{**{"FORMAT":"CSV"},**input_query}) 
+        return read_csv( StringIO(
+            requests.get( query_url, cookies=cookies).content.decode('utf-8')
             ) )
-        
-        return this
     
-            
-    def build_query(self, **kwargs):
-        """ """
-        self.query_url  = build_url( **kwargs )
-        self.query_prop = kwargs
-
-
-    def show_lc(self, showtoday=False, show_upperlimits=False):
-        """ """
-        from astropy.time import Time
-        import matplotlib.dates as mdates
-        import matplotlib.pyplot as mpl
+    # ============== #
+    #  METHOD        #
+    # ============== #
+    # ------- #
+    # SETTER  #
+    # ------- #
+    def to_csv(self, fileout, **kwargs):
+        """ store the data as csv, using data.to_csv() ; see pandas doc. """
+        self.data.to_csv(**kwargs)
         
+    def to_parquet(self, fileout, **kwargs):
+        """ store the data as parquet, using data.to_parquet() ; see pandas doc. """
+        self.data.to_parquet(fileout, **kwargs)
+
+    # ------- #
+    # SETTER  #
+    # ------- #
+    def set_data(self, data):
+        """ """
+        self._data = data
+        
+    def show(self, showtoday=False, show_upperlimits=False, formattime=True,
+             marker="o", mec="0.7", ms=7, ecolor="0.7", ls="None", zorder=4, **kwargs):
+        """ kwargs goes to matplotlib's errorbar() """
+        from astropy import time
+        import matplotlib.pyplot as mpl
+
         # ----------- #
         # Global      #
         # ----------- #
         lc_dataframe = self.data
-        prop = dict(marker="o", mec="0.7", ms=8, ecolor="0.7", ls="None", zorder=4)
+        prop = dict(marker=marker, mec=mec, ms=ms, ecolor=ecolor, ls=ls, zorder=zorder)
 
         # ----------- #
         #
         # ----------- #
-        fig = mpl.figure(figsize=[6,4])
-        ax = fig.add_subplot(111)
+        fig = mpl.figure(figsize=[7,4])
+        ax = fig.add_axes([0.1,0.15,0.8,0.75])
         for filter_ in np.unique(lc_dataframe["filtercode"]):
             d = lc_dataframe[lc_dataframe["filtercode"]==filter_]
             if filter_ in FILTER_CODE:
                 prop["color"] = np.asarray(FILTER_COLORS)[np.where(np.asarray(FILTER_CODE)==filter_)][0]
             else:
                 prop["color"] = "0.7"
-         
-            ax.errorbar(d["mjd"], d["mag"], 
+
+            if formattime:
+                dates = time.Time(np.asarray(d["mjd"].values, dtype="float"), format="mjd").datetime
+            else:
+                dates = d["mjd"]
+            ax.errorbar(dates, d["mag"], 
                                 yerr=d["magerr"],
-                                **prop)
-        
+                                **{**prop,**kwargs})
+
         ax.invert_yaxis()
         if show_upperlimits:
             for filter_ in np.unique(lc_dataframe["filtercode"]):
@@ -352,8 +374,12 @@ class LCQuery( object ):
                     color = np.asarray(FILTER_COLORS)[np.where(np.asarray(FILTER_CODE)==filter_)][0]
                 else:
                     color = "0.7"
-         
-                ax.errorbar(d["mjd"], d["limitmag"], 
+
+                if formattime:
+                    dates = time.Time(np.asarray(d["mjd"].values, dtype="float"), format="mjd").datetime
+                else:
+                    dates = d["mjd"]
+                ax.errorbar(dates, d["limitmag"], 
                             yerr=0.1, lolims=True,marker="None", ls="None", 
                             color=color, alpha=0.1,
                             )
@@ -361,14 +387,108 @@ class LCQuery( object ):
         if showtoday:
             today_color = "0.7"
             import datetime
-            from astropy import time
             today = time.Time(datetime.date.today().isoformat(),format="iso").mjd
             ax.axvline(today, ls="--", color=today_color, zorder=1, lw=1)
             ax.text(today, ax.get_ylim()[0]-0.05, "Today", va="bottom", ha="right", rotation=90, color=today_color)
-        
+
+        if formattime:
+            from matplotlib import dates as mdates            
+            locator = mdates.AutoDateLocator()
+            formatter = mdates.ConciseDateFormatter(locator)
+            ax.xaxis.set_major_locator(locator)
+            ax.xaxis.set_major_formatter(formatter)
+            ax.set_xlabel("Date")
+        else:
+            ax.set_xlabel("MJD")
         # - Labels
-        ax.set_xlabel("MJD")
+
         ax.set_ylabel("mag")
+        
     # ================= #
     #  Properies        #
     # ================= #
+    @property
+    def data(self):
+        """ """
+        if not hasattr(self,"_data"):
+            return None
+        return self._data
+
+
+
+    # ================= #
+    #    DEPRECATED     #
+    @classmethod
+    def query_id(cls, id,  cookies=None, auth=None, **kwargs):
+        """ 
+        id: [string/int]
+            The id parameter value is the identifier of a ZTF object, and comma-separated combinations thereof (or list of).
+            * Example: 
+            >>> id=686103400067717
+            >>> id='686103400067717,686103400106565'
+            >>> id=[686103400067717,686103400106565]
+            
+        """
+        warnings.warn("query_position is DEPRECATED and will be remove in future version. Please use from_position() instead.")
+        return cls.from_id(id,  cookies=cookies, auth=auth, **kwargs)
+
+    
+    @classmethod
+    def query_position(cls, ra, dec, radius_arcsec, pos="circle", 
+                        bandname=None, mag=None,
+                        cookies=None, auth=None,
+                        **kwargs):
+        """ 
+        Parameters
+        ----------
+        ra, dec: [float, float]
+            coordinates in degrees. 
+            ra and dec are assumed to be in the ICRS system. 
+            This parameter restricts ZTF objects of interest to the circle of `radius`
+            with center determined by `ra` and `dec`.
+            The valid range of ra is [0,180] and of dec is [-90,90]. 
+            
+        radius_arcsec: [float]
+            distance in arcsec.
+            For performance reasons, the valid range is limited to (0,600].
+    
+        pos: [string] -optional-
+            The POS parameter value must consist of a shape described by ICRS coordinates 
+            in decimal degrees. It identifies the shape which contains ZTF objects of interest. 
+            *The only shape currently supported is circle.*
+            avaible pos:
+            - circle
+
+        // query options
+
+        bandname: [string] -optional-
+            The bandname parameter identifies by filter-id the wavelength interval(s) to be 
+            searched for data. Possible values are "g", "r", and "i", 
+            respectively equivalent to "1", "2" and "3", and comma-separated combinations thereof.
+            // Implemented as a filter on the "fid" column of the ZTF objects table.
+            * Examples:
+            >>> Find only G-band data, which covers the wavelength range 410nm—550nm:
+                bandname=g
+            >>> Find only G-band and I-band data, which cover the wavelength ranges 410nm—550nm 
+               and 700nm—900nm respectively:
+               bandname=g,i
+
+        mag: [1 or 2-value array] -optional-
+            The mag parameter specifies a range in which the magnitude of ZTF objects of interest 
+            must lie.
+            // Implemented as a filter on the "medianmag" column of the ZTF objects table.
+            * Examples:
+            >>> mag=[17.0,17.7]
+
+        **kwargs goes to download_data (e.g. num_obs, time, band, collection)
+
+        Returns
+        -------
+        LCQuery
+        """
+        warnings.warn("query_position is DEPRECATED and will be remove in future version. Please use from_position() instead.")
+        return cls.from_position(ra, dec, radius_arcsec, pos=pos, 
+                                     bandname=bandname, mag=mag,
+                                     cookies=cookies, auth=auth,
+                                     **kwargs)
+        
