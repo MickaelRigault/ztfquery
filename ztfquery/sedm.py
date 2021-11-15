@@ -169,7 +169,7 @@ def get_pharos_urls_from_whatdata(df, kind, contains=None):
             Whatdatas dataframe 
 
         kind: [str]
-            Might be e3d/cube or astrom/guider
+            Might be e3d/cube or astrom/guider or HexaGrid/HexaGrid.pkl
 
         contains: [str] -optional-
             Only select the filenames where *contains* appears.
@@ -188,6 +188,10 @@ def get_pharos_urls_from_whatdata(df, kind, contains=None):
         if kind in ['e3d', 'cube']:
             urls.append(os.path.join(PHAROS_BASEURL, 'data',
                         df.iloc[f].name[0],  E3D_BASE + df.iloc[f]['filename'].rsplit('.')[0]+'_'+df.iloc[f]['target']+'.fits'))
+
+        if kind in ['HexaGrid', 'HexaGrid.pkl']:
+            urls.append(os.path.join(PHAROS_BASEURL, 'data',
+                        df.iloc[f].name[0], df.iloc[f].name[0]+'_HexaGrid.pkl'))
 
         if kind in ['astrom', 'guider']:
             urls.append(os.path.join(PHAROS_BASEURL, 'data',
@@ -211,20 +215,27 @@ def get_local_path_from_pharos_urls(urls):
     urls = np.atleast_1d(urls)
     local_url = []
     for url in urls:
-        info = parse_filename(os.path.basename(url))
 
-        if os.path.basename(url).rsplit('ifu')[0].startswith('e3d'):
-            base = E3D_BASE
-            extension = info['name'] + '.fits'
-        elif os.path.basename(url).rsplit('ifu')[0].startswith('guider'):
-            base = GUIDER_BASE
-            extension = info['name'] + '.fits.gz'
+        if 'HexaGrid' in url:
+            date = url.rsplit('/')[-1].rsplit('_')[0]
+            local_url.append(os.path.join(
+                SEDMLOCALSOURCE, date,  os.path.basename(url)))
+
         else:
-            raise OSError(
-                f'Only guider files and e3d cubes files are implemented. URL basename should starts with "guider" or "e3d", but starts with{os.path.basename(url)[:10]} ')
+            info = parse_filename(os.path.basename(url))
 
-        local_url.append(os.path.join(
-            SEDMLOCALSOURCE, info['date'], base + info['sedmid'] + '_' + extension))
+            if os.path.basename(url).rsplit('ifu')[0].startswith('e3d'):
+                base = E3D_BASE
+                extension = info['name'] + '.fits'
+            elif os.path.basename(url).rsplit('ifu')[0].startswith('guider'):
+                base = GUIDER_BASE
+                extension = info['name'] + '.fits.gz'
+            else:
+                raise OSError(
+                    f'Only guider files and e3d cubes files are implemented. URL basename should starts with "guider" or "e3d", but starts with{os.path.basename(url)[:10]} ')
+
+            local_url.append(os.path.join(
+                SEDMLOCALSOURCE, info['date'], base + info['sedmid'] + '_' + extension))
     return local_url
 
 
