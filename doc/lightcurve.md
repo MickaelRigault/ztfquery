@@ -18,28 +18,32 @@ _lightcurve.py documentation_
 *These are not lightcurves generated from alert packets.*
 
 You can directly query the lightcurve by coordinates by doing (Ra, DEC and radius in arcsec):
-```
+```python
 from ztfquery import lightcurve
-lcq = lightcurve.LCQuery()
-lcq.query_position(197.501495, +75.721959, 5)
+lcq = lightcurve.LCQuery.from_position(197.501495, +75.721959, 5)
 ```
 Data are stored in `lcq.data`.
 
 To plot the lightcurve, simply do:
-```
+```python
 lcq.show()
 ```
 
 You can also query by ID:
-```
+```python
 from ztfquery import lightcurve
-lcq = lightcurve.LCQuery()
-lcq.query_id([686103400067717,686103400106565])
+lcq = lightcurve.LCQuery.from_id([686103400067717,686103400106565])
 ```
 
 or any kind of query using the list of parameter from the [LightCurve Query API](https://irsa.ipac.caltech.edu/docs/program_interface/ztf_lightcurve_api.html)
 
-```
+```python
 from ztfquery import lightcurve
-lcq = lightcurve.LCQuery.download_data(circle=[298.0025,29.87147,0.0014], bandname="g")
+data = lightcurve.LCQuery.download_data(circle=[298.0025,29.87147,0.0014], bandname="g")
+```
+
+If you already have a `data` dataframe, for instance if you saved and reload it. Do this to create a corresponding LCQuery object:
+```python
+from ztfquery import lightcurve
+lcq = lightcurve.LCQuery(data)
 ```
