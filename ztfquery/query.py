@@ -16,7 +16,7 @@ from . import io
 
 
 # Combining metadata with buildurl
-def metatable_to_url(metatable, datakind='sci', suffix=None, source=None, **kwargs):
+def metatable_to_url(metatable, datakind=None, suffix=None, source=None, **kwargs):
     """generic method to build the url/fullpath or the requested data.
         This method is based on the `builurl.py` module of ztfquery.
         
@@ -59,7 +59,10 @@ def metatable_to_url(metatable, datakind='sci', suffix=None, source=None, **kwar
         // if queried metadata is for kind calibration
 
         """
-    if datakind in ['sci', "raw"]:    
+    if datakind is None:
+        datakind = guess_kind_from_metatable(metatable)
+        
+    if datakind in ['sci', "raw"]:
         filtercode,imgtypecode  = np.asarray(metatable[["filtercode","imgtypecode"]
                                                                     ].values.T, dtype="str")
         paddedfield      = np.asarray(["%06d"%f for f in metatable["field"].values],

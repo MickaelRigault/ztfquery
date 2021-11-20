@@ -144,9 +144,10 @@ def _localsource_to_source_(localfilepath, source=None):
     
 def _source_to_location_(source):
     """ convert flexible source naming into actual source path """
-    if source is None: source = "irsa"
+    if source is None:
+        source = "irsa"
+        
     source = source.lower()
-
     if source in ["none"]:
         return ""
     
