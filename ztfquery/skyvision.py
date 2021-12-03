@@ -54,12 +54,13 @@ def get_log(date, which="completed", download=True, update=False, **kwargs):
         download_log(date, which=which, store=True, **kwargs)
     
     logdf = get_local_log(date, which=which, safeout=True)
+
     if logdf is None:
         if update:
-            warnings.warn(f"Download did not seem successful. Cannot retreive the {which}_log for {date}")
+            warnings.warn(f"Download did not seem successful. Cannot retrieve the {which}_log for {date}")
             return None
         elif not download:
-            warnings.warn(f"No local {which}_log for {date}. download it or set download to true")
+            warnings.warn(f"No local {which}_log for {date}. Download it or set download to true")
             return None
         
         return get_log(date, which=which, update=True, **kwargs)
@@ -179,11 +180,17 @@ def download_completed_log(date, auth=None, store=True,
         
     if verbose:
         print(logtable)
-        
+
+    d = date.split("-")
+    message_missing = f"Log queue.{d[0]}{d[1]}{d[2]}.dat does not exists"
+
     if logtable is None:
         warnings.warn(f"no downloaded information for night {date}")
         data = None
     elif "does not exist for this night" in logtable:
+        warnings.warn(f"No observing log for {date}")
+        data = None
+    elif message_missing in logtable:
         warnings.warn(f"No observing log for {date}")
         data = None
     else:
@@ -215,12 +222,13 @@ def download_completed_log(date, auth=None, store=True,
                    'RA Rate', 'Dec Rate', 'Exptime', 'Filter', 'Observation Status',
                    'Setup Time', 'Exptime']
 
-            
+
     try:
         df = pandas.DataFrame(data, columns=columns)
     except:
-        warnings.warn(f"Column format does not match the completed_log date downloade for {date}")
+        warnings.warn(f"Column format does not match the completed_log date downloaded for {date}")
         print("FORMAT ERROR:", data)
+
         return data
         
     if store:
