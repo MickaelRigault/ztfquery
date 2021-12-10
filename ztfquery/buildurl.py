@@ -237,6 +237,9 @@ def raw_path(year, month, day, fracday,
 
     """
     source = _source_to_location_(source)
+    if imgtypecode == "b":
+        paddedfield = "000000"
+        
     filefracday = "".join([year+month+day+fracday])
     file_ = 'raw/'+year+'/'+month+day+'/'+fracday+'/ztf_'+filefracday+'_'+paddedfield+'_'+filtercode+'_c'+paddedccdid+'_'+imgtypecode+'.fits.fz'
     return os.path.join(source,file_)
