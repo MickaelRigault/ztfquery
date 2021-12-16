@@ -435,8 +435,8 @@ def download_qa_log(date, auth=None, summary_values=None, inclcal=True,
                         low_memory=False, index_col=0)
         df['obsdatetime'] = pandas.to_datetime(df['obsdatetime'])
         if "qcomment" in df.columns:
-            df.loc[:,"qcomment"] = df["qcomment"].str.strip()
-            
+            df.loc[:,"qcomment"] = df["qcomment"].astype(str).str.strip()
+
     
     if store:
         df.to_csv( get_log_filepath(date, which="qa"), index=False)
