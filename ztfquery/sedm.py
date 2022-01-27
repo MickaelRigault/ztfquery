@@ -196,7 +196,8 @@ def get_pharos_urls_from_whatdata(df, kind, contains=None):
         if kind in ['astrom', 'guider']:
             urls.append(os.path.join(PHAROS_BASEURL, 'data',
                         df.iloc[f].name[0],  GUIDER_BASE + df.iloc[f]['filename'].rsplit('.')[0]+'_' + 'astrom.fits.gz'))
-
+            urls.append(os.path.join(PHAROS_BASEURL, 'data',
+                        df.iloc[f].name[0],  GUIDER_BASE + df.iloc[f]['filename'].rsplit('.')[0]+'_' + 'astrom.fits'))
     return urls
 
 
@@ -229,7 +230,10 @@ def get_local_path_from_pharos_urls(urls):
                 extension = info['name'] + '.fits'
             elif os.path.basename(url).rsplit('ifu')[0].startswith('guider'):
                 base = GUIDER_BASE
-                extension = info['name'] + '.fits.gz'
+                if os.path.basename(url).endswith('.fits'):
+                    extension = info['name'] + '.fits'
+                elif os.path.basename(url).endswith('.fits.gz'):
+                    extension = info['name'] + '.fits.gz'
             else:
                 raise OSError(
                     f'Only guider files and e3d cubes files are implemented. URL basename should starts with "guider" or "e3d", but starts with{os.path.basename(url)[:10]} ')
