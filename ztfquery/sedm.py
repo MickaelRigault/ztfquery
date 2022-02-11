@@ -14,6 +14,8 @@ import os
 PHAROS_BASEURL = "http://pharos.caltech.edu"
 E3D_BASE = 'e3d_crr_b_'
 GUIDER_BASE = 'guider_crr_b_'
+SPEC_BASE_AUTO = "spec_auto_robot_lstep1__crr_b_"
+SPEC_BASE_CONTSEP = "spec_auto_contsep_lstep1__crr_b_"
 
 SEDMLOCAL_BASESOURCE = os.path.join(io.LOCALSOURCE, "sedm")
 SEDMLOCALSOURCE = os.path.join(SEDMLOCAL_BASESOURCE, "redux")
@@ -193,6 +195,12 @@ def get_pharos_urls_from_whatdata(df, kind, contains=None):
             urls.append(os.path.join(PHAROS_BASEURL, 'data',
                         df.iloc[f].name[0], df.iloc[f].name[0]+'_HexaGrid.pkl'))
 
+        if kind in ['spec', 'spectra']:
+            urls.append(os.path.join(PHAROS_BASEURL, 'data',
+                        df.iloc[f].name[0],  SPEC_BASE_AUTO + df.iloc[f]['filename'].rsplit('.')[0]+'_'+df.iloc[f]['target']+'.fits'))
+            urls.append(os.path.join(PHAROS_BASEURL, 'data',
+                        df.iloc[f].name[0],  SPEC_BASE_CONTSEP + df.iloc[f]['filename'].rsplit('.')[0]+'_'+df.iloc[f]['target']+'.fits'))
+
         if kind in ['astrom', 'guider']:
             urls.append(os.path.join(PHAROS_BASEURL, 'data',
                         df.iloc[f].name[0],  GUIDER_BASE + df.iloc[f]['filename'].rsplit('.')[0]+'_' + 'astrom.fits.gz'))
@@ -219,6 +227,11 @@ def get_local_path_from_pharos_urls(urls):
 
         if 'HexaGrid' in url:
             date = url.rsplit('/')[-1].rsplit('_')[0]
+            local_url.append(os.path.join(
+                SEDMLOCALSOURCE, date,  os.path.basename(url)))
+
+        if 'spec' in url:
+            date = url.rsplit('/')[-2]
             local_url.append(os.path.join(
                 SEDMLOCALSOURCE, date,  os.path.basename(url)))
 
