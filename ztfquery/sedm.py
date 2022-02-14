@@ -230,7 +230,7 @@ def get_local_path_from_pharos_urls(urls):
             local_url.append(os.path.join(
                 SEDMLOCALSOURCE, date,  os.path.basename(url)))
 
-        if 'spec' in url:
+        elif 'spec' in url:
             date = url.rsplit('/')[-2]
             local_url.append(os.path.join(
                 SEDMLOCALSOURCE, date,  os.path.basename(url)))
