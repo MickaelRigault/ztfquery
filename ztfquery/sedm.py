@@ -11,7 +11,7 @@ import numpy as np
 import json
 import requests
 import os
-PHAROS_BASEURL = "http://pharos.caltech.edu"
+PHAROS_BASEURL = "http://minar.caltech.edu"
 E3D_BASE = 'e3d_crr_b_'
 GUIDER_BASE = 'guider_crr_b_'
 SPEC_BASE_AUTO = "spec_auto_robot_lstep1__crr_b_"
