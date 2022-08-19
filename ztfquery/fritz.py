@@ -52,7 +52,7 @@ def api(method, endpoint, data=None, load=True, token=None, **kwargs):
     return downloaded["data"]
 
 def bulk_download(fobject, names, nprocess=4, show_progress=True,
-                    asdict=False, force_dl=False, client=None, store=True):
+                    as_dict=False, force_dl=False, client=None, store=True):
     """ Multiprocessed download of Fritz{fobject}. 
     This makes use of the Fritz{fobject}.from_name() classmethods
 
@@ -74,10 +74,10 @@ def bulk_download(fobject, names, nprocess=4, show_progress=True,
     store: [bool] -optional-
         Should the downloaded data be stored ?
 
-    asdict: [bool] -optional-
+    as_dict: [bool] -optional-
         Should this return a dictionary or a list
-        - asdict=True: {name: fritz{fobject}}
-        - asdict=False: [fritz{fobject}]
+        - as_dict=True: {name: fritz{fobject}}
+        - as_dict=False: [fritz{fobject}]
     Returns
     -------
     Dictionary {name: fritz{fobject}}
@@ -130,7 +130,7 @@ def bulk_download(fobject, names, nprocess=4, show_progress=True,
         if bar is not None:
             bar.update(nnames)
             
-    return objects if asdict else list(objects.values())
+    return objects if as_dict else list(objects.values())
 
 def _single_download_lightcurve_(args):
     """ """
@@ -2065,7 +2065,7 @@ class FritzAccess( object ):
             
         sources = bulk_download( fobject, names, client=client,
                                 nprocess=nprocess, show_progress=show_progress,
-                                store=store, force_dl=force_dl, asdict=False, **kwargs)
+                                store=store, force_dl=force_dl, as_dict=False, **kwargs)
         if client is not None and gather:
             # means sources are actually futures
             sources = client.gather(sources, errors="skip")
@@ -2651,7 +2651,7 @@ class FritzSample( object ):
             
         sources = bulk_download( fobject, names, client=client,
                                 nprocess=nprocess, show_progress=show_progress,
-                                store=store, force_dl=force_dl, asdict=False, **kwargs)
+                                store=store, force_dl=force_dl, as_dict=False, **kwargs)
         if client is not None and gather:
             # means sources are actually futures
             sources = client.gather(sources, errors="skip")

@@ -45,7 +45,7 @@ def _load_fields_geoserie_(inclccd=False):
             FIELD_CCDS_GEOSERIE = None 
         return
     
-    field_verts = get_field_vertices(fieldid=FIELDSNAMES, inclccd=inclccd, asdict=True, aspolygon=True)
+    field_verts = get_field_vertices(fieldid=FIELDSNAMES, inclccd=inclccd, as_dict=True, as_polygon=True)
     if not inclccd:
         FIELDS_GEOSERIE = geoseries.GeoSeries(field_verts)
     else:
@@ -164,7 +164,72 @@ def get_field_ccd_qid(ra, dec):
         d_[int(field)] = {"ccd":int(ccd), "qid":int(qid), "rcid":ccdid_qid_to_rcid(int(ccd), int(qid))}
         
     return d_
+
+
+def spatialjoin_radec_to_fields(radec, fields, how="inner", predicate="intersects",
+                                    index_radec="index_radec",**kwargs):
+    """ 
+    radec: DataFrame or 2d-array 
+        coordinates of the points. 
+        - DataFrame: must have the "ra" and "dec" columns. 
+            This will use the DataFrame's index are data index.
+        - 2d array (shape N,2): returned index will be 'range(len(ra))'
     
+    fields : [geopandas.geoserie, geopandas.geodataframe or  dict]
+        fields contains the fieldid and fields shapes. Several forms are accepted:
+        - dict: {fieldid: 2d-array, fieldid: 2d-array ...}
+            here, the 2d-array are the field's vertices.
+
+        - geoserie: geopandas.GeoSeries with index as fieldid and geometry as field's vertices.
+            
+        - geodataframe: geopandas.GeoDataFrame with the 'fieldid' column and geometry as field's vertices.
+
+    Returns
+    -------
+    GeoDataFrame (geometry.sjoin result )
+    """
+    import geopandas
+    
+    # -------- #
+    #  Coords  #
+    # -------- #
+    if type(radec) in [np.ndarray, list, tuple]:
+        if (inshape:=np.shape(radec))[-1] != 2:
+            raise ValueError(f"shape of radec must be (N, 2), {inshape} given.")
+        
+        radec = pandas.DataFrame(radec, columns=["ra","dec"])
+
+    # Points to be considered
+    geoarray = geopandas.points_from_xy(*radec[["ra","dec"]].values.T)
+    geopoints = geopandas.GeoDataFrame({index_radec:radec.index}, geometry=geoarray)
+    
+    # -------- #
+    # Fields   #
+    # -------- #
+    # goes from dict to geoseries (more natural) 
+    if type(fields) is dict:
+        values = fields.values()
+        indexes = fields.keys()
+        # dict of array goes to shapely.Geometry as expected by geopandas
+        if type(values.__iter__().__next__()) in [np.ndarray, list, tuple]:
+            from shapely import geometry
+            values = [geometry.Polygon(v) for v in values]
+        
+        fields = geopandas.GeoSeries(values,  index = indexes)
+            
+    if type(fields) is geopandas.geoseries.GeoSeries:
+        fields = geopandas.GeoDataFrame({"fieldid":fields.index},
+                                        geometry=fields.values)
+    elif type(fields) is not geopandas.geodataframe.GeoDataFrame:
+        raise ValueError("cannot parse the format of the input 'fields' variable. Should be dict, GeoSeries or GeoPandas")
+
+    # -------- #
+    # Joining  #
+    # -------- #
+    return geopoints.sjoin(fields,  how="inner", predicate="intersects", **kwargs)
+
+
+
 def get_fields_containing_target(ra, dec, inclccd=False, buffer=None):
     """ return the list of fields into which the position ra, dec is. 
     Remark that this is based on predefined field positions. 
@@ -204,7 +269,7 @@ def get_fields_containing_target(ra, dec, inclccd=False, buffer=None):
     return fields_geoserie.index[ fields_geoserie.buffer(buffer).contains(coordpoint) ]
 
 
-def get_field_vertices(fieldid=None, inclccd=False, ccd=None, asdict=False, aspolygon=False,
+def get_field_vertices(fieldid=None, inclccd=False, ccd=None, as_dict=False, as_polygon=False,
                         squeeze=True):
     """ Get the fields countours 
     
@@ -216,24 +281,24 @@ def get_field_vertices(fieldid=None, inclccd=False, ccd=None, asdict=False, aspo
 
     // output format
 
-    asdict: [bool] -optional-
-        Do you want to result as a list (asdict=False) following the input's fieldid sorting
+    as_dict: [bool] -optional-
+        Do you want to result as a list (as_dict=False) following the input's fieldid sorting
         or do you want a dict ({fieldid_: verts_ ... })
 
-    aspolygon: [bool] -optional-
-        Do you want the vertices as 2d-array (aspolygon=False) or as shapely Geometries (True)
+    as_polygon: [bool] -optional-
+        Do you want the vertices as 2d-array (as_polygon=False) or as shapely Geometries (True)
 
     squeeze: [bool] -optional-
         Should unnecessary dimension be removed ?
-        if asdict is True:
+        if as_dict is True:
             if squeeze: {fid_ccdid: }
             if not squeeze: {fid:{ccdid: }}
             = if not inclccd, squeez ignored =
-        if not asdict:
+        if not as_dict:
            using np.squeeze, basically doing [[]]->[]
     Returns
     -------
-    list of dict (see asdict)
+    list of dict (see as_dict)
     """
     if fieldid is None:
         fieldid = FIELDSNAMES
@@ -249,21 +314,21 @@ def get_field_vertices(fieldid=None, inclccd=False, ccd=None, asdict=False, aspo
     # ----------- #
     #  Format     #
     # ----------- #    
-    if aspolygon:
+    if as_polygon:
         try:
             from shapely import geometry
             fields_countours = [[geometry.Polygon(fields_verts[f_][c_])
                                          for c_,ccd_ in enumerate(np.atleast_1d(ccd))]
                                          for f_,field_ in enumerate(np.atleast_1d(fieldid))]
         except ImportError:
-            warnings.warn("You do not have shapely, Please run pip install shapely. 'aspolygon' set to False")
+            warnings.warn("You do not have shapely, Please run pip install shapely. 'as_polygon' set to False")
     else:
         fields_countours = fields_verts
 
     # ----------- #
     #  Output     #
     # ----------- #    
-    if not asdict:
+    if not as_dict:
         return fields_countours if not squeeze else np.squeeze(fields_countours)
 
     # full camera dict

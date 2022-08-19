@@ -691,7 +691,7 @@ class CompletedLog( ZTFLog ):
         return self.get_filtered(field=field, pid=pid, fid=fid, startdate=startdate, enddate=enddate, query=query, **kwargs)
     
 
-    def get_fields_stat(self, what="size", perfilter=False, statistic="mean", asdict=False, **kwargs):
+    def get_fields_stat(self, what="size", perfilter=False, statistic="mean", as_dict=False, **kwargs):
         """ 
     
         Parameters
@@ -709,12 +709,12 @@ class CompletedLog( ZTFLog ):
             what pandas statistics should by applied
             = ignored if what='size' =
             
-        asdict: [bool] -optional-
+        as_dict: [bool] -optional-
             if perfilter, the returned value should it be {pid:serie} or multiindex.
             
         Returns
         -------
-        dict or serie. (see asdict)
+        dict or serie. (see as_dict)
         """
         data = self.get_filtered(**kwargs)
         fgroup = data.groupby("field" if not perfilter else ["fid","field"])
@@ -729,19 +729,19 @@ class CompletedLog( ZTFLog ):
         else:
             serieout =  getattr(fgroup[what],statistic)()
             
-        if perfilter and asdict:
+        if perfilter and as_dict:
             return {i:serieout.xs(i) for i in range(1,4)}
         
         return serieout
         
     def get_cadence(self, perfilter=True, statistic="mean", pid=None, fid=None,
-                    field=None, grid=None, asdict=True, **kwargs):
+                    field=None, grid=None, as_dict=True, **kwargs):
         """ 
         **kwargs goes to get_filtered
         """
         return self.get_fields_stat(what="cadence", perfilter=perfilter, statistic=statistic,
                                     field=field, fid=fid, pid=pid, grid=grid, 
-                                    asdict=asdict, **kwargs)
+                                    as_dict=as_dict, **kwargs)
     
         
     def get_programs(self, flatten=False, cleannan=True):
