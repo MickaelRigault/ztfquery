@@ -363,6 +363,10 @@ def filename_to_url(filename, suffix=None, source="irsa", verbose=False, check_s
     NB:
     suffix -> imgtypecode for raw images.
     """
+    if not os.path.basename(filename).startswith("ztf_"):
+        return filename # this is not a normal ztf_ pipeline file.
+        
+
     kind = filename_to_kind(filename)
     if kind == "sci":
         return filename_to_scienceurl(filename, suffix=suffix, source=source, verbose=verbose, check_suffix=check_suffix)

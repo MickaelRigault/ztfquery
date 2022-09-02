@@ -70,13 +70,11 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
     fullpath (or None if not data)
         
     """
-    if not os.path.basename(filename).startswith("ztf_"):
-        return filename # this is not a normal ztf_ pipeline file.
-        
     from .buildurl import filename_to_url
     local_filenames = np.asarray([filename_to_url(filename_, suffix=suffix_,
                                                     verbose=verbose,
-                                                    source="local", check_suffix=check_suffix)
+                                                    source="local",
+                                                    check_suffix=check_suffix)
                    for filename_ in np.atleast_1d(filename)
                    for suffix_ in np.atleast_1d(suffix)])
     if not exist:
