@@ -70,6 +70,9 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
     fullpath (or None if not data)
         
     """
+    if not os.path.basename(filename).startswith("ztf_"):
+        return filename # this is not a normal ztf_ pipeline file.
+        
     from .buildurl import filename_to_url
     local_filenames = np.asarray([filename_to_url(filename_, suffix=suffix_,
                                                     verbose=verbose,
@@ -125,16 +128,19 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
 
 def filefracday_to_local_rawdata(filefracday, ccdid="*"):
     """ """
-    
     from glob import glob
-    from .buildurl import filefrac_to_year_monthday_fracday
+    rawfilename = filefracday_and_ccdid_to_rawfilename(filefracday, ccdid=ccdid)
+    return np.sort( glob(rawfilename) )
+
+def filefracday_and_ccdid_to_rawfilename(filefracday, ccdid, source="local"):
+    from .buildurl import filefrac_to_year_monthday_fracday, _source_to_location_
     filefracday = str(filefracday)
     year, month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
-    if ccdid in ["*","all"]:
-        cstring = "*"
-    else:
-        cstring = f"_c{ccdid:02d}_"
-    return np.sort( glob(os.path.join( LOCALSOURCE, "raw",year, f"{month}{day}",fracday,f"ztf_{filefracday}*{cstring}*.fits.fz")) )
+    source = _source_to_location_(source)
+    cstring = "*" if ccdid in ["*","all"] else f"_c{ccdid:02d}_"        
+    return os.path.join( source, "raw",year, f"{month}{day}",fracday,f"ztf_{filefracday}*{cstring}*.fits.fz")
+    
+    
 
 def bulk_get_file(filenames, client=None, suffix=None, as_dask="delayed", **kwargs):
     """ 
