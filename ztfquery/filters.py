@@ -37,10 +37,9 @@ def get_p48_filter(band):
     if band_ in P48_FILTER.keys():
         band_ = band_.replace("ztf:","")
     elif band_ not in ["g","r","i"]:
-        raise ValueError("Only g, r, or i filter accepted, '%s' given"%band_)
+        raise ValueError(f"Only g, r, or i filter accepted, '{band_}' given")
     
-    return pandas.read_csv(_FILTER_LOC+"filter_p48_%s.dat"%band_, sep=" ")
-
+    return pandas.read_csv( os.path.join(_FILTER_LOC,f"filter_p48_{band_}.dat"), sep=" ")
         
 def get_p48_bandpass(band):
     """ """
@@ -53,12 +52,12 @@ def get_p48_bandpass(band):
     if band_ in ["g","r","i"]:
         band_ = "z"+band
     elif band_ not in P48_FILTER.keys():
-        raise ValueError("Only (ztf:)g, (ztf:)r, or (ztf:)i  filter accepted, '%s' given"%band_)
+        raise ValueError(f"Only (ztf:)g, (ztf:)r, or (ztf:)i  filter accepted, '{band_}' given")
     
     try:
         return sncosmo.get_bandpass(band_)
     except:
-        raise Exception("If seems that sncosmo does not know '%s' ; have you ran load_p48_filters_to_sncosmo() ?"%band_)
+        raise Exception(f"If seems that sncosmo does not know '{band_}' ; have you ran load_p48_filters_to_sncosmo() ?")
         
 def load_p48_filters_to_sncosmo(bands="*", basename="ztf:"):
     """ register the given bands ['g','r' or 'i'] as basename+`band`"""
@@ -68,12 +67,17 @@ def load_p48_filters_to_sncosmo(bands="*", basename="ztf:"):
         raise ImportError("You do not have sncosmo. Please install it (pip install sncosmo)")
     
     bands_ = ["g","r","i"] if bands in ["all","*"] else np.atleast_1d(bands)
-    
+    bands = []
     for bandname in bands_:
         df_ = get_p48_filter(bandname)
-        band = sncosmo.Bandpass(df_["wavelength"].values, df_["eff_trans"].values, name=basename+bandname.lower())
+        band = sncosmo.Bandpass(df_["wavelength"].values,
+                                df_["eff_trans"].values,
+                                name=basename+bandname.lower())
         sncosmo.registry.register(band, force=True)
-    
+        bands.append(band)
+        
+    return bands
+
 if _HAS_SNCOSMO:
     load_p48_filters_to_sncosmo()
     

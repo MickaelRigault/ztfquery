@@ -158,9 +158,11 @@ def _single_download_source_(args):
 #                 #
 # =============== #
 def download_lightcurve(name, get_object=False,
-                        token=None, clean_groupcolumn=True,
+                        token=None,
+                        clean_groupcolumn=True,
+                        clean_filtername=True,
                         format=None, magsys=None, store=False,
-                        verbose=False,
+                        verbose=False, 
                         **kwargs):
     """ 
     Parameters
@@ -173,6 +175,11 @@ def download_lightcurve(name, get_object=False,
         = skyportal api option = 
         ab or vega (None means default)
     
+    clean_filtername: [bool] -optional-
+        If True, this will clean the filtername that have by
+        default sdss{f} while they are not sdss instrument but, say sedm.
+        Then, this will replace all the sdss{f} into sedm{f}.
+
     **kwargs are ignored (here for backward compatibilities)
     """
     #
@@ -187,7 +194,7 @@ def download_lightcurve(name, get_object=False,
     # - end: addon
     #
 
-    q_url = _BASE_FRITZ_URL+f'api/sources/{name}/photometry{addon}'
+    q_url = os.path.join(_BASE_FRITZ_URL,f'api/sources/{name}/photometry{addon}')
     if verbose:
         print(f"queried URL: {q_url}")
         
@@ -197,7 +204,14 @@ def download_lightcurve(name, get_object=False,
     if clean_groupcolumn:
         lcdata["groups"] = [[i_["id"] for i_ in lcdata["groups"].iloc[i]]
                                 for i in range(len(lcdata))]
+    if clean_filtername:
+        filter_names = lcdata["filter"].str.lower().str
+        instrument_name = lcdata["instrument_name"].str.lower()
+        flag_badname = ((filter_names.startswith("sdss")) & (instrument_name != "sdss"))
+        new_filtername = lcdata[flag_badname]["instrument_name"].str.lower() + lcdata[flag_badname]["filter"].str.replace("sdss","")
+        lcdata.loc[flag_badname,"filter"] = new_filtername
 
+        
     # - output
     if not store and not get_object:
         return lcdata
@@ -458,8 +472,9 @@ class FritzPhotometry( object ):
             if os.path.isfile(filename):
                 extension = filename.split(".")[-1]
                 return getattr(cls,f"read_{extension}")(filename)
-            
-        return cls( download_lightcurve(name, get_object=False, store=store) )
+
+        dataframe = download_lightcurve(name, get_object=False, store=store)
+        return cls( dataframe )
         
     # ============= #
     #  Method       #
@@ -684,6 +699,12 @@ class FritzPhotometry( object ):
     def get_filters(self):
         """ list of filter in the data """
         return np.unique(self.data["filter"]).astype(str)
+
+    def get_instruments(self, name=True):
+        """ list of filter in the data """
+        key = "instrument_name" if name else "instrument_id"
+        return self.data[key].str.lower().unique().astype("str")
+
     
     def show(self, ax=None, savefile=None, filtering={}):
         """ """
