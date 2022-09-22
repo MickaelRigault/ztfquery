@@ -43,6 +43,8 @@ M. Rigault: m.rigault@ipnl.in2p3.fr, CNRS/IN2P3
 
 # Installation
 
+ztfquery requires `python >= 3.8`
+
 ## Install the code
 using pip: `pip install ztfquery` (favored)
 
