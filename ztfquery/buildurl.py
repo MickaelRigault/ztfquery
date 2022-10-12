@@ -38,6 +38,23 @@ DEFAULT_SOURCE = DATA_BASEURL
 FILTERS = {"zg":1,"zr":2,"zi":3, "OO":None}
 
 
+
+
+def get_rawfile_of_filename(filename, source="irsa"):
+    """ """
+
+    parsing = parse_filename(filename)
+    kind = parsing["kind"]
+    url = filename_to_url(filename, kind=kind)
+
+    func_argument = ["year", "month", "day", "fracday", "filtercode",
+                     "imgtypecode", "paddedfield"]
+        
+    prop = {k:parsing[k] for k in func_argument}
+    prop["paddedccdid"] = f"{parsing['ccdid']:02d}"
+    return raw_path(source=source, **prop)
+        
+
 # ================== #
 #  Filename parsing  #
 # ================== #
@@ -95,6 +112,7 @@ def parse_rawfilename(filename):
             "month":month,
             "day":day,
             "filefracday":filefracday,
+            "fracday":filefracday[8:],
             "paddedfield":paddedfield,
             "field":int(paddedfield),
             "ccdid":ccdid,
@@ -116,7 +134,9 @@ def parse_scifilename(filename):
     return {"year":year,
             "month":month,
             "day":day,
+            "imgtypecode":imgtypecode,
             "filefracday":filefracday,
+            "fracday":filefracday[8:],
             "paddedfield":paddedfield,
             "field":int(paddedfield),
             "ccdid":ccdid,
@@ -356,7 +376,8 @@ def build_filename_from_dataframe(dataframe, suffix="sciimg.fits"):
     return "ztf"+"_"+filefrac+"_"+paddedfield+"_"+filtername+"_"+paddedccd+"_"+"o"+"_"+paddedqid+"_"+suffix
 
 
-def filename_to_url(filename, suffix=None, source="irsa", verbose=False, check_suffix=True):
+def filename_to_url(filename, suffix=None, source="irsa",
+                    kind=None, **kwargs):
     """ Generic high level function that first detects the inputfile kind and then 
     calls the associated function ; e.g., filename_to_scienceurl or filename_to_calurl.
 
@@ -365,23 +386,54 @@ def filename_to_url(filename, suffix=None, source="irsa", verbose=False, check_s
 
     NB:
     suffix -> imgtypecode for raw images.
+
+
+    Parameters
+    ----------
+    filename: str
+        filepath or ztf file name. 
+
+    suffix: str
+        if you want to change the file's suffix url. 
+
+    source: str
+        origin of the file url you want. (e.g. irsa, local)
+
+    check_suffix: bool
+        should the suffix be checked to be a known ztf suffix ?
+        
+    kind: str
+        if you already know the kind of data the filename is associated to
+        provide it (sci, raw or cal). If None, this function will guess
+        it using `filename_to_kind`
+    
+    **kwargs goes to the filename_to_{kind}url functions.
+
+    Returns
+    -------
+    path
+        url or local path (see source)
     """
     if not os.path.basename(filename).startswith("ztf_"):
         return filename # this is not a normal ztf_ pipeline file.
 
-    kind = filename_to_kind(filename)
+    if kind is None:
+        kind = filename_to_kind(filename)
+
+    prop = {**dict(suffix=suffix, source=source), **kwargs}
+        
     if kind == "sci":
-        return filename_to_scienceurl(filename, suffix=suffix, source=source, verbose=verbose, check_suffix=check_suffix)
+        return filename_to_scienceurl(filename, **prop)
     
     if kind == "raw":
-        return filename_to_rawurl(filename, imgtypecode=suffix, source=source, verbose=verbose, check_suffix=check_suffix)
+        return filename_to_rawurl(filename, **{k:prop[k] for k in ["imgtypecode", "source", "verbose"] if k in prop})
     
     if kind == "cal":
-        return filename_to_calurl(filename, suffix=suffix, source=source, verbose=verbose, check_suffix=check_suffix)
+        return filename_to_calurl(filename, **prop)
 
     raise ValueError(f"Cannot parse the file {filename}")
     
-def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=False, check_suffix=True):
+def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=False, check_suffix=False):
     """ 
     """
     _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, *suffix_ = os.path.basename(filename).split("_")
@@ -401,7 +453,7 @@ def filename_to_scienceurl(filename, suffix=None, source="irsa", verbose=False, 
                         source=source, verbose=verbose,
                         check_suffix=check_suffix)
     
-def filename_to_calurl(filename, suffix=None, source="irsa", verbose=False, check_suffix=True):
+def filename_to_calurl(filename, suffix=None, source="irsa", verbose=False, check_suffix=False):
     """ 
     """
     _, date, filtercode, ccd_, qid_, *suffix_ = os.path.basename(filename).split("_")
@@ -417,10 +469,10 @@ def filename_to_calurl(filename, suffix=None, source="irsa", verbose=False, chec
                                 year, month, day,
                                 filtercode,
                                 paddedccdid, qid, suffix=suffix,
-                                source=source, check_suffix=True)
+                                source=source, check_suffix=check_suffix)
 
 
-def filename_to_rawurl(filename, imgtypecode=None, source="irsa", verbose=False, check_suffix=True):
+def filename_to_rawurl(filename, imgtypecode=None, source="irsa", verbose=False):
     """ 
     """
     _, filefracday, paddedfield ,filtercode, ccd_, suffix_ =  os.path.basename(filename).split("_")

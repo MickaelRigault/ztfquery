@@ -124,6 +124,7 @@ def get_file(filename, suffix=None, downloadit=True, verbose=False, check_suffix
     
     return local_filenames
 
+
 def filefracday_to_local_rawdata(filefracday, ccdid="*"):
     """ """
     from glob import glob

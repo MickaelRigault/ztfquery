@@ -285,6 +285,7 @@ class _ZTFDownloader_( object ):
                      dlfrom="irsa", overwrite=False, maxnprocess=4, exist=True,
                      show_progress=True, **kwargs):
         """ high-level method to get the data you want.
+
         It will look for the data locally and download the one that are missing.
         Set exist = False to have the expected list of data.
 
@@ -306,12 +307,13 @@ class _ZTFDownloader_( object ):
     def get_local_data(self, suffix=None, exists=True, filecheck=True, indexes=None,
                            badfiles=False, source="local",
                            ignore_warnings=False, fileout=None, check_suffix=True, **kwargs):
-        """ the lists of files stored in your local copy of the ztf database.
-        [This methods uses the get_data_path() method assuming source='local']
+        """ lists of files stored in your local copy of the ztf database.
+
+        This methods uses the get_data_path() method assuming source='local'.
 
         Parameters
         ----------
-        suffix: [string] -optional-
+        suffix: str
             What kind of data do you want? 
             Here is the list of available options depending on you image kind:
         
@@ -345,16 +347,16 @@ class _ZTFDownloader_( object ):
             - log:            returns `caltype`log.txt
             - unc:            returns `caltype`unc.fits
 
-        exists: [bool] -optional-
+        exists: bool
             returns only the file that exists in your computer. 
             If false, this will return the expected path of the requested data, 
             even though they might not exist.
 
-
-        source: [str] -optional-
+        source: str
             Where are the data stored ? 
             default is 'local' this will use you $ZTFDATA path. 
             You can also directly provide here where the IRSA data structure starts.
+
         Returns
         -------
         list
@@ -383,10 +385,12 @@ class _ZTFDownloader_( object ):
         return localfile
 
     def get_missing_data_index(self, suffix=None, which="any"):
-        """ 
+        """ get the list of missing data.
+
         Parameters
         ----------
-        suffix: [string] -optional-
+
+        suffix: str
             What kind of data do you want? 
             Here is the list of available options depending on you image kind:
         
@@ -421,7 +425,7 @@ class _ZTFDownloader_( object ):
             - unc:            returns `caltype`unc.fits
 
 
-        which: [string] -optional-
+        which: str
             Which missing data are you looking for:
             - any/all: missing because bad local files or because not downloaded yet.
             - bad/corrupted: missing because the local files are corrupted
@@ -429,7 +433,8 @@ class _ZTFDownloader_( object ):
 
         Returns
         -------
-        list of self.metadata indexes
+        list 
+           self.metadata indexes
         """
         return self.get_local_metatable(suffix=suffix, which=which, invert=True).index
         
