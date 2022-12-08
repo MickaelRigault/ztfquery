@@ -14,11 +14,12 @@ from matplotlib.patches import Polygon
 
 
 
-_FIELD_SOURCE = os.path.dirname(os.path.realpath(__file__))+"/data/ztf_fields.txt"
+_FIELD_SOURCE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data/ztf_fields.txt")
 FIELD_DATAFRAME = read_csv(_FIELD_SOURCE, index_col="ID")
 FIELDSNAMES = FIELD_DATAFRAME.index.values
 
-_CCD_COORDS  = read_csv(os.path.dirname(os.path.realpath(__file__))+"/data/ztf_ccd_layout.tbl").rename(columns={"CCD ":"CCD"}) # corner of each CCDS
+_CCD_COORDS  = read_csv( os.path.join(os.path.dirname(os.path.realpath(__file__)),"data/ztf_ccd_layout.tbl")).rename(columns={"CCD ":"CCD"}) # corner of each CCDS
+_QUAD_COORDS  = read_csv( os.path.join(os.path.dirname(os.path.realpath(__file__)),"data/ztf_ccd_quad_layout.tbl"))#.rename(columns={"CCD ":"CCD"}) # corner of each CCDS
 
 FIELD_COLOR = {1: "C2", 2: "C3", 3:"C1"}
 FIELD_CMAP = {1: mpl.cm.Greens, 2:mpl.cm.Reds, 3:mpl.cm.Oranges}
@@ -26,14 +27,16 @@ FIELDNAME_COLOR = {"zg": "C2", "zr":"C3", "zi":"C1"}
 
 _PLOTORIGIN = 180
 
-def _load_fields_geoserie_(inclccd=False):
+def _load_fields_geoserie_(inclquad=False, inclccd=False):
     """ Loads the FIELDS_GEOSERIE global variable 
     = Internal Tools =
     """
-    if not inclccd:
-        global FIELDS_GEOSERIE
-    else:
+    if inclquad:
+        global FIELD_QUADS_GEOSERIE
+    elif inclccd:
         global FIELD_CCDS_GEOSERIE
+    else:
+        global FIELDS_GEOSERIE
     
     try:
         from geopandas import geoseries
@@ -45,25 +48,35 @@ def _load_fields_geoserie_(inclccd=False):
             FIELD_CCDS_GEOSERIE = None 
         return
     
-    field_verts = get_field_vertices(fieldid=FIELDSNAMES, inclccd=inclccd, as_dict=True, as_polygon=True)
-    if not inclccd:
-        FIELDS_GEOSERIE = geoseries.GeoSeries(field_verts)
-    else:
+    field_verts = get_field_vertices(fieldid=FIELDSNAMES, inclquad=inclquad, inclccd=inclccd, as_dict=True, as_polygon=True)
+    if inclquad:
+        FIELD_QUADS_GEOSERIE = geoseries.GeoSeries(field_verts)
+    elif inclccd:
         FIELD_CCDS_GEOSERIE = geoseries.GeoSeries(field_verts)
+    else:
+        FIELDS_GEOSERIE = geoseries.GeoSeries(field_verts)
 
     
-def get_fields_geoserie(inclccd=False):
+def get_fields_geoserie(inclquad=False, inclccd=False):
     """ returns the global variable FIELDS_GEOSERIE, creates it if necessary """
-    if not inclccd:
-        if not hasattr(sys.modules[__name__], 'FIELDS_GEOSERIE'):
-            _load_fields_geoserie_(inclccd=False)
+    if inclquad:
+        if not hasattr(sys.modules[__name__], 'FIELD_QUADS_GEOSERIE'):
+            _load_fields_geoserie_(inclccd=False, inclquad=True)
         
-        return FIELDS_GEOSERIE
-    else:
+        return FIELD_QUADS_GEOSERIE
+    
+    elif inclccd:
         if not hasattr(sys.modules[__name__], 'FIELD_CCDS_GEOSERIE'):
             _load_fields_geoserie_(inclccd=True)
         
         return FIELD_CCDS_GEOSERIE
+    
+    else:
+        if not hasattr(sys.modules[__name__], 'FIELDS_GEOSERIE'):
+            _load_fields_geoserie_(inclccd=False)
+        
+        return FIELDS_GEOSERIE
+        
 
 # ------------------ #
 #                    #
@@ -269,7 +282,10 @@ def get_fields_containing_target(ra, dec, inclccd=False, buffer=None):
     return fields_geoserie.index[ fields_geoserie.buffer(buffer).contains(coordpoint) ]
 
 
-def get_field_vertices(fieldid=None, inclccd=False, ccd=None, as_dict=False, as_polygon=False,
+def get_field_vertices(fieldid=None,
+                           inclquad=False, qid=None,
+                           inclccd=False, ccd=None,
+                           as_dict=False, as_polygon=False,
                         squeeze=True):
     """ Get the fields countours 
     
@@ -305,11 +321,16 @@ def get_field_vertices(fieldid=None, inclccd=False, ccd=None, as_dict=False, as_
         
     if inclccd and ccd is None:
         ccd = np.arange(1,17)
+        
+    if inclquad and qid is None:
+        qid = np.arange(0,64)
 
     # - Actual calculation
     rafields, decfields  = get_field_centroid( np.asarray(np.atleast_1d(fieldid), dtype="int") ).T
-    fields_verts = get_corners(rafields, decfields, inclccd=inclccd, ccd=ccd,
-                                       inrad=False, squeeze=False)
+    fields_verts = get_corners(rafields, decfields,
+                                inclquad=inclquad, qid=qid,
+                                inclccd=inclccd, ccd=ccd,
+                                inrad=False, squeeze=False)
 
     # ----------- #
     #  Format     #
@@ -317,9 +338,9 @@ def get_field_vertices(fieldid=None, inclccd=False, ccd=None, as_dict=False, as_
     if as_polygon:
         try:
             from shapely import geometry
-            fields_countours = [[geometry.Polygon(fields_verts[f_][c_])
-                                         for c_,ccd_ in enumerate(np.atleast_1d(ccd))]
-                                         for f_,field_ in enumerate(np.atleast_1d(fieldid))]
+            shape = np.shape(fields_verts)
+            shape_flat = tuple([np.prod(shape[:-2])] + list(shape[-2:]))
+            fields_countours = np.reshape([geometry.Polygon(f_) for f_ in fields_verts.reshape(shape_flat)], shape[:-2])
         except ImportError:
             warnings.warn("You do not have shapely, Please run pip install shapely. 'as_polygon' set to False")
     else:
@@ -332,17 +353,18 @@ def get_field_vertices(fieldid=None, inclccd=False, ccd=None, as_dict=False, as_
         return fields_countours if not squeeze else np.squeeze(fields_countours)
 
     # full camera dict
-    if not inclccd:
-        return {i:k[0] for i,k in zip(fieldid,fields_countours)}
-    
-    # ccd dict
-    if squeeze:
-        return {f"{field_}_{ccd_}":fields_countours[f_][c_]
-                    for c_,ccd_ in enumerate(np.atleast_1d(ccd)) for f_,field_ in enumerate(np.atleast_1d(fieldid))}
-    else:
-        return {field_:{ccd_:fields_countours[f_][c_] for c_,ccd_ in enumerate(np.atleast_1d(ccd))}
+    if inclquad:
+        return {f"{field_}_{qid_}": fields_countours[f_][c_]
+                    for c_,qid_ in enumerate(np.atleast_1d(qid))
                     for f_,field_ in enumerate(np.atleast_1d(fieldid))}
-
+    
+    elif inclccd:
+        return {f"{field_}_{ccd_}": fields_countours[f_][c_]
+                    for c_,ccd_ in enumerate(np.atleast_1d(ccd))
+                    for f_,field_ in enumerate(np.atleast_1d(fieldid))}
+    else:
+        return {i:k[0] for i,k in zip(fieldid, fields_countours)}
+    
 def get_field_centroid(fieldid, system="radec"):
     """ Returns the central coordinate [RA,Dec] or  of the given field 
 
@@ -373,19 +395,29 @@ def get_field_centroid(fieldid, system="radec"):
     
     return radec
 
-def get_corners(ra_field, dec_field, inclccd=False, ccd=None, steps=5, squeeze=True, inrad=False):
+def get_corners(ra_field, dec_field, inclquad=False, inclccd=False,
+                    qid=None, ccd=None, steps=5, squeeze=True, inrad=False):
     """ """
     from .utils.tools import rot_xz_sph, _DEG2RA
-    
-    if not inclccd:
-        upper_left_corner = _CCD_COORDS.max()
-        lower_right_corner = _CCD_COORDS.min()
-    elif ccd is None:
+
+    if inclquad or qid is not None:
+        upper_left_corner = _QUAD_COORDS.groupby("Quad").max()
+        lower_right_corner = _QUAD_COORDS.groupby("Quad").min()
+        if qid is not None:
+            upper_left_corner = upper_left_corner.loc[qid]
+            lower_right_corner = lower_right_corner.loc[qid]
+    # CCD
+    elif inclccd or ccd is not None:
         upper_left_corner = _CCD_COORDS.groupby("CCD").max()
         lower_right_corner = _CCD_COORDS.groupby("CCD").min()
+        if ccd is not None:
+            upper_left_corner = upper_left_corner.loc[ccd]
+            lower_right_corner = lower_right_corner.loc[ccd]
+    # Focal Plane
     else:
-        upper_left_corner = _CCD_COORDS.groupby("CCD").max().loc[ccd]
-        lower_right_corner = _CCD_COORDS.groupby("CCD").min().loc[ccd]
+        upper_left_corner = _CCD_COORDS.max()
+        lower_right_corner = _CCD_COORDS.min()
+
         
     ewmin = -np.atleast_1d(upper_left_corner["EW"])
     nsmax = np.atleast_1d(upper_left_corner["NS"])
