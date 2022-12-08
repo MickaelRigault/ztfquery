@@ -925,8 +925,9 @@ def download_single_url(
     # = Where should the data be saved?
     if fileout is not None:
         directory = os.path.dirname(fileout)
+        oldmask = os.umask(0o002)
+
         if not os.path.exists(directory):
-            oldmask = os.umask(0o002)
             os.makedirs(directory, exist_ok=True)
 
     else:
@@ -1024,9 +1025,11 @@ class CCIN2P3(object):
             self.connect(auth)
 
         directory = os.path.dirname(localfile)
+        oldmask = os.umask(0o002)
+
         if not os.path.exists(directory):
             warnings.warn(f"scp_get(): creating {directory}")
-            oldmask = os.umask(0o002)
+
             os.makedirs(directory, exist_ok=True)
 
         with SCPClient(self.ssh.get_transport()) as scp:
