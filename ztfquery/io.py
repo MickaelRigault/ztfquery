@@ -390,7 +390,8 @@ def set_account(
     test=True,
     force=False,
     token_based=False,
-):
+    no_user=False
+    ):
     """Setup the username and password (simply encrypted!) for the given `which` account.
     Saved in ~/.ztfquery
     """
@@ -403,13 +404,19 @@ def set_account(
     if which in ["fritz"]:
         token_based = True
 
+    if which in ["logs"]:
+        no_user = True
+
     if token_based:
         if token is None:
             token = input(f"Enter your {which} token:")
     else:
         # - Name & Password
         if username is None:
-            username = input(f"Enter your {which} login: ")
+            if no_user:
+                username = "None"
+            else:
+                username = input(f"Enter your {which} login: ")
 
         if password is None:
             password = getpass.getpass()

@@ -6,20 +6,21 @@ import os, sys
 import pandas
 import numpy as np
 import warnings
-from pandas import read_csv
+
 from astropy import units, coordinates, time
 import matplotlib.pyplot as mpl
 from matplotlib.patches import Polygon
 
 
+from .io import _SOURCEDIR
 
-
-_FIELD_SOURCE = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data/ztf_fields.txt")
-FIELD_DATAFRAME = read_csv(_FIELD_SOURCE, index_col="ID")
+_FIELD_SOURCE = os.path.join(_SOURCEDIR, "data/ztf_fields.txt")
+FIELD_DATAFRAME = pandas.read_csv(_FIELD_SOURCE, index_col="ID")
 FIELDSNAMES = FIELD_DATAFRAME.index.values
 
-_CCD_COORDS  = read_csv( os.path.join(os.path.dirname(os.path.realpath(__file__)),"data/ztf_ccd_layout.tbl")).rename(columns={"CCD ":"CCD"}) # corner of each CCDS
-_QUAD_COORDS  = read_csv( os.path.join(os.path.dirname(os.path.realpath(__file__)),"data/ztf_ccd_quad_layout.tbl"))#.rename(columns={"CCD ":"CCD"}) # corner of each CCDS
+
+_CCD_COORDS  = pandas.read_csv( os.path.join(_SOURCEDIR, "data/ztf_ccd_layout.tbl")).rename(columns={"CCD ":"CCD"}) # corner of each CCDS
+_QUAD_COORDS  = pandas.read_csv( os.path.join(_SOURCEDIR,"data/ztf_ccd_quad_layout.tbl"))#.rename(columns={"CCD ":"CCD"}) # corner of each CCDS
 
 FIELD_COLOR = {1: "C2", 2: "C3", 3:"C1"}
 FIELD_CMAP = {1: mpl.cm.Greens, 2:mpl.cm.Reds, 3:mpl.cm.Oranges}
@@ -242,7 +243,6 @@ def spatialjoin_radec_to_fields(radec, fields, how="inner", predicate="intersect
     return geopoints.sjoin(fields,  how="inner", predicate="intersects", **kwargs)
 
 
-
 def get_fields_containing_target(ra, dec, inclccd=False, buffer=None):
     """ return the list of fields into which the position ra, dec is. 
     Remark that this is based on predefined field positions. 
@@ -390,6 +390,7 @@ def get_field_centroid(fieldid, system="radec"):
         syst = ["Ecl Long","Ecl Lat"]
     else:
         raise ValueError("unknown coordinate system %s select among: [radec / galactic / ecliptic]"%system)
+    
     fieldid = np.atleast_1d(fieldid)
     radec = np.asarray(FIELD_DATAFRAME[np.in1d(FIELD_DATAFRAME.index, fieldid)][syst].values)
     

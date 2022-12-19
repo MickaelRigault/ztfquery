@@ -22,6 +22,52 @@ if not os.path.exists( SKYVISIONSOURCE ):
 
 ZTFCOLOR = {"r":"C3","g":"C2","i":"C1"}
 
+
+LOGS_PATH = os.path.join(io.LOCALSOURCE, "logs")
+def get_summary_logs(force_dl=False, password=None, **kwargs):
+    """ download pre-made summary log
+    
+    Parameters
+    ----------
+    force_dl: bool
+        if the target file already exist, should this re-download it ?
+        
+    **kwargs goes to pandas.read_parquet
+    
+    Returns
+    -------
+    pandas.DataFrame
+        the log file.
+    """
+    filepath = os.path.join(LOGS_PATH, "ztf_obsfile_maglimcat.parquet")
+    if force_dl or not os.path.isfile(filepath):
+        
+        import shutil
+        from tqdm import tqdm
+        import requests
+        if password is None:
+            _, password = io._load_id_("logs")
+            
+        with requests.get("https://syncandshare.desy.de/public.php/webdav/",
+                          headers={"X-Requested-With": "XMLHttpRequest"},
+                          auth=("M3FXQZH9Qs35yNA", password),
+                          stream=True) as r:
+            # read the total length for the progress bar
+            total_length = int(r.headers.get("Content-Length"))
+            with tqdm.wrapattr(r.raw, "read", total=total_length, desc="") as raw:
+                with open(filepath, "wb") as output:
+                    shutil.copyfileobj(raw, output)
+                    
+    # Ok files is here
+    pointings = pandas.read_parquet(filepath, **kwargs)
+    pointings = pointings.rename({"expMJD":"mjd", 
+                                  "maglimcat":"maglimit", 
+                                  "filter":"band"}, axis=1)
+    pointings.columns = pointings.columns.str.lower()
+    pointings["skynoise"] = 1/5 * 10**(-0.4*(pointings["maglimit"] - pointings["zp"])) # ADU
+    return pointings
+
+
 #############################
 #                           #
 # Stand Alone Functions     # 
