@@ -351,8 +351,6 @@ def _parse_filename_(filename, builddir=False, squeeze=True, exists=False):
 # ================= #
 #  Crypting         #
 # ================= #
-
-
 def _load_id_(which, askit=True, token_based=False):
     """returns login information for the requested enty"""
     import base64

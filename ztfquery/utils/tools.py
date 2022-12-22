@@ -75,9 +75,9 @@ def rot_xz(v, theta):
     Rotate Cartesian vector v [x,y,z] by angle theta around axis (0,1,0)
     """
     x,y,z = v
-    return np.asarray([v[0]*np.cos(theta*_DEG2RA) - v[2]*np.sin(theta*_DEG2RA),
-                      v[1][None,:],
-                      v[2]*np.cos(theta*_DEG2RA) + v[0]*np.sin(theta*_DEG2RA)])
+    return [v[0]*np.cos(theta*_DEG2RA) - v[2]*np.sin(theta*_DEG2RA),
+            v[1][None,:],
+            v[2]*np.cos(theta*_DEG2RA) + v[0]*np.sin(theta*_DEG2RA)]
 
 def rot_xz_sph(l, b, theta):
     """
