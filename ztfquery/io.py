@@ -321,7 +321,6 @@ def download_from_filename(
 
 def _parse_filename_(filename, builddir=False, squeeze=True, exists=False):
     """ """
-    print("IS THIS USED ?")
     from glob import glob
 
     directory = os.path.dirname(filename)
@@ -388,8 +387,8 @@ def set_account(
     test=True,
     force=False,
     token_based=False,
-    no_user=False
-    ):
+    no_user=False,
+):
     """Setup the username and password (simply encrypted!) for the given `which` account.
     Saved in ~/.ztfquery
     """
@@ -697,24 +696,23 @@ def _is_textfile_bad_(filename):
         return True
 
 
-def _test_file_(filename, erasebad=True, fromdl=False, redownload=False, verbose=True):
+def _test_file_(filename, erasebad=True, fromdl=False, redownload=False, verbose=False):
     """ """
     propissue = dict(
         erasebad=erasebad, fromdl=fromdl, redownload=redownload, verbose=verbose
     )
-    # Fits file
     if ".fits" in filename:
         if not hash_for_file_exists(filename):
             try:
                 _ = fits.getdata(filename)
                 calculate_and_write_hash(filename)
             except FileNotFoundError:
-                warnings.warn(f"[Errno 2] No such file or directory: {filename}")
+                if verbose:
+                    warnings.warn(f"[Errno 2] No such file or directory: {filename}")
             except:
                 _fileissue_(filename, **propissue)
                 return False
 
-    # txt file
     elif ".txt" in filename:
         if not hash_for_file_exists(filename):
             try:
@@ -966,7 +964,7 @@ def download_single_url(
             calculate_and_write_hash(fileout)
 
     if filecheck:
-        _test_file_(fileout, erasebad=erasebad, fromdl=True)
+        _test_file_(fileout, erasebad=erasebad, fromdl=True, verbose=verbose)
 
 
 # ============== #
