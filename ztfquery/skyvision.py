@@ -282,6 +282,14 @@ def download_completed_log(date, auth=None, store=True,
     if returns:
         return df
 
+def download_html_log()
+    """
+    Redundancy in case skyvision has no nightly summary csv log, or if the night is still ongoing.
+    Parsing the log from the main status page.
+    """
+    print("YEAH")
+
+
 def download_qa_log(date, auth=None, summary_values=None, inclcal=True,
                     where_statement="default", groupby_values="same",
                     store=True, returns=True):
