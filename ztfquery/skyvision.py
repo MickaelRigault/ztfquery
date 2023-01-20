@@ -420,9 +420,19 @@ def download_html_log(
             "basename": "Base Image Name",
             "field": "Field ID",
             "exptime": "Exptime",
+            "TimeBetween(s)": "Setup Time",
         },
         inplace=True,
     )
+    df["Filter"] = df["Base Image Name"].apply(
+        lambda x: "FILTER_ZTF_G"
+        if x.split("_")[-1] == "zg"
+        else "FILTER_ZTF_R"
+        if x.split("_")[-1] == "zr"
+        else "FILTER_ZTF_I"
+    )
+    print(df.qcomment.unique())
+    df["Observation Status"] = "COMPLETE"
     return df
 
 
@@ -834,12 +844,18 @@ class CompletedLog(ZTFLog):
                 lambda x: 1 if x == "FILTER_ZTF_G" else 2 if x == "FILTER_ZTF_R" else 3
             ),
             "field": lm["Field ID"].astype(int),
-            "pid": lm["Program ID"],  # 0: inge ; 1: MSIP ; 2: Partners ; 3: Caltech
-            "ra": lm["RA"],
-            "dec": lm["DEC"],
             "totaltime": lm["Setup Time"],
             "base_name": lm.get("Base Image Name", "None"),
         }
+        if "Program ID" in lm.keys():
+            dict_.update(
+                {"pid": lm["Program ID"]}
+            )  # 0: inge ; 1: MSIP ; 2: Partners ; 3: Caltech
+        if "RA" in lm.keys():
+            dict_.update({"ra": lm["RA"]})
+        if "DEC" in lm.keys():
+            dict_update({"dec": lm["DEC"]})
+
         self._data = pandas.DataFrame(dict_)
         self.data.loc[:, "obsjd"] = pandas.DatetimeIndex(
             self.data["datetime"]
