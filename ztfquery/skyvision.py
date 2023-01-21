@@ -47,7 +47,6 @@ def get_summary_logs(force_dl=False, password=None, **kwargs):
 
         import shutil
         from tqdm import tqdm
-        import requests
 
         if password is None:
             _, password = io._load_id_("logs")
@@ -107,23 +106,35 @@ def get_log(date, which="completed", download=True, update=False, html=False, **
             ]
         )
 
-    if which == "html":
-        update = True
     date = np.atleast_1d(date)[0]
-    if update:
-        logdf_html = download_log(date, which=which, store=True, **kwargs)
 
     if which == "html":
-        logdf = logdf_html
+        store = False
+    else:
+        store = True
+
+    if update:
+        logdf = download_log(date, which=which, store=store, **kwargs)
+
     else:
         logdf = get_local_log(date, which=which, safeout=True)
 
     if logdf is None:
         if update:
-            warnings.warn(
-                f"Download did not seem successful. Cannot retrieve the {which}_log for {date}"
-            )
-            return None
+            # when ZTF is still observing, the nightly summary log is not available
+            # we're trying to parse the html page instead
+            if which != "html":
+                logdf = download_log(date, which="html", store=False, **kwargs)
+                if logdf is None:
+                    warnings.warn(
+                        f"Download did not seem successful. Cannot retrieve the {which}_log for {date}"
+                    )
+            else:
+                warnings.warn(
+                    f"Download did not seem successful. Cannot retrieve the {which}_log for {date}"
+                )
+            return logdf
+
         elif not download:
             warnings.warn(
                 f"No local {which}_log for {date}. Download it or set download to true"
@@ -283,6 +294,7 @@ def download_completed_log(
     elif message_missing in logtable:
         warnings.warn(f"No observing log for {date}")
         data = None
+        return None
     else:
         data = (
             [l.split() for l in logtable.splitlines()] if logtable is not None else None
@@ -297,7 +309,7 @@ def download_completed_log(
             "UT Time",
             "Sequence ID",
             "Program ID",
-            "Field ID",
+            "FieldID",
             "RA",
             "DEC",
             "Epoch",
@@ -307,7 +319,7 @@ def download_completed_log(
             "Filter",
             "Observation Status",
             "Setup Time",
-            "Exptime",
+            "ExptimeLong",
         ]
 
     elif time.Time(date) >= time.Time("2021-04-01"):
@@ -317,7 +329,7 @@ def download_completed_log(
             "Base Image Name",
             "Sequence ID",
             "Program ID",
-            "Field ID",
+            "FieldID",
             "RA",
             "DEC",
             "Epoch",
@@ -327,7 +339,7 @@ def download_completed_log(
             "Filter",
             "Observation Status",
             "Setup Time",
-            "Exptime",
+            "ExptimeLong",
             "_num0",
             "_num1",
         ]
@@ -339,7 +351,7 @@ def download_completed_log(
             "Base Image Name",
             "Sequence ID",
             "Program ID",
-            "Field ID",
+            "FieldID",
             "RA",
             "DEC",
             "Epoch",
@@ -349,7 +361,7 @@ def download_completed_log(
             "Filter",
             "Observation Status",
             "Setup Time",
-            "Exptime",
+            "ExptimeLong",
             "_num",
         ]
     else:
@@ -359,7 +371,7 @@ def download_completed_log(
             "Base Image Name",
             "Sequence ID",
             "Program ID",
-            "Field ID",
+            "FieldID",
             "RA",
             "DEC",
             "Epoch",
@@ -369,7 +381,7 @@ def download_completed_log(
             "Filter",
             "Observation Status",
             "Setup Time",
-            "Exptime",
+            "ExptimeLong",
         ]
 
     try:
@@ -419,13 +431,13 @@ def download_html_log(
         response = session.post(login_url, data=payload)
 
         response = requests.post(
-            f"http://skyvision.caltech.edu/{date}asdf",
+            f"http://skyvision.caltech.edu/{date}",
             cookies=session.cookies,
         )
         body = response.text
 
         if response.status_code != 200:
-            return body
+            return None
 
     df = pandas.read_html(body)[1]
 
@@ -441,7 +453,7 @@ def download_html_log(
     df.rename(
         columns={
             "basename": "Base Image Name",
-            "field": "Field ID",
+            "field": "FieldID",
             "exptime": "Exptime",
             "TimeBetween(s)": "Setup Time",
         },
@@ -858,27 +870,30 @@ class CompletedLog(ZTFLog):
     def load_data(self, load_obsjd=False, merge_qa=False):
         """ """
         lm = self.get_completed_logs()
+        lm.query("not FieldID.isnull()", inplace=True)
         dict_ = {
             "datetime": np.asarray(lm["UT Date"] + "T" + lm["UT Time"], dtype=str),
-            "date": lm["UT Date"],
-            "exptime": lm["Exptime"].astype(float),
-            "totalexptime": lm["Setup Time"].astype(float),
-            "fid": lm["Filter"].apply(
+            "date": lm["UT Date"].values,
+            "exptime": lm["ExptimeLong"].astype(float).values,
+            "totalexptime": lm["Setup Time"].astype(float).values,
+            "fid": lm["Filter"]
+            .apply(
                 lambda x: 1 if x == "FILTER_ZTF_G" else 2 if x == "FILTER_ZTF_R" else 3
-            ),
-            "field": lm["Field ID"].astype(int),
-            "totaltime": lm["Setup Time"],
-            "base_name": lm.get("Base Image Name", "None"),
+            )
+            .values,
+            "field": lm["FieldID"].astype(int).values,
+            "totaltime": lm["Setup Time"].values,
+            "base_name": lm.get("Base Image Name", "None").values,
         }
         if "Program ID" in lm.keys():
             dict_.update(
-                {"pid": lm["Program ID"]}
+                {"pid": lm["Program ID"].values}
             )  # 0: inge ; 1: MSIP ; 2: Partners ; 3: Caltech
         if "RA" in lm.keys():
-            dict_.update({"ra": lm["RA"]})
+            dict_.update({"ra": lm["RA"].values})
         if "DEC" in lm.keys():
-            dict_update({"dec": lm["DEC"]})
-
+            dict_.update({"dec": lm["DEC"].values})
+        print(dict_.keys())
         self._data = pandas.DataFrame(dict_)
         self.data.loc[:, "obsjd"] = pandas.DatetimeIndex(
             self.data["datetime"]
