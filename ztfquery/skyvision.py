@@ -10,7 +10,8 @@ import numpy as np
 import pandas
 
 from astropy import time
-import matplotlib.pyplot as mpl
+import matplotlib.pyplot as mp
+from datetime import datetime
 
 from io import StringIO
 from . import io, fields, ztftable
@@ -396,15 +397,37 @@ def download_html_log(
     """
     from bs4 import BeautifulSoup as bs
 
-    response = requests.post(
-        f"http://skyvision.caltech.edu/{date}",
-        auth=io._load_id_("skyvision") if auth is None else auth,
-    )
-    body = response.text
-    df = pandas.read_html(body)[1]
+    with requests.Session() as session:
+        # Create a session and do the login.
+        # The cookie will end up in the cookie jar of the session.
+        # data = {"username": "ztfadmin", "password": "letmeseeztf!"}
+        login_url = "http://skyvision.caltech.edu/login"
 
-    from astropy.time import Time
-    from datetime import datetime
+        user, passwd = io._load_id_("skyvision")
+
+        # Retrieve the CSRF token first
+        soup = bs(session.get(login_url).content, features="lxml")
+        csrftoken = soup.find("input", dict(name="csrf_token"))["value"]
+
+        payload = {
+            "action": "login",
+            "username": user,
+            "password": passwd,
+            "csrf_token": csrftoken,
+        }
+
+        response = session.post(login_url, data=payload)
+
+        response = requests.post(
+            f"http://skyvision.caltech.edu/{date}asdf",
+            cookies=session.cookies,
+        )
+        body = response.text
+
+        if response.status_code != 200:
+            return body
+
+    df = pandas.read_html(body)[1]
 
     dates = []
     times = []
@@ -431,7 +454,7 @@ def download_html_log(
         if x.split("_")[-1] == "zr"
         else "FILTER_ZTF_I"
     )
-    print(df.qcomment.unique())
+
     df["Observation Status"] = "COMPLETE"
     return df
 
