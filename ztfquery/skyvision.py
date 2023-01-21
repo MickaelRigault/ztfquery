@@ -874,7 +874,7 @@ class CompletedLog(ZTFLog):
         dict_ = {
             "datetime": np.asarray(lm["UT Date"] + "T" + lm["UT Time"], dtype=str),
             "date": lm["UT Date"].values,
-            "exptime": lm["ExptimeLong"].astype(float).values,
+            "exptime": lm["Exptime"].astype(float).values,
             "totalexptime": lm["Setup Time"].astype(float).values,
             "fid": lm["Filter"]
             .apply(
