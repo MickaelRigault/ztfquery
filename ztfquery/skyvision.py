@@ -893,7 +893,7 @@ class CompletedLog(ZTFLog):
             dict_.update({"ra": lm["RA"].values})
         if "DEC" in lm.keys():
             dict_.update({"dec": lm["DEC"].values})
-        print(dict_.keys())
+
         self._data = pandas.DataFrame(dict_)
         self.data.loc[:, "obsjd"] = pandas.DatetimeIndex(
             self.data["datetime"]
