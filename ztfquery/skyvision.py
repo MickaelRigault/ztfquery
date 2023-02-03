@@ -100,13 +100,14 @@ def get_log(date, which="completed", download=True, update=False, html=False, **
     """
     if len(np.atleast_1d(date)) > 1:
         log_dfs = [
-            (
+            log
+            for date_ in date
+            if (
                 log := get_log(
                     date_, which=which, download=download, update=update, **kwargs
                 )
             )
-            for date_ in date
-            if log is not None
+            is not None
         ]
         return pandas.concat(log_dfs)
 
@@ -879,8 +880,8 @@ class CompletedLog(ZTFLog):
     # -------- #
     def load_data(self, load_obsjd=False, merge_qa=False):
         """ """
-        lm = self.get_completed_logs()
-        lm.query("not FieldID.isnull()", inplace=True)
+        lm_raw = self.get_completed_logs()
+        lm = lm_raw.query("not FieldID.isnull()")
         dict_ = {
             "datetime": np.asarray(lm["UT Date"] + "T" + lm["UT Time"], dtype=str),
             "date": lm["UT Date"].values,
