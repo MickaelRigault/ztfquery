@@ -439,7 +439,12 @@ def download_html_log(
         if response.status_code != 200:
             return None
 
-    df = pandas.read_html(body)[1]
+    dfs = pandas.read_html(body)
+
+    if len(dfs) < 2:
+        return None
+
+    df = dfs[1]
 
     dates = []
     times = []
@@ -893,7 +898,7 @@ class CompletedLog(ZTFLog):
             dict_.update({"ra": lm["RA"].values})
         if "DEC" in lm.keys():
             dict_.update({"dec": lm["DEC"].values})
-
+        print(dict_.keys())
         self._data = pandas.DataFrame(dict_)
         self.data.loc[:, "obsjd"] = pandas.DatetimeIndex(
             self.data["datetime"]
