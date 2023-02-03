@@ -99,12 +99,16 @@ def get_log(date, which="completed", download=True, update=False, html=False, **
     DataFrame
     """
     if len(np.atleast_1d(date)) > 1:
-        return pandas.concat(
-            [
-                get_log(date_, which=which, download=download, update=update, **kwargs)
-                for date_ in date
-            ]
-        )
+        log_dfs = [
+            (
+                log := get_log(
+                    date_, which=which, download=download, update=update, **kwargs
+                )
+            )
+            for date_ in date
+            if log is not None
+        ]
+        return pandas.concat(log_dfs)
 
     date = np.atleast_1d(date)[0]
 
@@ -283,7 +287,8 @@ def download_completed_log(
         print(logtable)
 
     d = date.split("-")
-    message_missing = f"Log queue.{d[0]}{d[1]}{d[2]}.dat does not exists"
+    message_missing_date = f"Log queue.{d[0]}{d[1]}{d[2]}.dat does not exists"
+    message_missing = "Log queue.dat does not exists"
 
     if logtable is None:
         warnings.warn(f"no downloaded information for night {date}")
@@ -291,7 +296,7 @@ def download_completed_log(
     elif "does not exist for this night" in logtable:
         warnings.warn(f"No observing log for {date}")
         data = None
-    elif message_missing in logtable:
+    elif message_missing_date in logtable or message_missing in logtable:
         warnings.warn(f"No observing log for {date}")
         data = None
         return None
