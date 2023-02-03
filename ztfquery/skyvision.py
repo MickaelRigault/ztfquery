@@ -3,9 +3,7 @@
 
 """ ZTF monitoring information """
 
-import requests
-import os, json
-import warnings
+import requests, logging, os, json, warnings
 import numpy as np
 import pandas
 
@@ -25,6 +23,8 @@ ZTFCOLOR = {"r": "C3", "g": "C2", "i": "C1"}
 
 
 LOGS_PATH = os.path.join(io.LOCALSOURCE, "logs")
+
+logger = logging.getLogger(__name__)
 
 
 def get_summary_logs(force_dl=False, password=None, **kwargs):
@@ -274,6 +274,7 @@ def download_completed_log(
     -------
     DataFrame
     """
+    logger.debug(f"Getting csv log from skyvision for date {date}")
     if date in ["2018-03-04"]:
         warnings.warn(f"Known night with Failure only {date}, log format incorrect")
         logtable = None
@@ -392,6 +393,7 @@ def download_completed_log(
 
     try:
         df = pandas.DataFrame(data, columns=columns)
+        logger.info(f"Found csv log for date {date} ({len(df)} entries)")
     except:
         warnings.warn(
             f"Column format does not match the completed_log date downloaded for {date}"
@@ -413,6 +415,8 @@ def download_html_log(
     Redundancy in case skyvision has no nightly summary csv log, or if the night is still ongoing.
     Parsing the log from the main status page.
     """
+    logger.debug(f"Getting html log from skyvision for date {date}")
+
     from bs4 import BeautifulSoup as bs
 
     with requests.Session() as session:
@@ -448,6 +452,7 @@ def download_html_log(
     dfs = pandas.read_html(body)
 
     if len(dfs) < 2:
+        logger.info(f"No html log found for date {date}")
         return None
 
     df = dfs[1]
@@ -479,6 +484,7 @@ def download_html_log(
     )
 
     df["Observation Status"] = "COMPLETE"
+    logger.info(f"Found html log for date {date} ({len(df)} entries)")
     return df
 
 
@@ -893,18 +899,17 @@ class CompletedLog(ZTFLog):
             )
             .values,
             "field": lm["FieldID"].astype(int).values,
-            "totaltime": lm["Setup Time"].values,
+            "totaltime": lm["Setup Time"].astype(float).values,
             "base_name": lm.get("Base Image Name", "None").values,
         }
         if "Program ID" in lm.keys():
             dict_.update(
-                {"pid": lm["Program ID"].values}
+                {"pid": lm["Program ID"].astype(float).values}
             )  # 0: inge ; 1: MSIP ; 2: Partners ; 3: Caltech
         if "RA" in lm.keys():
             dict_.update({"ra": lm["RA"].values})
         if "DEC" in lm.keys():
             dict_.update({"dec": lm["DEC"].values})
-        print(dict_.keys())
         self._data = pandas.DataFrame(dict_)
         self.data.loc[:, "obsjd"] = pandas.DatetimeIndex(
             self.data["datetime"]
