@@ -61,9 +61,9 @@ def get_scifile_of_filename(filename, qid=None, source="irsa"):
     prop["paddedccdid"] = f"{parsing['ccdid']:02d}"
     if parsing["kind"] == "raw":
         if qid is None:
-            return [science_path(qid=i, **prop, source=source)
+            return [science_path(qid=str(i), **prop, source=source)
                         for i in range(1,5)]
-        return science_path(qid=qid, **prop, source=source)
+        return science_path(qid=str(qid), **prop, source=source)
     return science_path(qid=parsing["qid"], **prop, source=source)
     
         
