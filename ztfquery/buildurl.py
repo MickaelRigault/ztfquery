@@ -54,11 +54,11 @@ def get_rawfile_of_filename(filename, source="irsa"):
 def get_scifile_of_rawfile(filename, source="irsa"):
     """ """
     
-    science_path(year, month, day, fracday,
-                paddedfield,
-                filtercode, paddedccdid, qid,
-                imgtypecode="o", suffix="sciimg.fits",
-                source="", verbose=False, check_suffix=True):
+#    science_path(year, month, day, fracday,
+#                paddedfield,
+#                filtercode, paddedccdid, qid,
+#                imgtypecode="o", suffix="sciimg.fits",
+#                source="", verbose=False, check_suffix=True):
     
     
         
