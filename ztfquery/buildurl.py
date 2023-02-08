@@ -44,15 +44,23 @@ def get_rawfile_of_filename(filename, source="irsa"):
     """ """
 
     parsing = parse_filename(filename)
-    kind = parsing["kind"]
-    url = filename_to_url(filename, kind=kind)
-
     func_argument = ["year", "month", "day", "fracday", "filtercode",
                      "imgtypecode", "paddedfield"]
         
     prop = {k:parsing[k] for k in func_argument}
     prop["paddedccdid"] = f"{parsing['ccdid']:02d}"
     return raw_path(source=source, **prop)
+
+def get_scifile_of_rawfile(filename, source="irsa"):
+    """ """
+    
+    science_path(year, month, day, fracday,
+                paddedfield,
+                filtercode, paddedccdid, qid,
+                imgtypecode="o", suffix="sciimg.fits",
+                source="", verbose=False, check_suffix=True):
+    
+    
         
 
 # ================== #
