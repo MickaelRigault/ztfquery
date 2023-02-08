@@ -51,15 +51,20 @@ def get_rawfile_of_filename(filename, source="irsa"):
     prop["paddedccdid"] = f"{parsing['ccdid']:02d}"
     return raw_path(source=source, **prop)
 
-def get_scifile_of_rawfile(filename, source="irsa"):
+def get_scifile_of_filename(filename, qid=None, source="irsa"):
     """ """
-    
-#    science_path(year, month, day, fracday,
-#                paddedfield,
-#                filtercode, paddedccdid, qid,
-#                imgtypecode="o", suffix="sciimg.fits",
-#                source="", verbose=False, check_suffix=True):
-    
+    parsing = parse_filename(filename)
+    func_argument = ["year", "month", "day", "fracday", "paddedfield","filtercode",
+                     "paddedccdid", "qid"]
+    # work all the time
+    prop = {k:str(parsing[k]) for k in func_argument if k not in ["qid", "paddedccdid"]}
+    prop["paddedccdid"] = f"{parsing['ccdid']:02d}"
+    if parsing["kind"] == "raw":
+        if qid is None:
+            return [buildurl.science_path(qid=i, **prop, source=source)
+                        for i in range(1,5)]
+        return buildurl.science_path(qid=qid, **prop, source=source)
+    return buildurl.science_path(qid=parsing["qid"], **prop, source=source)
     
         
 
