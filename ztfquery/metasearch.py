@@ -274,9 +274,12 @@ class MetaQuery:
             **kwargs,
         )
 
+
+        if radec is None:
+            radec = [None, None]
         self.logger.debug(
-            f"Obtaining metatable for this query:\nkind: {kind} | RA: {radec[0]} | Dec: {radec[1]} | size: {size} | mcen: {mcen} | sql_query: {sql_query} | colnames: {colnames}"
-        )
+                f"Obtaining metatable for this query:\nkind: {kind} | RA: {radec[0]} | Dec: {radec[1]} | size: {size} | mcen: {mcen} | sql_query: {sql_query} | colnames: {colnames}"
+                )
 
         datain = StringIO(
             requests.get(self.query_url, cookies=cookies).content.decode("utf-8")
@@ -306,6 +309,7 @@ class MetaQuery:
             self.metatable.query("ipac_gid>0", inplace=True)
             self.metatable.reset_index(drop=True, inplace=True)
 
+        #if self.logger is not None:
         self.logger.info(f"Obtained metatable from IPAC, {len(self.metatable)} entries")
 
     def build_query(
