@@ -13,8 +13,6 @@ import warnings
 # This enables multiprocess downloading
 from . import io
 
-
-
 # Combining metadata with buildurl
 def metatable_to_url(metatable, datakind=None, suffix=None, source=None, **kwargs):
     """generic method to build the url/fullpath or the requested data.
