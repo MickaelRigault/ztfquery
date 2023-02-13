@@ -196,6 +196,8 @@ ipac_gid    IPAC Group ID               int 0   0
 meta_id Metadata record ID              long    0   1
 poly    Bounding polygon
 """
+
+
 ############################
 #                          #
 #   Meta API Object        #
@@ -242,7 +244,7 @@ class MetaQuery:
         sql_query=None,
         colnames=None,
         cookies=None,
-        clean=True,
+        clean=False,
         **kwargs,
     ):
         """Query IRSA to get the metadate needed to know how to access the data themselves.
@@ -274,12 +276,11 @@ class MetaQuery:
             **kwargs,
         )
 
-
         if radec is None:
             radec = [None, None]
         self.logger.debug(
-                f"Obtaining metatable for this query:\nkind: {kind} | RA: {radec[0]} | Dec: {radec[1]} | size: {size} | mcen: {mcen} | sql_query: {sql_query} | colnames: {colnames}"
-                )
+            f"Obtaining metatable for this query:\nkind: {kind} | RA: {radec[0]} | Dec: {radec[1]} | size: {size} | mcen: {mcen} | sql_query: {sql_query} | colnames: {colnames}"
+        )
 
         datain = StringIO(
             requests.get(self.query_url, cookies=cookies).content.decode("utf-8")
@@ -309,7 +310,7 @@ class MetaQuery:
             self.metatable.query("ipac_gid>0", inplace=True)
             self.metatable.reset_index(drop=True, inplace=True)
 
-        #if self.logger is not None:
+        # if self.logger is not None:
         self.logger.info(f"Obtained metatable from IPAC, {len(self.metatable)} entries")
 
     def build_query(
