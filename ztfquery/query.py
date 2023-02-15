@@ -3,7 +3,7 @@
 
 """ Combine MetaSearch and MetaURL to get data from IRSA """
 
-import os
+import os, logging
 from pathlib import Path
 import numpy as np
 from .metasearch import download_metadata, _test_kind_
@@ -13,6 +13,8 @@ import warnings
 
 # This enables multiprocess downloading
 from . import io
+
+logger = logging.getLogger(__name__)
 
 
 # Combining metadata with buildurl
@@ -243,7 +245,6 @@ class _ZTFDownloader_(object):
         indexes=None,
         download_dir=None,
         show_progress=True,
-        verbose=True,
         nodl=False,
         overwrite=False,
         nprocess=None,
@@ -341,21 +342,30 @@ class _ZTFDownloader_(object):
         )
 
         # The IRSA location
-        self.to_download_urls = [
+        self.to_download_urls_full = [
             os.path.join(buildurl._source_to_location_(source), d_)
             for d_ in self._relative_data_path
         ]
+
         # Where do you want them?
         if download_dir is None:  # Local IRSA structure
-            self.download_location = [
+            self.download_location_full = [
                 os.path.join(buildurl._source_to_location_("local"), d_)
                 for d_ in self._relative_data_path
             ]
         else:
-            self.download_location = [
+            self.download_location_full = [
                 os.path.join(download_dir, "%s" % (d_.split("/")[-1]))
                 for d_ in self._relative_data_path
             ]
+
+        # check for hashes
+        self.to_download_urls = []
+        self.download_location = []
+        for i, entry in enumerate(self.download_location_full):
+            if not io.hash_for_file_exists(entry):
+                self.to_download_urls.append(self.to_download_urls_full[i])
+                self.download_location.append(entry)
 
         if nodl:
             return self.to_download_urls, self.download_location
@@ -369,7 +379,6 @@ class _ZTFDownloader_(object):
                 self.download_location,
                 cutouts=cutouts,
                 show_progress=show_progress,
-                verbose=verbose,
                 overwrite=overwrite,
                 nprocess=nprocess,
                 cookies=cookie,
@@ -600,7 +609,6 @@ class _ZTFDownloader_(object):
         erasebad=False,
         redownload=False,
         indexes=None,
-        verbose=True,
         nprocess=4,
         **kwargs,
     ):
@@ -670,19 +678,15 @@ class _ZTFDownloader_(object):
             return None
 
         if erasebad and not redownload:
-            if verbose:
-                print("Removing %d files" % len(badfiles))
+            logger.debug("Removing %d files" % len(badfiles))
             for file_ in badfiles:
                 os.remove(file_)
         elif redownload:
-            if verbose:
-                print("%d files have been redownloaded" % len(badfiles))
+            logger.debug("%d files have been redownloaded" % len(badfiles))
         else:
-            if verbose:
-                print(
-                    "%d files to be removed (run this with erasebad=True)"
-                    % len(badfiles)
-                )
+            logger.debug(
+                "%d files to be removed (run this with erasebad=True)" % len(badfiles)
+            )
 
         return badfiles
 
@@ -720,6 +724,7 @@ class ZTFQuery(ztftable._ZTFTable_, _ZTFDownloader_):
         caltype=None,
         sql_query=None,
         auth=None,
+        clean=False,
         **kwargs,
     ):
         """Loads a ZTFQuery instance and runs load_metadata with the given input"""
@@ -731,6 +736,7 @@ class ZTFQuery(ztftable._ZTFTable_, _ZTFDownloader_):
             caltype=caltype,
             sql_query=sql_query,
             auth=auth,
+            clean=clean,
             **kwargs,
         )
         return this
@@ -937,6 +943,7 @@ class ZTFQuery(ztftable._ZTFTable_, _ZTFDownloader_):
             source=source,
             **kwargs,
         )
+
         return result
 
     def get_local_metatable(self, suffix=None, which="any", invert=False):
@@ -991,7 +998,6 @@ class ZTFQuery(ztftable._ZTFTable_, _ZTFDownloader_):
         -------
         self.metadata (filtered to match your local data)
         """
-
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             if which in ["all", "any"]:

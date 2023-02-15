@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 
-import os, hashlib, logging
+import os, hashlib, logging, multiprocessing
 import sys
 import time
 import pandas
@@ -695,6 +695,7 @@ def _is_textfile_bad_(filename):
 def _test_file_(filename, erasebad=True, fromdl=False, redownload=False):
     """ """
     propissue = dict(erasebad=erasebad, fromdl=fromdl, redownload=redownload)
+
     if ".fits" in filename:
         if not hash_for_file_exists(filename):
             try:
@@ -778,6 +779,7 @@ def _download_(args):
     url, fileout,overwrite = args
     """
     url, fileout, overwrite, wait, cutouts, ra, dec, cutout_size = args
+
     download_single_url(
         url,
         fileout=fileout,
@@ -849,10 +851,9 @@ def download_url(
                 wait=wait,
                 **kwargs,
             )
+
     else:
         # Multi processing
-        import multiprocessing
-
         if show_progress:
             from astropy.utils.console import ProgressBar
 
@@ -872,21 +873,23 @@ def download_url(
         dec_ = [radec[1]] * len(to_download_urls)
         cutout_size_ = [cutout_size] * len(to_download_urls)
 
+        args = zip(
+            to_download_urls,
+            download_location,
+            overwrite_,
+            wait_,
+            cutouts_,
+            ra_,
+            dec_,
+            cutout_size_,
+        )
+
         with multiprocessing.Pool(nprocess) as p:
             # Da Loop
             for j, result in enumerate(
                 p.imap_unordered(
                     _download_,
-                    zip(
-                        to_download_urls,
-                        download_location,
-                        overwrite_,
-                        wait_,
-                        cutouts_,
-                        ra_,
-                        dec_,
-                        cutout_size_,
-                    ),
+                    args,
                 )
             ):
                 if bar is not None:
