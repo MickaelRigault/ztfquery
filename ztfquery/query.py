@@ -4,6 +4,7 @@
 """ Combine MetaSearch and MetaURL to get data from IRSA """
 
 import os
+from pathlib import Path
 import numpy as np
 from .metasearch import download_metadata, _test_kind_
 from . import buildurl, ztftable
@@ -237,6 +238,7 @@ class _ZTFDownloader_(object):
     def download_data(
         self,
         suffix=None,
+        cutouts=False,
         source="IRSA",
         indexes=None,
         download_dir=None,
@@ -251,6 +253,8 @@ class _ZTFDownloader_(object):
         redownload=True,
         ignore_warnings=False,
         client=None,
+        radec=None,
+        cutout_size=None,
         **kwargs,
     ):
         """
@@ -289,6 +293,10 @@ class _ZTFDownloader_(object):
             - None (#default) returns `caltype`.fits
             - log:            returns `caltype`log.txt
             - unc:            returns `caltype`unc.fits
+
+        cutouts: [bool] -False-
+            If this is true, only cutouts centered around [radec] with size [cutout_size]
+            will be downloaded. Useful for forced photometry.
 
         download_dir: [string] -optional-
             Directory where the file should be downloaded.
@@ -359,6 +367,7 @@ class _ZTFDownloader_(object):
             delayed_ = io.download_url(
                 self.to_download_urls,
                 self.download_location,
+                cutouts=cutouts,
                 show_progress=show_progress,
                 verbose=verbose,
                 overwrite=overwrite,
@@ -366,6 +375,8 @@ class _ZTFDownloader_(object):
                 cookies=cookie,
                 filecheck=False,
                 client=client,
+                radec=radec,
+                cutout_size=cutout_size,
             )
 
             if client is not None:
@@ -496,8 +507,17 @@ class _ZTFDownloader_(object):
         list
         """
         files = self.get_data_path(
-            suffix=suffix, source=source, indexes=indexes, check_suffix=check_suffix
+            suffix=suffix,
+            source=source,
+            indexes=indexes,
+            check_suffix=check_suffix,
         )
+
+        download_dir = kwargs.get("download_dir")
+
+        if download_dir is not None:
+            files = [str(Path(download_dir) / Path(f).name) for f in files]
+
         if not exists:
             return files
 
@@ -852,7 +872,13 @@ class ZTFQuery(ztftable._ZTFTable_, _ZTFDownloader_):
 
             self.metaquery = download_metadata(kind=kind, sql_query=sql_query, **kwargs)
 
-    def get_data_path(self, suffix=None, source=None, indexes=None, **kwargs):
+    def get_data_path(
+        self,
+        suffix=None,
+        source=None,
+        indexes=None,
+        **kwargs,
+    ):
         """generic method to build the url/fullpath or the requested data.
         This method is based on the `builurl.py` module of ztfquery.
 
@@ -902,7 +928,7 @@ class ZTFQuery(ztftable._ZTFTable_, _ZTFDownloader_):
         if "check_suffix" in kwargs and self.datakind not in ["cal", "sci"]:
             _ = kwargs.pop("check_suffix")
 
-        return metatable_to_url(
+        result = metatable_to_url(
             self.metatable
             if indexes is None
             else self.metatable.loc[np.atleast_1d(indexes)],
@@ -911,6 +937,7 @@ class ZTFQuery(ztftable._ZTFTable_, _ZTFDownloader_):
             source=source,
             **kwargs,
         )
+        return result
 
     def get_local_metatable(self, suffix=None, which="any", invert=False):
         """

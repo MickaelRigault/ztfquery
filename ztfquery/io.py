@@ -785,15 +785,23 @@ def _download_(args):
     """To be used within _ZTFDownloader_.download_data()
     url, fileout,overwrite,verbose = args
     """
-    url, fileout, overwrite, verbose, wait = args
+    url, fileout, overwrite, verbose, wait, cutouts, ra, dec, cutout_size = args
     download_single_url(
-        url, fileout=fileout, overwrite=overwrite, verbose=verbose, wait=wait
+        url,
+        fileout=fileout,
+        overwrite=overwrite,
+        verbose=verbose,
+        wait=wait,
+        cutouts=cutouts,
+        radec=[ra, dec],
+        cutout_size=cutout_size,
     )
 
 
 def download_url(
     to_download_urls,
     download_location,
+    cutouts=False,
     show_progress=True,
     verbose=True,
     wait=None,
@@ -801,6 +809,8 @@ def download_url(
     nprocess=None,
     cookies=None,
     client=None,
+    radec=None,
+    cutout_size=None,
     **kwargs,
 ):
     """ """
@@ -812,12 +822,15 @@ def download_url(
         d_download = [
             delayed(download_single_url)(
                 url,
+                cutouts=cutouts,
                 fileout=fileout,
                 show_progress=False,
                 overwrite=overwrite,
                 verbose=False,
                 wait=wait,
                 cookies=cookies,
+                radec=radec,
+                cutout_size=cutout_size,
                 **kwargs,
             )
             for url, fileout in zip(to_download_urls, download_location)
@@ -838,11 +851,14 @@ def download_url(
         for url, fileout in zip(to_download_urls, download_location):
             download_single_url(
                 url,
+                cutouts=cutouts,
                 fileout=fileout,
                 show_progress=show_progress,
                 overwrite=overwrite,
                 verbose=verbose,
                 cookies=cookies,
+                radec=radec,
+                cutout_size=cutout_size,
                 wait=wait,
                 **kwargs,
             )
@@ -866,13 +882,26 @@ def download_url(
         overwrite_ = [overwrite] * len(to_download_urls)
         verbose_ = [verbose] * len(to_download_urls)
         wait_ = [wait] * len(to_download_urls)
+        cutouts_ = [cutouts] * len(to_download_urls)
+        ra_ = [radec[0]] * len(to_download_urls)
+        dec_ = [radec[1]] * len(to_download_urls)
+        cutout_size_ = [cutout_size] * len(to_download_urls)
+
         with multiprocessing.Pool(nprocess) as p:
             # Da Loop
             for j, result in enumerate(
                 p.imap_unordered(
                     _download_,
                     zip(
-                        to_download_urls, download_location, overwrite_, verbose_, wait_
+                        to_download_urls,
+                        download_location,
+                        overwrite_,
+                        verbose_,
+                        wait_,
+                        cutouts_,
+                        ra_,
+                        dec_,
+                        cutout_size_,
                     ),
                 )
             ):
@@ -885,6 +914,9 @@ def download_url(
 
 def download_single_url(
     url,
+    cutouts=False,
+    radec=None,
+    cutout_size=30,
     fileout=None,
     overwrite=False,
     verbose=True,
@@ -911,6 +943,14 @@ def download_single_url(
     else:
         if verbose and fileout:
             warnings.warn("downloading %s to %s" % (url, fileout))
+
+    if cutouts:
+        if radec is None:
+            raise ValueError(
+                "You selected to download cutouts only. Please provide the radec parameter. Default cutout_size: 30 arcsec"
+            )
+
+    url += f"?center={radec[0]},{radec[1]}&size={cutout_size}arcsec&gzip=false"
 
     # = Password and Username
     if cookies is None:
