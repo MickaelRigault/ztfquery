@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
 
-import os, hashlib
+import os, hashlib, logging
 import sys
 import time
 import pandas
@@ -29,6 +29,8 @@ _ENCRYPTING_FILE = os.path.expanduser("~") + "/.queryirsa"
 LOCALSOURCE = os.getenv("ZTFDATA", "./Data/")
 CCIN2P3_SOURCE = "/sps/ztf/data/"
 
+logger = logging.getLogger(__name__)
+
 
 # ================= #
 #  High level tools #
@@ -37,7 +39,6 @@ def get_file(
     filename,
     suffix=None,
     downloadit=True,
-    verbose=False,
     check_suffix=True,
     dlfrom="irsa",
     overwrite=False,
@@ -92,7 +93,6 @@ def get_file(
             filename_to_url(
                 filename_,
                 suffix=suffix_,
-                verbose=verbose,
                 source="local",
                 check_suffix=check_suffix,
             )
@@ -248,7 +248,6 @@ def parse_filename(filename, as_serie=True):
 def download_from_filename(
     filename,
     suffix=None,
-    verbose=False,
     overwrite=False,
     auth=None,
     nodl=False,
@@ -276,7 +275,6 @@ def download_from_filename(
             filename_to_url(
                 file_,
                 suffix=suffix,
-                verbose=verbose,
                 source=host,
                 check_suffix=check_suffix,
             )
@@ -285,7 +283,6 @@ def download_from_filename(
             filename_to_url(
                 file_,
                 suffix=suffix,
-                verbose=verbose,
                 source="local",
                 check_suffix=check_suffix,
             )
@@ -312,7 +309,6 @@ def download_from_filename(
             client=client,
             wait=wait,
             overwrite=overwrite,
-            verbose=verbose,
             cookies=get_cookie(*auth),
             show_progress=show_progress,
             **kwargs,
@@ -333,7 +329,7 @@ def _parse_filename_(filename, builddir=False, squeeze=True, exists=False):
 
     # unique object
     if "*" in filename and not exists:
-        warnings.warn(
+        logger.warning(
             "apparent variable conflict, filename contains '*', but exists is False."
         )
 
@@ -366,7 +362,7 @@ def _load_id_(which, askit=True, token_based=False):
                 f"No {which} account setup. Add then in .ztfquery or run ztfquery.io.set_account({which})"
             )
         else:
-            warnings.warn(f"No {which} account setup, please provide it")
+            logger.warning(f"No {which} account setup, please provide it")
             set_account(which, token_based=token_based)
             config = ConfigParser()
             config.read(_ENCRYPT_FILE)
@@ -430,11 +426,11 @@ def set_account(
                 wrong_ = True
         else:
             if not token_based:
-                warnings.warn(
+                logger.info(
                     f"No test designed for {which}. Cannot test if logins are correct."
                 )
             else:
-                warnings.warn(
+                logger.info(
                     f"No test designed for {which}. Cannot test if token is correct."
                 )
 
@@ -545,7 +541,7 @@ def run_full_filecheck(
 
     """
     all_ztffiles = get_localfiles(extension=extension, startpath=startpath)
-    print(f"{len(all_ztffiles)} files to check")
+    logger.info(f"{len(all_ztffiles)} files to check")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         badfiles = test_files(
@@ -566,7 +562,6 @@ def test_files(
     nprocess=1,
     show_progress=True,
     redownload=False,
-    verbose=False,
     **kwargs,
 ):
     """
@@ -634,7 +629,7 @@ def test_files(
                 bar.update(len(filename))
 
     if len(fileissue) > 0:
-        warnings.warn(f"{len(fileissue)} file failed")
+        logger.info(f"{len(fileissue)} file failed")
         if redownload:
             from .buildurl import _localsource_to_source_
 
@@ -644,12 +639,13 @@ def test_files(
             source_to_dl = ["irsa"]
             for source in source_to_dl:
                 source_dl = np.in1d(locations, [source])
-                print(f"Downloading {len(source_dl[source_dl])} files from {source}")
+                logger.info(
+                    f"Downloading {len(source_dl[source_dl])} files from {source}"
+                )
                 download_url(
                     np.asarray(to_download_urls)[source_dl],
                     np.asarray(fileissue)[source_dl],
                     show_progress=show_progress,
-                    verbose=verbose,
                     overwrite=True,
                     nprocess=nprocess,
                     cookies=get_cookie(*_load_id_(source)),
@@ -657,7 +653,7 @@ def test_files(
                 )
             for source_ in np.unique(locations):
                 if source_ is not None and source_ not in source_to_dl:
-                    warnings.warn(
+                    logger.warning(
                         f"files from {source_} have not downloaded (not implemented)."
                     )
 
@@ -696,19 +692,16 @@ def _is_textfile_bad_(filename):
         return True
 
 
-def _test_file_(filename, erasebad=True, fromdl=False, redownload=False, verbose=False):
+def _test_file_(filename, erasebad=True, fromdl=False, redownload=False):
     """ """
-    propissue = dict(
-        erasebad=erasebad, fromdl=fromdl, redownload=redownload, verbose=verbose
-    )
+    propissue = dict(erasebad=erasebad, fromdl=fromdl, redownload=redownload)
     if ".fits" in filename:
         if not hash_for_file_exists(filename):
             try:
                 _ = fits.getdata(filename)
                 calculate_and_write_hash(filename)
             except FileNotFoundError:
-                if verbose:
-                    warnings.warn(f"[Errno 2] No such file or directory: {filename}")
+                logger.debug(f"[Errno 2] No such file or directory: {filename}")
             except:
                 _fileissue_(filename, **propissue)
                 return False
@@ -719,30 +712,30 @@ def _test_file_(filename, erasebad=True, fromdl=False, redownload=False, verbose
                 _ = open(filename).read().splitlines()
                 calculate_and_write_hash(filename)
             except FileNotFoundError:
-                warnings.warn(f"[Errno 2] No such file or directory: {filename}")
+                logger.debug(f"[Errno 2] No such file or directory: {filename}")
             except:
                 _fileissue_(filename, **propissue)
                 return False
 
     # other extensions
     else:
-        warnings.warn("no file testing made for .%s files" % filename.split(".")[-1])
+        logger.warning("no file testing made for .%s files" % filename.split(".")[-1])
 
     return True
 
 
-def _fileissue_(filename, erasebad=True, fromdl=False, redownload=False, verbose=True):
+def _fileissue_(filename, erasebad=True, fromdl=False, redownload=False):
     """ """
     if fromdl:
-        warnings.warn(f"Download failed {filename} seems corrupted (cannot open)")
+        logger.info(f"Download failed {filename} seems corrupted (cannot open)")
     else:
-        warnings.warn(f"cannot open file {filename}")
+        logger.info(f"cannot open file {filename}")
 
     if erasebad:
-        warnings.warn(f"removing {filename}")
+        logger.info(f"removing {filename}")
         os.remove(filename)
     else:
-        warnings.warn(f"{filename} NOT ERASED")
+        logger.info(f"{filename} NOT ERASED")
 
     if redownload:
         from .buildurl import _localsource_to_source_
@@ -753,11 +746,10 @@ def _fileissue_(filename, erasebad=True, fromdl=False, redownload=False, verbose
                 url_to_dl,
                 fileout=filename,
                 overwrite=True,
-                verbose=verbose,
                 cookies=get_cookie(*_load_id_(location)),
             )
         else:
-            warnings.warn("No url to donwload, redownload ignored")
+            logger.info("No url to donwload, redownload ignored")
 
 
 # ================= #
@@ -783,14 +775,13 @@ def get_cookie(username, password):
 
 def _download_(args):
     """To be used within _ZTFDownloader_.download_data()
-    url, fileout,overwrite,verbose = args
+    url, fileout,overwrite = args
     """
-    url, fileout, overwrite, verbose, wait, cutouts, ra, dec, cutout_size = args
+    url, fileout, overwrite, wait, cutouts, ra, dec, cutout_size = args
     download_single_url(
         url,
         fileout=fileout,
         overwrite=overwrite,
-        verbose=verbose,
         wait=wait,
         cutouts=cutouts,
         radec=[ra, dec],
@@ -803,7 +794,6 @@ def download_url(
     download_location,
     cutouts=False,
     show_progress=True,
-    verbose=True,
     wait=None,
     overwrite=False,
     nprocess=None,
@@ -826,7 +816,6 @@ def download_url(
                 fileout=fileout,
                 show_progress=False,
                 overwrite=overwrite,
-                verbose=False,
                 wait=wait,
                 cookies=cookies,
                 radec=radec,
@@ -846,8 +835,7 @@ def download_url(
 
     if nprocess == 1:
         # Single processing
-        if verbose:
-            warnings.warn("No parallel downloading")
+        logger.debug("No parallel downloading")
         for url, fileout in zip(to_download_urls, download_location):
             download_single_url(
                 url,
@@ -855,7 +843,6 @@ def download_url(
                 fileout=fileout,
                 show_progress=show_progress,
                 overwrite=overwrite,
-                verbose=verbose,
                 cookies=cookies,
                 radec=radec,
                 cutout_size=cutout_size,
@@ -875,12 +862,10 @@ def download_url(
         else:
             bar = None
 
-        if verbose:
-            warnings.warn("parallel downloading ; asking for %d processes" % nprocess)
+        logger.debug("parallel downloading ; asking for %d processes" % nprocess)
 
         # Passing arguments
         overwrite_ = [overwrite] * len(to_download_urls)
-        verbose_ = [verbose] * len(to_download_urls)
         wait_ = [wait] * len(to_download_urls)
         cutouts_ = [cutouts] * len(to_download_urls)
         ra_ = [radec[0]] * len(to_download_urls)
@@ -896,7 +881,6 @@ def download_url(
                         to_download_urls,
                         download_location,
                         overwrite_,
-                        verbose_,
                         wait_,
                         cutouts_,
                         ra_,
@@ -919,7 +903,6 @@ def download_single_url(
     cutout_size=30,
     fileout=None,
     overwrite=False,
-    verbose=True,
     cookies=None,
     show_progress=True,
     chunk=1024,
@@ -937,12 +920,11 @@ def download_single_url(
         time.sleep(waiting)
 
     if fileout is not None and not overwrite and os.path.isfile(fileout):
-        if verbose:
-            warnings.warn("%s already exists: skipped" % fileout)
+        logger.debug(f"{fileout} already exists: skipped")
         return
     else:
-        if verbose and fileout:
-            warnings.warn("downloading %s to %s" % (url, fileout))
+        if fileout:
+            logger.debug(f"downloading {url} to {fileout}")
 
     if cutouts:
         if radec is None:
@@ -1004,7 +986,7 @@ def download_single_url(
             calculate_and_write_hash(fileout)
 
     if filecheck:
-        _test_file_(fileout, erasebad=erasebad, fromdl=True, verbose=verbose)
+        _test_file_(fileout, erasebad=erasebad, fromdl=True)
 
 
 # ============== #
@@ -1024,6 +1006,7 @@ class CCIN2P3(object):
             self._connected = False
             if connect:
                 self.connect(auth=auth)
+        self.logger = logging.getLogger(__name__)
 
     def load_ssh(self, auth=None):
         from paramiko import SSHClient
@@ -1071,7 +1054,7 @@ class CCIN2P3(object):
         oldmask = os.umask(0o002)
 
         if not os.path.exists(directory):
-            warnings.warn(f"scp_get(): creating {directory}")
+            self.logger.debug(f"scp_get(): creating {directory}")
 
             os.makedirs(directory, exist_ok=True)
 
