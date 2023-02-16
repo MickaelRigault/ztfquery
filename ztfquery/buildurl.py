@@ -35,7 +35,7 @@ ZTFIRSA_BASE = ["/ref/","/sci/","/raw/","/cal/"]
 from .io import LOCALSOURCE, CCIN2P3_SOURCE
 DEFAULT_SOURCE = DATA_BASEURL
 
-FILTERS = {"zg":1,"zr":2,"zi":3, "OO":None}
+FILTERS = {"zg":1,"zr":2,"zi":3, "OO":None, "bi":None}
 
 
 
@@ -99,6 +99,7 @@ def filename_to_kind(filename):
 
 def parse_calfilename(filename):
     """ """
+    from .fields import ccdid_qid_to_rcid    
     _, fileday, filtercode, ccd_, qid_, suffix = os.path.basename(filename).split("_")
     year,month, day = fileday[:4],fileday[4:6], fileday[6:]
     ccdid = int(ccd_.replace("c",""))
@@ -111,7 +112,7 @@ def parse_calfilename(filename):
             "qid":qid,
             "rcid":ccdid_qid_to_rcid(ccdid,qid),
             "filtercode":filtercode,
-            "filterid":FILTERS[filtercode],
+            "filterid":FILTERS.get(filtercode,None),
             "kind":"cal",
             "type":suffix.split(".")[0]}
 
@@ -130,7 +131,7 @@ def parse_rawfilename(filename):
             "field":int(paddedfield),
             "ccdid":ccdid,
             "filtercode":filtercode,
-            "filterid":FILTERS[filtercode],
+            "filterid":FILTERS.get(filtercode, None),
             "kind":"raw",
             "suffix":suffix_}
 
@@ -156,7 +157,7 @@ def parse_scifilename(filename):
             "qid":qid,
             "rcid":ccdid_qid_to_rcid(ccdid,qid),
             "filtercode":filtercode,
-            "filterid":FILTERS[filtercode],
+            "filterid":FILTERS.get(filtercode, None),
             "kind":"sci",
             "suffix":"_".join(suffix_)}
 
