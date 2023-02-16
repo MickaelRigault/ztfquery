@@ -11,7 +11,7 @@ MAINTAINER_EMAIL = "m.rigault@ipnl.in2p3.fr"
 URL = "https://github.com/MickaelRigault/ztfquery"
 LICENSE = "BSD (3-clause)"
 DOWNLOAD_URL = "https://github.com/MickaelRigault/ztfquery"
-VERSION = "1.22.0"
+VERSION = "1.23.0"
 
 try:
     from setuptools import setup, find_packages
