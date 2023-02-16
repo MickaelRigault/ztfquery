@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "ztfquery"
+version = "1.24.0"
+description = "Python package to access ZTF data"
+authors = ["Mickael Rigault <m.rigault@ipnl.in2p3.fr>", "Simeon Reusch <simeon.reusch@desy.de>"]
+maintainers = ["Mickael Rigault <m.rigault@ipnl.in2p3.fr>", "Simeon Reusch <simeon.reusch@desy.de>"]
+license = "BSD-3-Clause"
+repository = "https://github.com/mickaelrigault/ztfquery"
+readme = "README.md"
+classifiers = [
+        "License :: OSI Approved :: BSD License",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.10",
+]
+keywords = ["astrophysics", "science", "astronomy", "ZTF", "IPAC"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+pandas = "^1.5.3"
+numpy = "^1.24.2"
+astropy = "^5.2.1"
+matplotlib = "^3.7.0"
+requests = "^2.28.2"
+dask = "^2023.2.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.2.1"
+coveralls = "^3.3.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
