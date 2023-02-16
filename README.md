@@ -40,7 +40,7 @@ _"The ztfquery code was funded by the European Research Council (ERC) under the 
 
 ## Corresponding Authors:
 - M. Rigault: m.rigault@ipnl.in2p3.fr, CNRS/IN2P3
-- S. Reuch: simeon.reusch@desy.de, DESY
+- S. Reusch: simeon.reusch@desy.de, DESY
 
 ***
 
