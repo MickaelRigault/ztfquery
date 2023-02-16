@@ -203,15 +203,10 @@ poly    Bounding polygon
 #   Meta API Object        #
 #                          #
 ############################
-def download_metadata(
-    kind="sci",
-    radec=None,
-    size=None,
-    mcen=None,
-    sql_query=None,
-    colnames=None,
-    **kwargs,
-):
+def download_metadata( kind="sci", radec=None,
+                       size=None, mcen=None, sql_query=None,
+                       colnames=None,
+                       **kwargs):
     """MetaQuery object containing the results of the query in the `metatable` attribute.
 
     Parameters
@@ -222,31 +217,18 @@ def download_metadata(
     MetaQuery
     """
     mquery = MetaQuery()
-    mquery.query(
-        kind=kind,
-        radec=radec,
-        size=size,
-        mcen=mcen,
-        sql_query=sql_query,
-        colnames=colnames,
-        **kwargs,
-    )
+    mquery.query( kind=kind, radec=radec, size=size,
+                  mcen=mcen, sql_query=sql_query,
+                  colnames=colnames, **kwargs)
     return mquery
 
 
 class MetaQuery:
-    def query(
-        self,
-        kind="sci",
-        radec=None,
-        size=None,
-        mcen=None,
-        sql_query=None,
-        colnames=None,
-        cookies=None,
-        clean=False,
-        **kwargs,
-    ):
+    def query(self, kind="sci",
+              radec=None, size=None,
+              mcen=None, sql_query=None,
+              colnames=None, cookies=None,
+              clean=False, **kwargs):
         """Query IRSA to get the metadate needed to know how to access the data themselves.
 
         This method uses `build_query()` and store the downloaded information
@@ -265,49 +247,39 @@ class MetaQuery:
 
         self.logger = logging.getLogger(__name__)
 
-        self.build_query(
-            kind=kind,
-            radec=radec,
-            size=size,
-            mcen=mcen,
-            sql_query=sql_query,
-            colnames=colnames,
-            ct="csv",
-            **kwargs,
-        )
+        self.build_query( kind=kind, radec=radec,
+                          size=size, mcen=mcen,
+                          sql_query=sql_query,
+                          colnames=colnames, ct="csv",
+                          **kwargs)
 
         if radec is None:
             radec = [None, None]
+            
         self.logger.debug(
-            f"Obtaining metatable for this query:\nkind: {kind} | RA: {radec[0]} | Dec: {radec[1]} | size: {size} | mcen: {mcen} | sql_query: {sql_query} | colnames: {colnames}"
-        )
+            f"Obtaining metatable for this query:\nkind: {kind} | RA: {radec[0]} | Dec: {radec[1]} | size: {size} | mcen: {mcen} | sql_query: {sql_query} | colnames: {colnames}")
 
-        datain = StringIO(
-            requests.get(self.query_url, cookies=cookies).content.decode("utf-8")
-        )
+        datain = StringIO( requests.get(self.query_url, cookies=cookies).content.decode("utf-8") )
         self.metatable = read_csv(datain)
 
-        if (
-            len(self.metatable.columns) == 1
-            and "<?xml version" in self.metatable.columns[0]
-        ):
+        if len(self.metatable.columns) == 1 \
+            and "<?xml version" in self.metatable.columns[0]:
             warnings.warn(
-                "The query you made failed:"
-                + "\n"
-                + self.query_url
-                + "\n"
-                + "see queriable entries here: %s" % IRSA_DOC
-            )
+                f"The query you made failed: \n {self.query_url} \n"
+                + "see queriable entries here: {IRSA_DOC}")
+            
         elif self.nentries == 0:
-            warnings.warn(
-                "The query ran successfully, but no data returned. (bad query [check self.query_url]? wrong password [ztfquery.io._load_id_('irsa')] ?)"
-            )
+            warnings.warn( "The query ran successfully, but no data returned. (bad query [check self.query_url]? wrong password [ztfquery.io._load_id_('irsa')] ?)")
             return datain.read()
 
         # now we clean the metatable
         if clean:
-            self.metatable.query("infobits==0", inplace=True)
-            self.metatable.query("ipac_gid>0", inplace=True)
+            if "infobits" in self.metatable:
+                self.metatable.query("infobits==0", inplace=True)
+                
+            if "ipac_gid" in self.metatable:
+                self.metatable.query("ipac_gid>0", inplace=True)
+                
             self.metatable.reset_index(drop=True, inplace=True)
 
         # if self.logger is not None:
