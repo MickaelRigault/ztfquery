@@ -138,7 +138,7 @@ def parse_calfilename(filename):
         "qid": qid,
         "rcid": ccdid_qid_to_rcid(ccdid, qid),
         "filtercode": filtercode,
-        "filterid": FILTERS[filtercode],
+        "filterid": FILTERS.get(filtercode, None),
         "kind": "cal",
         "type": suffix.split(".")[0],
     }
