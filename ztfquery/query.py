@@ -205,12 +205,16 @@ def guess_kind_from_metatable(df):
     """Given what is inside the dataframe, this guesses the data kind"""
     if "caltype" in df.columns:
         return "cal"
+    
     if "startobsdate" in df.columns:
         return "ref"
+    
     if "rcid" in df.columns:
         return "sci"
+    
     if "expid" in df.columns:
         return "raw"
+    
     raise TypeError("The given dataframe is not a ZTF IRSA metatable")
 
 

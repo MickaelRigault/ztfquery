@@ -16,7 +16,7 @@ classifiers = [
 keywords = ["astrophysics", "science", "astronomy", "ZTF", "IPAC"]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.8"
 pandas = "^1.5.3"
 numpy = "^1.24.2"
 astropy = "^5.2.1"
