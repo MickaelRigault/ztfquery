@@ -779,7 +779,7 @@ class ZTFQuery(ztftable._ZTFTable_, _ZTFDownloader_):
             return self.metadata
 
         self.load_metadata(**kwargs)
-        return self.metadata
+        return self.data
             
     def load_metadata(
         self,
