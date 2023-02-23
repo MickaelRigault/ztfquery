@@ -758,6 +758,29 @@ class ZTFQuery(ztftable._ZTFTable_, _ZTFDownloader_):
     # ------------ #
     #  DOWNLOADER  #
     # ------------ #
+    def get_metadata(self, force_reload=False, **kwargs):
+        """ get the metadata (downloads it if needed be)
+
+        kwargs goes to load_metadata(), see doc there.
+
+        Parameters
+        ----------
+        force_reload: bool
+            if self.metadata exists, shall this update it ?
+
+        **kwargs goes to self.load_metadata()
+
+        Returns
+        -------
+        DataFrame
+            the metadata.
+        """
+        if hasattr(self, "_metatable") and not force_reload:
+            return self.metadata
+
+        self.load_metadata(**kwargs)
+        return self.metadata
+            
     def load_metadata(
         self,
         kind="sci",
