@@ -2,12 +2,11 @@
 
 [![PyPI](https://img.shields.io/pypi/v/ztfquery.svg?style=flat-square)](https://pypi.python.org/pypi/ztfquery)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1345222.svg)](https://doi.org/10.5281/zenodo.1345222)
+[![CI](https://github.com/mickaelrigault/ztfquery/actions/workflows/ci.yaml/badge.svg)](https://github.com/mickaelrigault/ztfquery/actions/workflows/ci.yaml)
 
-
-This package is made to ease access to Zwicky Transient Facility data and data-product. It is maintained by M. Rigault (CNRS/IN2P3) and S. Reusch (DESY).
+This package is made to ease access to Zwicky Transient Facility data and data-products. It is maintained by M. Rigault (CNRS/IN2P3) and S. Reusch (DESY).
 
 [cite ztfquery](https://ui.adsabs.harvard.edu/abs/2018zndo...1345222R/abstract)
-
 
 # ztfquery: a python tool to access ztf (and SEDM) data
 
