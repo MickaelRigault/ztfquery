@@ -27,6 +27,7 @@ dask = {version="^2023.2.0", optional=true}
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.1"
 coveralls = "^3.3.1"
+cryptography = "^39.0.1"
 
 [tool.poetry.extras]
 dask = ["dask"]
