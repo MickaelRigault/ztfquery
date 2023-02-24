@@ -17,6 +17,73 @@ from . import io
 logger = logging.getLogger(__name__)
 
 
+
+def get_metadata( kind="sci", radec=None,
+                  size=None,  sql_query=None,
+                  auth=None, **kwargs):
+    """Querying for metadata information 
+
+    [This methods uses the .metasearch library, which is python wrapper of the the IRSA web API
+    see https://irsa.ipac.caltech.edu/docs/program_interface/ztf_api.html]
+
+    Parameters
+    ----------
+    kind: [str] -optional-
+        What kind of data are you looking for:
+        - sci : Science Exposures
+        - raw : Raw Data
+        - ref : Reference Images
+        - cal : Bias or High Frequency Flat
+        any other entry will raise a ValueError
+        
+    // Generic Query
+    
+    sql_query: [None or string] -optional -
+        The where parameter can be set to a 'SQL WHERE' clause, with some restrictions.
+        [https://en.wikipedia.org/wiki/Where_(SQL)]
+        Notably, function calls and sub-queries are not supported.
+        You can use AND, OR, NOT, IN, BETWEEN, LIKE, IS,
+        the usual arithmetic and comparison operators, and literal values.
+        Note that the where parameter is required in the absence of POS (a spatial constraint).
+        WHERE clauses should be URL encoded
+        [https://en.wikipedia.org/wiki/Query_string#URL_encoding].
+        for instance  SPACE is encoded as '+' or "%20".
+        If entry must be equal to a string, use `entry='str'` (with the quotes)
+        Examples:
+            get all the science field 600
+            ```field=600```
+            get all the science field 600 and having an airmass greater than 2
+            ```field=600+AND+airmass>2```
+            get all the science field 600 and having an airmass greater than 2 with a quadran ID been 1 or 3
+            ```field=600+AND+airmass>2+AND+qid+IN+(1,3)```
+            get observation taken since the 1st of Feb 2018 (julian date 2458150.5) with an airmass > 3
+            ```airmass>3+AND+obsjd>2458150.5```
+
+    ra,dec: [float/str]
+        ICRS right ascension and declination in decimal degrees.
+        It identifies the point which returned images must contain, or the center of the search region.
+
+    size: [float/str/None] -optional-
+        It consists of one or two (comma separated) values in decimal degrees.
+        (With POS=ra,dec)
+        The first value is taken to be the full-width of the search region along the east axis at POS,
+        and the second is taken to be the full-height along the north axis.
+        Taken together, POS and SIZE define a convex spherical polygon on the sky with great circle edges - the search region.
+        During a query, this region is compared against the convex spherical polygons formed by connecting
+        the 4 corners of each image in a data-set to determine which images should be returned.
+
+        If only one size value is specified, it is used as both the full-width and full-height.
+        Negative sizes are illegal, and a width and height of zero indicate that the search region is a point.
+
+    Returns
+    -------
+    DataFrame
+
+    """
+    zquery = ZTFQuery()
+    return zquery.get_metadata( kind=kind, radec=radec, size=size,  sql_query=sql_query,
+                                auth=auth, **kwargs)
+    
 # Combining metadata with buildurl
 def metatable_to_url(metatable, datakind=None, suffix=None, source=None, **kwargs):
     """generic method to build the url/fullpath or the requested data.
@@ -876,7 +943,6 @@ class ZTFQuery(ztftable._ZTFTable_, _ZTFDownloader_):
         _test_kind_(kind)
         if auth is not None:
             from .io import get_cookie
-
             kwargs["cookies"] = get_cookie(*auth)
 
         if kind not in ["cal"]:
