@@ -171,7 +171,8 @@ def parse_scifilename(filename):
     """ """
     from .fields import ccdid_qid_to_rcid
     
-    _, filefracday, paddedfield, filtercode, ccd_, _, qid_, suffix_ = os.path.basename( filename ).split("_")
+    _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, suffix_ = \
+      os.path.basename( filename ).split("_")
     year, month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
     
     ccdid = int(ccd_.replace("c", ""))
