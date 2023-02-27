@@ -9,6 +9,7 @@ __pycache__/
 # Distribution / packaging
 .Python
 build/
+poetry.lock
 develop-eggs/
 dist/
 downloads/
