@@ -3,16 +3,20 @@
 
 """ ZTF monitoring information """
 
-import requests, logging, os, json, warnings
+import json
+import logging
+import os
+import warnings
+from datetime import datetime
+from io import StringIO
+
+import matplotlib.pyplot as mp
 import numpy as np
 import pandas
-
+import requests
 from astropy import time
-import matplotlib.pyplot as mp
-from datetime import datetime
 
-from io import StringIO
-from . import io, fields, ztftable
+from . import fields, io, ztftable
 
 SKYVISIONSOURCE = os.path.join(io.LOCALSOURCE, "skyvision")
 if not os.path.exists(SKYVISIONSOURCE):
@@ -44,7 +48,6 @@ def get_summary_logs(force_dl=False, password=None, **kwargs):
     """
     filepath = os.path.join(LOGS_PATH, "ztf_obsfile_maglimcat.parquet")
     if force_dl or not os.path.isfile(filepath):
-
         import shutil
         from tqdm import tqdm
 
@@ -109,7 +112,33 @@ def get_log(date, which="completed", download=True, update=False, html=False, **
             )
             is not None
         ]
-        return pandas.concat(log_dfs)
+        if len(log_dfs) > 0:
+            return pandas.concat(log_dfs)
+        else:
+            warnings.warn(
+                f"No {which}_log for {date}. Either ZTF was not operational during these dates, or there is a problem with skyvision."
+            )
+            # return an empty dataframe
+            return pandas.DataFrame(
+                columns=[
+                    "UT Date",
+                    "UT Time",
+                    "Base Image Name",
+                    "Sequence ID",
+                    "Program ID",
+                    "FieldID",
+                    "RA",
+                    "DEC",
+                    "Epoch",
+                    "RA Rate",
+                    "Dec Rate",
+                    "Exptime",
+                    "Filter",
+                    "Observation Status",
+                    "Setup Time",
+                    "ExptimeLong",
+                ]
+            )
 
     date = np.atleast_1d(date)[0]
 
@@ -878,6 +907,7 @@ class CompletedLog(ZTFLog):
     """ """
 
     _NAME_ = "completed"
+
     # =============== #
     #   Methods       #
     # =============== #
@@ -1814,6 +1844,7 @@ class CompletedLog(ZTFLog):
         from matplotlib import dates as mdates
 
         total_exposure_time = self.data.groupby("date").sum()["exptime"]
+
         # g band
         def show_timeband(ax_, fid, pid=1, **prop):
             timefields = self.get_filtered(pid=1, fid=fid).groupby("date").size()
