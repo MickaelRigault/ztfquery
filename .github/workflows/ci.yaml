@@ -2,48 +2,36 @@
 
 name: CI
 
-# Controls when the action will run.
 on:
-  # Triggers the workflow on push or pull request events
   push:
 
   pull_request:
 
-  # run the pipeline on the 0th minute of the 0th hour of day 1 and 15 every month
   schedule:
     - cron: '0 0 1,15 * *'
 
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   build:
-    # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
-    # Specify the python versions to test
     strategy:
       matrix:
         python-version: ["3.11"]
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
-      # Set up the python versions
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
 
-      # Install poetry
       - name: Install poetry and coveralls
         run: >-
           python -m pip install --upgrade poetry coveralls
 
-     # Setting up dependencies
       - name: Install dependencies (with all extras)
         run: |
           poetry install --all-extras
@@ -55,15 +43,11 @@ jobs:
         run: |
           python tests/generate_ztfquery_keystore.py
 
-      # Runs all tests in the 'tests' directory and gets coverage
       - name: Test the code
         env:
           ZTFDATA: ./
         run: |
           poetry run coverage run -m pytest -v 
-
-      # - name: mypy
-      #   run: poetry run mypy planobs
 
       # # Push the coverage result to coveralls.io
       # - name: Run Coveralls
@@ -75,13 +59,13 @@ jobs:
       - name: Echo tag name
         run: echo "Tag is ${{ github.ref }}, Tagged is ${{ startsWith(github.ref, 'refs/tags/')}}, Python Check is ${{matrix.python-version == 3.11}},  Deploy is ${{ startsWith(github.ref, 'refs/tags/') && matrix.python-version == 3.11}}"
 
-      # # Build a tarball and push to Pypi if tagged with new version
-      # - name: Build and publish
-      #   if: ${{ startsWith(github.ref, 'refs/tags/') && success() && matrix.python-version == 3.11}}
-      #   run: |
-      #     poetry publish -n --build
-      #   env:
-      #     POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
+      # Build a tarball and push to Pypi if tagged with new version
+      - name: Build and publish
+        if: ${{ startsWith(github.ref, 'refs/tags/') && success() && matrix.python-version == 3.11}}
+        run: |
+          poetry publish -n --build
+        env:
+          POETRY_PYPI_TOKEN_PYPI: ${{ secrets.PYPI_API_TOKEN }}
 
   # dependabot:
   #   needs: [build]
