@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ztfquery"
-version = "1.24.4"
+version = "1.24.5"
 description = "Python package to access ZTF data"
 authors = ["Mickael Rigault <m.rigault@ipnl.in2p3.fr>", "Simeon Reusch <simeon.reusch@desy.de>"]
 maintainers = ["Mickael Rigault <m.rigault@ipnl.in2p3.fr>", "Simeon Reusch <simeon.reusch@desy.de>"]
