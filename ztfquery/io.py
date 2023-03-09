@@ -934,8 +934,7 @@ def download_single_url(
             raise ValueError(
                 "You selected to download cutouts only. Please provide the radec parameter. Default cutout_size: 30 arcsec"
             )
-
-    url += f"?center={radec[0]},{radec[1]}&size={cutout_size}arcsec&gzip=false"
+        url += f"?center={radec[0]},{radec[1]}&size={cutout_size}arcsec&gzip=false"
 
     # = Password and Username
     if cookies is None:
