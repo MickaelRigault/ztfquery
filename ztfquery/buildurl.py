@@ -93,6 +93,9 @@ def get_scifile_of_filename(filename, qid=None, source="irsa"):
 def parse_filename(filename):
     """ """
     kind = filename_to_kind(filename)
+    if kind is None:
+        return {}
+    
     if kind == "cal":
         return parse_calfilename(filename)
     if kind == "raw":
@@ -100,12 +103,15 @@ def parse_filename(filename):
     if kind == "sci":
         return parse_scifilename(filename)
 
-    raise ValueError(f"Cannot parse the file {filename}")
+    warnings.warn(f"Cannot parse the file {filename}")
+    return {}
 
 
 def filename_to_kind(filename):
     """ """
     filesplit = os.path.basename(filename).split("_")
+    
+    
     if len(filesplit) == 6:
         if "_hifreq" in filename or "_bias" in filename:
             return "cal"
@@ -115,9 +121,8 @@ def filename_to_kind(filename):
     elif len(filesplit) >= 8:
         return "sci"
 
-    raise ValueError(
-        f"Cannot parse the file {filename} ; remark 'ref' not implemented."
-    )
+    warnings.warn(f"Cannot parse the file {filename} ; remark 'ref' not implemented.")
+    return None
 
 
 def parse_calfilename(filename):

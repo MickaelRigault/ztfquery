@@ -236,13 +236,37 @@ def get_filedataframe(filenames):
     return merged
 
 
+def filename_to_kind(filename):
+    """ get the kind given the filename
+    
+    this using buildurl.filename_to_kind()
+
+    Parameters
+    ----------
+    filename: str or list
+        (list of) filename or basename
+
+    Returns
+    -------
+    str or list
+        kind (sci, raw, cal)
+
+    """
+    from .buildurl import filename_to_kind
+    if type(filename) is str:
+        return filename_to_kind(filename)
+    return [filename_to_kind(filename_) for filename_ in filename]
+        
+    
 def parse_filename(filename, as_serie=True):
     """ """
     from .buildurl import parse_filename
 
+    parsed = parse_filename(filename)
     if as_serie:
-        return pandas.Series(parse_filename(filename))
-    return parse_filename(filename)
+        return pandas.Series(parsed)
+    
+    return parsed
 
 
 def download_from_filename(
