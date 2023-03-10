@@ -615,7 +615,7 @@ def filename_to_url(filename, suffix=None, source="irsa", kind=None, **kwargs):
     path
         url or local path (see source)
     """
-    if not os.path.basename(filename).startswith("ztf_"):
+    if not os.path.basename(filename).startswith("ztf"):
         return filename  # this is not a normal ztf_ pipeline file.
 
     if kind is None:
