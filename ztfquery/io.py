@@ -923,6 +923,28 @@ def download_url(
                 bar.update(len(to_download_urls))
 
 
+def download_fitsdata(url, cookies=None, **kwargs):
+    """ download a fitsfile and get the first data (nothing stored) 
+    
+    Parameters
+    ----------
+    url: str
+        fits file url.
+
+    cookies: None
+        cookies to download the data. Smart to provide it
+        if already loaded, it takes ~0.5s to acquire.
+
+    **kwargs goes to download_single_url
+    
+    Return
+    ------
+    astropy.HDUList    
+    """
+    
+    out = download_single_url(url, cookies=cookies, **kwargs)
+    return fits.HDUList.fromstring(out.content)
+
 def download_single_url(
     url,
     cutouts=False,

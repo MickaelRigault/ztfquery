@@ -307,6 +307,7 @@ class _ZTFDownloader_(object):
         """
         raise NotImplementedError("the get_data_path() method must be implemented. ")
 
+    
     # Generic that should automatically work as long as get_data_path is defined.
     def download_data(
         self,
@@ -518,6 +519,145 @@ class _ZTFDownloader_(object):
             overwrite=overwrite,
             **kwargs,
         )
+
+    def wget_header(self, indexes=None, use_dask=False, corr_cutout_wcs=True,
+                        auth=None, **kwargs):
+        """ download the header's data (no storage)
+
+        Parameters
+        ----------
+        indexes: index or list
+            index or list for of the data
+
+        use_dask: bool
+            shall this delayed the header downloading
+
+        corr_cutout_wcs: bool
+            shall the header be corrected for their curout footprint.
+            = This assumes quadrant image download =
+
+        auth: (str, str)
+            irsa login and password. If None, this will automatically
+            load the stored one (all will prompt the request).
+
+        **kwargs goes to get_centroid_cutout_url->get_data_path
+
+        Returns
+        -------
+        list
+            list of headers (or delayed if use_dask=True)
+        """
+        if use_dask:
+            import dask
+        
+        def _corr_header_(header):
+            """ """
+            header["NAXIS1"] = 3072
+            header["NAXIS2"] = 3080
+            header["CRPIX1"] = 3072/2 + 0.5
+            header["CRPIX1"] = 3080/2 + 0.5
+            return header
+
+        # - Login
+        if auth is None:
+            auth = io._load_id_("irsa")
+        cookies = io.get_cookie(*auth)
+        
+        # - url
+        cutout_url = self.get_centroid_cutout_url(indexes=indexes, **kwargs)
+        
+        headers = []
+        for url_ in cutout_url:
+            if use_dask:
+                header = dask.delayed(io.download_fitsdata)(url_, cookies=cookies,
+                                                            **kwargs)[0].header
+                if corr_cutout_wcs:
+                    header = dask.delayed(_corr_header_)(header)
+            else:
+                header = io.download_fitsdata(url_, cookies=cookies,
+                                              **kwargs)[0].header
+                if corr_cutout_wcs:
+                    header = _corr_header_(header)
+            
+            headers.append(header)
+
+        return headers
+
+    def wget_data(self, indexes=None, use_dask=False, cutout=None, auth=None, **kwargs):
+        """ download the fits data (no storage) 
+
+        Parameters
+        ----------
+        indexes: index or list
+            index or list for of the data
+
+        use_dask: bool
+            shall this delayed the downloading
+        
+        cutout: [(float, float, float)]
+            format: (ra, dec, size_arcsec)
+            If given, this will only download the cutout in the image. 
+            This should broadcast with indexes, so either 1 or n-indexes.
+
+        auth: (str, str)
+            irsa login and password. If None, this will automatically
+            load the stored one (all will prompt the request).
+    
+        **kwargs goes to get_data_path
+        """
+        # Build the URL
+        paths = self.get_data_path(indexes=indexes, **kwargs)
+        if cutout is not None:
+            c_shape = np.shape(cutout)
+            if len(c_shape) == 1:
+                ra, dec, size = cutout
+            elif c_shape != (3,len(paths)):
+                raise ValueError(f"cannot understand the input cutout shape {c_shape}")
+
+            paths = [p+f"?center={ra_},{dec_}&size={size_}arcsec&gzip=false"
+                         for p, (ra_, dec_, size_) in zip(paths, cutout)]
+
+        # download the data from the URL                
+        data = []
+        for url_ in paths:
+            if use_dask:
+                data = dask.delayed(io.download_fitsdata)(url_, cookies=cookies,
+                                                          **kwargs)
+            else:
+                data = io.download_fitsdata(url_, cookies=cookies,
+                                            **kwargs)
+                
+        return data
+    
+    
+    def get_centroid_cutout_url(self, indexes=None, size_arcsec=30, **kwargs):
+        """ get the url for the centroid cutout.
+
+        Parameters
+        ----------
+        indexes: index or list
+            index or list for of the data
+
+        size_arcsec: float
+            size of the cutout in arcsec
+        
+        **kwargs goes to get_data_path
+        
+        Returns
+        -------
+        list
+            list of url (size number of indexes)
+        """
+        if indexes is not None:
+            data = self.data.loc[indexes]
+        else:
+            data = self.data
+        
+        cutout_url = [f"center={ra},{dec}&size={size_arcsec}arcsec&gzip=false"
+                              for ra,dec in data[["crval1","crval2"]].values]
+        paths = self.get_data_path(indexes=indexes, **kwargs)
+        urls = [p+f"?{c_url}" for p,c_url in zip(paths, cutout_url)]
+        return urls
 
     def get_local_data(
         self,
