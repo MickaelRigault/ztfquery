@@ -23,11 +23,13 @@ astropy = "^5.2.1"
 matplotlib = "^3.7.0"
 requests = "^2.28.2"
 
+
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.1"
 coveralls = "^3.3.1"
 cryptography = "^39.0.1"
 dask = "^2023.3.0"
+shapely = "^2.0.1"
 
 [tool.poetry.extras]
 
