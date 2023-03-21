@@ -621,6 +621,7 @@ class _ZTFDownloader_(object):
         data = []
         for url_ in paths:
             if use_dask:
+                import dask
                 data = dask.delayed(io.download_fitsdata)(url_, cookies=cookies,
                                                           **kwargs)
             else:

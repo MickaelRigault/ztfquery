@@ -893,6 +893,9 @@ def download_url(
         overwrite_ = [overwrite] * len(to_download_urls)
         wait_ = [wait] * len(to_download_urls)
         cutouts_ = [cutouts] * len(to_download_urls)
+        if radec is  None:
+            radec = [None,None]
+        
         ra_ = [radec[0]] * len(to_download_urls)
         dec_ = [radec[1]] * len(to_download_urls)
         cutout_size_ = [cutout_size] * len(to_download_urls)
