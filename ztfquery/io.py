@@ -765,6 +765,8 @@ def _is_textfile_bad_(filename):
 
 def _test_file_(filename, erasebad=True, fromdl=False, redownload=False):
     """ """
+    print("testing file")
+    
     propissue = dict(erasebad=erasebad, fromdl=fromdl, redownload=redownload)
 
     if ".fits" in filename:
@@ -1037,7 +1039,7 @@ def download_single_url(
     filecheck=True,
     erasebad=True,
     **kwargs,
-):
+    ):
     """Download the url target using requests.get.
     the data is returned (if fileout is None) or stored in `fileout`
     """
@@ -1116,138 +1118,11 @@ def download_single_url(
     if filecheck:
         _test_file_(fileout, erasebad=erasebad, fromdl=True)
 
-
-# ============== #
-#                #
-#  CC-IN2P3      #
-#                #
-# ============== #
-class CCIN2P3(object):
-    """ """
-
-    def __init__(self, auth=None, connect=True):
-        """ """
-        if self.running_at_cc:
-            self._connected = True
-        else:
-            self.load_ssh(auth=auth)
-            self._connected = False
-            if connect:
-                self.connect(auth=auth)
-        self.logger = logging.getLogger(__name__)
-
-    def load_ssh(self, auth=None):
-        from paramiko import SSHClient
-
-        self._auth = auth
-        self._ssh = SSHClient()
-        self._ssh.load_system_host_keys()
-
-    def connect(self, auth=None):
-        """ """
-        if auth is None:
-            auth = _load_id_("ccin2p3")
-
-        username, password = auth
-        try:
-            self._ssh.connect("cca.in2p3.fr", username=username, password=password)
-        except:
-            raise IOError("Cannot connect to cca.in2p3.fr with given authentification")
-
-        self._connected = True
-
-    @classmethod
-    def scp(cls, fromfile, tofile, auth=None):
-        """ """
-        if fromfile.startswith(CCIN2P3_SOURCE):
-            method = "scp_get"
-        elif tofile.startswith(CCIN2P3_SOURCE):
-            method = "scp_put"
-        else:
-            raise ValueError(
-                f"None of fromfile or tofile stars with {CCIN2P3_SOURCE}. Cannot use scp(), see scp_get or scp_put"
-            )
-
-        this = cls(auth=auth, connect=True)
-        return getattr(this, method)(fromfile, tofile)
-
-    def scp_get(self, remotefile, localfile, auth=None, overwrite=False):
-        """ """
-        from scp import SCPClient
-
-        if not self._connected:
-            self.connect(auth)
-
-        directory = os.path.dirname(localfile)
-        oldmask = os.umask(0o002)
-
-        if not os.path.exists(directory):
-            self.logger.debug(f"scp_get(): creating {directory}")
-
-            os.makedirs(directory, exist_ok=True)
-
-        with SCPClient(self.ssh.get_transport()) as scp:
-            scp.get(remotefile, localfile)
-
-    def scp_put(self, localfile, remotefile, auth=None):
-        """ """
-        from scp import SCPClient
-
-        if not self._connected:
-            self.connect(auth)
-
-        with SCPClient(self.ssh.get_transport()) as scp:
-            scp.put(localfile, remotefile)
-
-    def query_catalog(self, ra, dec, radius, catname="gaia", depth=7, **kwargs):
-        """query catalog ; works only when logged at the CCIN2P3"""
-        if not self.running_at_cc:
-            raise IOError("Only works if running from the ccin2p3")
-
-        import os
-        from htmcatalog import htmquery
-
-        LSST_REFCAT_DIR = "/sps/lsst/datasets/refcats/htm/v1"
-        KNOW_REFCAT = {
-            "gaiadr1": "gaia_DR1_v1",
-            "gaiadr2": "gaia_dr2_20190808",
-            "ps1dr1": "ps1_pv3_3pi_20170110",
-            "sdssdr9": "sdss-dr9-fink-v5b",
-        }
-        KNOW_REFCAT["gaia"] = KNOW_REFCAT["gaiadr2"]
-        KNOW_REFCAT["ps1"] = KNOW_REFCAT["ps1dr1"]
-        if catname not in KNOW_REFCAT:
-            raise ValueError(
-                f"unknown catalog {catname}. Aviability: "
-                + ", ".join(list(KNOW_REFCAT.keys()))
-            )
-
-        hq = htmquery.HTMQuery(
-            depth, os.path.join(LSST_REFCAT_DIR, KNOW_REFCAT[catname])
-        )
-        return hq.fetch_cat(ra, dec, radius, **kwargs)
-
-    # ============= #
-    #  Properties   #
-    # ============= #
-    @property
-    def ssh(self):
-        """ """
-        return self._ssh
-
-    @property
-    def running_at_cc(self):
-        """ """
-        hostname = os.uname()[1]
-        return "cca" in hostname or "ccwige" in hostname
-
-
 # =============== #
 #                 #
 #  HASH tools     #
 #                 #
 # =============== #
-
 
 def calculate_hash(fname):
     """ """
@@ -1258,7 +1133,6 @@ def calculate_hash(fname):
     hexdigest = hash_md5.hexdigest()
     f.close()
     return hexdigest
-
 
 def calculate_and_write_hash(fname):
     """ """
@@ -1272,13 +1146,11 @@ def calculate_and_write_hash(fname):
     f_hash.write(hexdigest)
     f_hash.close()
 
-
 def read_hash(fname):
     """ """
     f_hash = open(f"{fname}.md5", "r")
     hash_md5 = f_hash.read()
     return hash_md5
-
 
 def compare_hash(fname):
     """ """
@@ -1289,7 +1161,6 @@ def compare_hash(fname):
         return True
     else:
         return False
-
 
 def hash_for_file_exists(fname):
     """ """
