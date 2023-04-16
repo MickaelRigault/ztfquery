@@ -753,17 +753,6 @@ def _is_fitsfile_bad_(filename, test_exist=True):
     except:
         return True
 
-#!/bin/bash
-
-source $HOME/.profile
-module load Programming_Languages/anaconda/3.9
-
-conda activate /pbs/throng/ztf/anaconda3/envs/ztfenv
-exec /pbs/throng/ztf/anaconda3/envs/ztfenv/bin/python -m ipykernel_launcher "$@"
-
-
-    
-
 def _is_textfile_bad_(filename):
     """ """
     try:
