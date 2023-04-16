@@ -305,7 +305,7 @@ def download_from_filename(
     client=None,
     wait=None,
     **kwargs,
-):
+    ):
     """ Download the file associated to the given filename 
 
     Parameters
@@ -721,7 +721,7 @@ def test_files(
                     overwrite=True,
                     nprocess=nprocess,
                     cookies=get_cookie(*_load_id_(source),
-                                        session=session, update=False),
+                                       session=session, update=False),
                     **kwargs,
                 )
             for source_ in np.unique(locations):
@@ -765,7 +765,8 @@ def _is_textfile_bad_(filename):
 
 
 def _test_file_(filename, erasebad=True, fromdl=False, redownload=False, write_hash=False):
-    """ """    
+    """ """
+    print("testing file")
     propissue = dict(erasebad=erasebad, fromdl=fromdl, redownload=redownload)
 
     if ".fits" in filename:
@@ -1050,7 +1051,7 @@ def download_single_url(
     """Download the url target using requests.get.
     the data is returned (if fileout is None) or stored in `fileout`
     """
-
+    print("running download_single_url")
     
     if wait is not None:
         waiting = wait if not randomize_wait else np.random.uniform(0, wait)
@@ -1098,6 +1099,7 @@ def download_single_url(
 
     # With Progress bar?
     if not show_progress:
+        print("no progress")
         response = getattr(requests_or_session, request_fnc)(url, **download_prop)
         if response.status_code == 200:
             with open(fileout, "wb") as f:
@@ -1105,6 +1107,7 @@ def download_single_url(
                     f.write(data)
 
     else:
+        print("with no progress")
         from astropy.utils.console import ProgressBar
 
         response = getattr(requests_or_session, request_fnc)(url, **download_prop)
@@ -1120,9 +1123,14 @@ def download_single_url(
                         bar.update()
                     f.write(data)
             f.close()
-            calculate_and_write_hash(fileout)
+            if write_hash:
+                calculate_and_write_hash(fileout)
+            else:
+                calculate_hash(fileout)
 
+    print("pre-filecheck")
     if filecheck:
+        print("runnin _test_file_")        
         _test_file_(fileout, erasebad=erasebad, fromdl=True, write_hash=write_hash)
         
 
