@@ -653,6 +653,8 @@ def test_files(
     show_progress: [bool] -optional-
         Do you want to show the progress bar ?
 
+    **kwargs goes to _test_file_: write_hask
+
     Returns
     -------
     list of corrupted/bad files (might already be removed, see erasebad)
@@ -762,18 +764,19 @@ def _is_textfile_bad_(filename):
         return True
 
 
-def _test_file_(filename, erasebad=True, fromdl=False, redownload=False):
-    """ """
-    print("testing file")
-
-    
+def _test_file_(filename, erasebad=True, fromdl=False, redownload=False, write_hash=False):
+    """ """    
     propissue = dict(erasebad=erasebad, fromdl=fromdl, redownload=redownload)
 
     if ".fits" in filename:
         if not hash_for_file_exists(filename):
             try:
                 _ = fits.getdata(filename)
-                calculate_and_write_hash(filename)
+                if write_hash:
+                    calculate_and_write_hash(filename)
+                else:
+                    calculate_hash(filename)
+                    
             except FileNotFoundError:
                 logger.debug(f"[Errno 2] No such file or directory: {filename}")
             except:
@@ -784,7 +787,10 @@ def _test_file_(filename, erasebad=True, fromdl=False, redownload=False):
         if not hash_for_file_exists(filename):
             try:
                 _ = open(filename).read().splitlines()
-                calculate_and_write_hash(filename)
+                if write_hash:
+                    calculate_and_write_hash(filename)
+                else:
+                    calculate_hash(filename)
             except FileNotFoundError:
                 logger.debug(f"[Errno 2] No such file or directory: {filename}")
             except:
@@ -1038,6 +1044,7 @@ def download_single_url(
     randomize_wait=True,
     filecheck=True,
     erasebad=True,
+    write_hash=False,
     **kwargs,
     ):
     """Download the url target using requests.get.
@@ -1116,7 +1123,8 @@ def download_single_url(
             calculate_and_write_hash(fileout)
 
     if filecheck:
-        _test_file_(fileout, erasebad=erasebad, fromdl=True)
+        _test_file_(fileout, erasebad=erasebad, fromdl=True, write_hash=write_hash)
+        
 
 # =============== #
 #                 #
@@ -1126,6 +1134,7 @@ def download_single_url(
 
 def calculate_hash(fname):
     """ """
+    print("calculate_hash")
     f = open(fname, "rb")
     hash_md5 = hashlib.md5()
     for chunk in iter(lambda: f.read(4096), b""):
@@ -1136,12 +1145,8 @@ def calculate_hash(fname):
 
 def calculate_and_write_hash(fname):
     """ """
-    f = open(fname, "rb")
-    hash_md5 = hashlib.md5()
-    for chunk in iter(lambda: f.read(4096), b""):
-        hash_md5.update(chunk)
-    hexdigest = hash_md5.hexdigest()
-    f.close()
+    print("calculate_and_write_hash")
+    hexdigest = calculate_hash(fname)
     f_hash = open(f"{fname}.md5", "w")
     f_hash.write(hexdigest)
     f_hash.close()
