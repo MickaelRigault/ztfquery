@@ -1012,7 +1012,7 @@ def download_url(
             dec_,
             cutout_size_,
         )
-        if pool is not None:
+        if pool is None:
             close_pool = True
             pool = multiprocessing.Pool(nprocess)
         else:
