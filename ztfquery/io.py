@@ -291,6 +291,23 @@ def parse_filename(filename, as_serie=True):
     
     return parsed
 
+
+def get_mask_of_filename(filename):
+    """ build the name of the """
+    from ztfquery import get_file
+    
+    filepath_mask = dask.delayed(io.get_file)(filename, suffix="mskimg.fits",
+                                                  downloadit=download,
+                                                  show_progress=False, maxnprocess=1,
+                                                  **kwargs)
+
+
+
+
+
+
+
+
 def download_from_filename(
     filename,
     session=None,
@@ -766,7 +783,6 @@ def _is_textfile_bad_(filename):
 
 def _test_file_(filename, erasebad=True, fromdl=False, redownload=False, write_hash=False):
     """ """
-    print("testing file")
     propissue = dict(erasebad=erasebad, fromdl=fromdl, redownload=redownload)
 
     if ".fits" in filename:
@@ -906,6 +922,8 @@ def download_url(
     client=None,
     radec=None,
     cutout_size=None,
+    verbose=False,
+    pool=None,
     **kwargs,
     ):
     """ """
@@ -994,21 +1012,20 @@ def download_url(
             dec_,
             cutout_size_,
         )
-
-        with multiprocessing.Pool(nprocess) as p:
-            # Da Loop
-            for j, result in enumerate(
-                p.imap_unordered(
-                    _download_,
-                    args,
-                )
-            ):
-                if bar is not None:
-                    bar.update(j)
-
+        if pool is not None:
+            close_pool = True
+            pool = multiprocessing.Pool(nprocess)
+        else:
+            close_pool = False
+            
+        # Da Loop
+        for j, result in enumerate( pool.imap_unordered(_download_, args) ):
             if bar is not None:
-                bar.update(len(to_download_urls))
-
+                bar.update(j)
+                
+        if close_pool:
+            pool.close()
+            
 def download_fitsdata(url, session=None, **kwargs):
     """ download a fitsfile and get the first data (nothing stored) 
     
@@ -1051,7 +1068,6 @@ def download_single_url(
     """Download the url target using requests.get.
     the data is returned (if fileout is None) or stored in `fileout`
     """
-    print("running download_single_url")
     
     if wait is not None:
         waiting = wait if not randomize_wait else np.random.uniform(0, wait)
@@ -1099,7 +1115,6 @@ def download_single_url(
 
     # With Progress bar?
     if not show_progress:
-        print("no progress")
         response = getattr(requests_or_session, request_fnc)(url, **download_prop)
         if response.status_code == 200:
             with open(fileout, "wb") as f:
@@ -1107,7 +1122,6 @@ def download_single_url(
                     f.write(data)
 
     else:
-        print("with no progress")
         from astropy.utils.console import ProgressBar
 
         response = getattr(requests_or_session, request_fnc)(url, **download_prop)
@@ -1123,14 +1137,8 @@ def download_single_url(
                         bar.update()
                     f.write(data)
             f.close()
-            if write_hash:
-                calculate_and_write_hash(fileout)
-            else:
-                calculate_hash(fileout)
 
-    print("pre-filecheck")
     if filecheck:
-        print("runnin _test_file_")        
         _test_file_(fileout, erasebad=erasebad, fromdl=True, write_hash=write_hash)
         
 
@@ -1142,7 +1150,6 @@ def download_single_url(
 
 def calculate_hash(fname):
     """ """
-    print("calculate_hash")
     f = open(fname, "rb")
     hash_md5 = hashlib.md5()
     for chunk in iter(lambda: f.read(4096), b""):
@@ -1153,7 +1160,6 @@ def calculate_hash(fname):
 
 def calculate_and_write_hash(fname):
     """ """
-    print("calculate_and_write_hash")
     hexdigest = calculate_hash(fname)
     f_hash = open(f"{fname}.md5", "w")
     f_hash.write(hexdigest)

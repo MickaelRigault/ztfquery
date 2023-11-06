@@ -1,4 +1,4 @@
-__version__ = "1.25.0"
+__version__ = "1.26.1"
 
 from .io import get_file
 from .query import ZTFQuery, get_metadata
