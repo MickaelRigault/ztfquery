@@ -66,7 +66,7 @@ def convert_lc_tofritz(marshal_lc, name):
 
     from astropy import time
     data = marshal_lc[["filter","mag","emag","limmag"]].rename({"emag":"magerr", "limmag":"limiting_mag"},
-                                                                   axis=1).replace(to_replace=99.0, value=np.NaN)
+                                                                   axis=1).replace(to_replace=99.0, value=np.nan)
     flag_gri = data["filter"].isin(["g","r","i"])
     data.loc[flag_gri,"filter"] = "ztf"+data.loc[flag_gri,"filter"].astype('str')
     data["mjd"] = time.Time(marshal_lc["jdobs"].astype("float"), format="jd").mjd
@@ -75,7 +75,7 @@ def convert_lc_tofritz(marshal_lc, name):
     data["instrument_name"] = marshal_lc["instrument"].str.split("+", expand=True)[1]
     for k in ['ra', 'dec','ra_unc', 'dec_unc', 'id', 'groups', 'altdata', 
               'instrument_id',"origin"]:
-        data[k] = np.NaN
+        data[k] = np.nan
 
     return data[fritz_keys]
 
