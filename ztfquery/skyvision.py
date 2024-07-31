@@ -1312,7 +1312,7 @@ class CompletedLog(ZTFLog):
         )
 
     def get_program_data(
-        self, what="size", key=None, programs=None, filterprop={}, fill_value=np.NaN
+        self, what="size", key=None, programs=None, filterprop={}, fill_value=np.nan
     ):
         """
 
@@ -1360,7 +1360,7 @@ class CompletedLog(ZTFLog):
                 return groupbys
 
         if fill_value is None:
-            fill_value = np.NaN
+            fill_value = np.nan
 
         # get list
         baseindex = np.unique(groupbys.index.get_level_values(0))
