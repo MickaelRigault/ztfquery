@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ztfquery"
-version = "1.27.1"
+version = "1.27.4"
 description = "Python package to access ZTF data"
 authors = ["Mickael Rigault <m.rigault@ipnl.in2p3.fr>", "Simeon Reusch <simeon.reusch@desy.de>"]
 maintainers = ["Mickael Rigault <m.rigault@ipnl.in2p3.fr>", "Simeon Reusch <simeon.reusch@desy.de>"]
@@ -40,3 +40,6 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.black]
 line-length = 88
+
+
+

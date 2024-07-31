@@ -176,7 +176,7 @@ def parse_scifilename(filename):
     """ """
     from .fields import ccdid_qid_to_rcid
     
-    _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, suffix_ = \
+    _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, *suffix_ = \
       os.path.basename( filename ).split("_")
     year, month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
     
@@ -197,7 +197,7 @@ def parse_scifilename(filename):
         "filtercode": filtercode,
         "filterid": FILTERS.get(filtercode, None),
         "kind": "sci",
-        "suffix": "_".join(suffix_),
+        "suffix": "_".join(np.atleast_1d(suffix_))
     }
 
 
