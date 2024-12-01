@@ -56,7 +56,7 @@ go wherever you want to save the folder and then
 ```bash
 git clone https://github.com/MickaelRigault/ztfquery.git
 cd ztfquery
-poetry install
+pip install .
 ```
 
 ## Set your environment
