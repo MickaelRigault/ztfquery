@@ -361,8 +361,8 @@ def raw_path(
 
     """
     source = _source_to_location_(source)
-    #if imgtypecode == "b":
-    #    paddedfield = "000000"
+    if imgtypecode == "b":
+        paddedfield = "000000"
     
     filefracday = "".join([year + month + day + fracday])
     file_ = (
