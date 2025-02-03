@@ -1140,7 +1140,44 @@ def download_single_url(
 
     if filecheck:
         _test_file_(fileout, erasebad=erasebad, fromdl=True, write_hash=write_hash)
-        
+
+def test_url_exists(filename_url, session=None,cookies=None, **kwargs): 
+    """ 
+    Test if the file associated to the given url exist on remote IRSA server.
+
+    Parameters
+    ----------
+    filename_url : str 
+        IRSA url from `ztfquery.buildurl.filename_to_url` for example
+
+    session: requests.Session
+        session used to call the get method
+
+    Returns
+    -------
+        bool
+        True if file exists. False if status_code differs from 200.    
+    """
+    
+    # = Password and Username
+    if cookies is None:
+        # this attach the cookies to the session if given
+        # and the returned 'cookies' is None
+        cookies = get_cookie(session=session, update=False) 
+         
+    # - requests options
+    download_prop = {**dict(stream=False), **kwargs}
+    if cookies not in ["no_cookies"] and cookies is not None: # add cookies if needed
+        download_prop["cookies"] = cookies
+
+    request_fnc = "head" 
+    requests_or_session = requests if session is None else session
+
+    response = getattr(requests_or_session, request_fnc)(filename_url, **download_prop)
+    if response.status_code == 200 : 
+        return True
+    else : 
+        return False
 
 # =============== #
 #                 #
