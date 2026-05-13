@@ -167,7 +167,7 @@ def evolbar(timearray, data, ax=None, bottom=0,
                 bottom_ = 0
             else:
                 txtpad_ = np.ones(len(data_))*fontsize
-                txtpad_[~np.in1d(txtlocation,["out"])] = 0
+                txtpad_[~np.isin(txtlocation,["out"])] = 0
                 bottom_ = cdata[i-1]                    
             artbar_, txtlocation = _show_single_( ax, time_=timearray, 
                                                         data_=data_, bottom_=bottom_,

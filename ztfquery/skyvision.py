@@ -1985,7 +1985,7 @@ class CompletedLog(ZTFLog):
         )
 
         if expectedfields is not None:
-            bkgd_fields = expectedfields[~np.in1d(expectedfields, pfields.index)]
+            bkgd_fields = expectedfields[~np.isin(expectedfields, pfields.index)]
             not_wanted = pfields[~pfields.index.isin(expectedfields)]
         else:
             bkgd_fields, not_wanted = None, None

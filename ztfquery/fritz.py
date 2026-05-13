@@ -2172,7 +2172,7 @@ class FritzAccess( object ):
         """ get the name list of target that are in both """
         sample1 = self.get_sample(groupname_or_id_1)
         sample2 = self.get_sample(groupname_or_id_2)
-        return sample1.names[np.in1d(sample1.names, sample2.names)]
+        return sample1.names[np.isin(sample1.names, sample2.names)]
         
     def get_names(self, sample):
         """ """
@@ -2937,9 +2937,9 @@ class FritzGroups( object ):
 
     def get_groupid(self, which, checknickname=True, squeeze=True):
         """ """
-        flagin = np.in1d(self.data["name"], which)
+        flagin = np.isin(self.data["name"], which)
         if not np.any(flagin) and checknickname:
-            flagin = np.in1d(self.data["nickname"],which)
+            flagin = np.isin(self.data["nickname"],which)
 
         if not np.any(flagin):
             raise ValueError(f"Cannot parse the given group {which}")

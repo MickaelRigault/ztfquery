@@ -726,7 +726,7 @@ def test_files(
             ).T
             source_to_dl = ["irsa"]
             for source in source_to_dl:
-                source_dl = np.in1d(locations, [source])
+                source_dl = np.isin(locations, [source])
                 logger.info(
                     f"Downloading {len(source_dl[source_dl])} files from {source}"
                 )

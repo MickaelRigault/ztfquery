@@ -392,7 +392,7 @@ def get_field_centroid(fieldid, system="radec"):
         raise ValueError("unknown coordinate system %s select among: [radec / galactic / ecliptic]"%system)
     
     fieldid = np.atleast_1d(fieldid)
-    radec = np.asarray(FIELD_DATAFRAME[np.in1d(FIELD_DATAFRAME.index, fieldid)][syst].values)
+    radec = np.asarray(FIELD_DATAFRAME[np.isin(FIELD_DATAFRAME.index, fieldid)][syst].values)
     
     return radec
 
@@ -1159,8 +1159,8 @@ class PalomarPlanning( object):
             delay_stime, delay_ffrac = self.get_fields_observability(fieldid, date=delay_date,
                                                                     airmasslimit=airmasslimit, minobservability=minobservability,
                                                                     twilight=twilight, still_observablein=None)
-            fieldidstillin = ffrac[ffrac>0].index[np.in1d(ffrac[ffrac>0].index,delay_ffrac[delay_ffrac>0].index)]
-            flagstillin = np.in1d(ffrac.index,fieldidstillin)
+            fieldidstillin = ffrac[ffrac>0].index[np.isin(ffrac[ffrac>0].index,delay_ffrac[delay_ffrac>0].index)]
+            flagstillin = np.isin(ffrac.index,fieldidstillin)
             flag_good *= flagstillin[None,:]
             
         return [pandas.Series(np.sum(flag_good, axis=1), index=pandas.DatetimeIndex(nighttime.datetime)),

@@ -1248,7 +1248,7 @@ class ZTFQuery(ztftable._ZTFTable_, _ZTFDownloader_):
                     "cannot parse which %s: any, bad, notdl available" % which
                 )
 
-        flagin = np.in1d(all_local, actual_local)
+        flagin = np.isin(all_local, actual_local)
         return self.metatable[flagin if not invert else ~flagin]
 
     # =============== #
