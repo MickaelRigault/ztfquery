@@ -253,6 +253,7 @@ def get_local_path_from_pharos_urls(urls):
 
             local_url.append(os.path.join(
                 SEDMLOCALSOURCE, info['date'], base + info['sedmid'] + '_' + extension))
+            
     return local_url
 
 
@@ -283,12 +284,13 @@ def _download_sedm_data_from_url(url, fileout=None, return_filename=True, check_
                            cookies="no_cookies")
     if check_file:
         from astropy.io import fits
-        if '.fits' in fileout:
+        if fileout.endswith('.fits'):
             try:
                 _ = fits.getdata(fileout)
             except FileNotFoundError:
                 warnings.warn(f"[Errno 2] No such file or directory: {fileout}")
                 fileout = None
+                
     if return_filename:
         return fileout
 

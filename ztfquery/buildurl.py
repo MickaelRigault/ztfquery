@@ -2,7 +2,7 @@
 #
 
 
-""" Library to convert 'meta' information into URL assuming: 
+""" Library to convert 'meta' information into URL assuming:
 https://irsa.ipac.caltech.edu/docs/program_interface/ztf_metadata.html
 """
 import os
@@ -60,7 +60,7 @@ def get_rawfile_of_filename(filename, source="irsa"):
     return raw_path(source=source, **prop)
 
 
-def get_scifile_of_filename(filename, qid=None, source="irsa"):
+def get_scifile_of_filename(filename, qid=None, source="irsa", **kwargs):
     """ """
     parsing = parse_filename(filename)
     func_argument = [
@@ -76,7 +76,7 @@ def get_scifile_of_filename(filename, qid=None, source="irsa"):
     # work all the time
     prop = {
         k: str(parsing[k]) for k in func_argument if k not in ["qid", "paddedccdid"]
-    }
+    } | kwargs
     prop["paddedccdid"] = f"{parsing['ccdid']:02d}"
     if parsing["kind"] == "raw":
         if qid is None:
@@ -95,7 +95,7 @@ def parse_filename(filename):
     kind = filename_to_kind(filename)
     if kind is None:
         return {}
-    
+
     if kind == "cal":
         return parse_calfilename(filename)
     if kind == "raw":
@@ -110,8 +110,8 @@ def parse_filename(filename):
 def filename_to_kind(filename):
     """ """
     filesplit = os.path.basename(filename).split("_")
-    
-    
+
+
     if len(filesplit) == 6:
         if "_hifreq" in filename or "_bias" in filename:
             return "cal"
@@ -175,11 +175,11 @@ def parse_rawfilename(filename):
 def parse_scifilename(filename):
     """ """
     from .fields import ccdid_qid_to_rcid
-    
+
     _, filefracday, paddedfield, filtercode, ccd_, imgtypecode, qid_, *suffix_ = \
       os.path.basename( filename ).split("_")
     year, month, day, fracday = filefrac_to_year_monthday_fracday(filefracday)
-    
+
     ccdid = int(ccd_.replace("c", ""))
     qid = int(qid_.replace("q", ""))
     return {
@@ -363,7 +363,7 @@ def raw_path(
     source = _source_to_location_(source)
     if imgtypecode == "b":
         paddedfield = "000000"
-    
+
     filefracday = "".join([year + month + day + fracday])
     file_ = (
         "raw/"
