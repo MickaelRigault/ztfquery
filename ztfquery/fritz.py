@@ -13,7 +13,7 @@ from astropy.io import fits
 from .io import LOCALSOURCE, _load_id_
 FRITZSOURCE = os.path.join(LOCALSOURCE,"fritz")
 if not os.path.isdir(FRITZSOURCE):
-    os.mkdir(FRITZSOURCE)
+    os.makedirs(FRITZSOURCE, exist_ok=True)
 
     
 FID_TO_NAME = {1:"ztfg", 2:"ztfr", 3:"ztfi"}
