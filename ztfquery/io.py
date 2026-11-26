@@ -12,6 +12,7 @@ import numpy as np
 LOGIN_URL = "https://irsa.ipac.caltech.edu/account/signon/login.do"
 
 import base64
+from urllib.parse import quote_plus
 
 from configparser import ConfigParser
 from astropy.io import fits
@@ -882,8 +883,8 @@ def get_cookie(username=None, password=None, session=None, update=False):
     
     url = "%s?josso_cmd=login&josso_username=%s&josso_password=%s" % (
         LOGIN_URL,
-        username,
-        password,
+        quote_plus(username),
+        quote_plus(password),
     )
     if session is not None:
         _ = session.get(url) # this attach the cookies to the session
